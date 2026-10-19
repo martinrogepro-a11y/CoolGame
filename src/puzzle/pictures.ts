@@ -45,7 +45,7 @@ export const PICTURES: readonly Picture[] = [
   { id: 'strawberry', rows: ['.g.gg.g.', '..gggg..', '.rrrrrr.', 'rryrrrrr', 'rrrrryrr', '.rryrrr.', '..rrrr..', '...rr...'] },
   { id: 'owl', rows: ['b......b', 'bbbbbbbb', 'byybbyyb', 'byrbbryb', 'bbbyybbb', '.bbbbbb.', '.bpppb..', '..y..y..'] },
   { id: 'rocket', rows: ['....r....', '...rrr...', '...bbb...', '...bpb...', '...bbb...', '..rbbbr..', '.rrbbbrr.', '...yyy...', '....y....'] },
-  { id: 'star', rows: ['....y....', '...yyy...', '..yyyyy..', 'yyyyyyyyy', '.yyyyyyy.', '..yyyyy..', '.yyyyyyy.', '.yyy.yyy.', 'yy.....yy'] },
+  { id: 'lantern', rows: ['...bbb...', '..bbbbb..', '.byyyyyb.', '.byyyyyb.', '.byyryyb.', '.byyyyyb.', '.byyyyyb.', '..bbbbb..', '...bbb...'] },
   { id: 'umbrella', rows: ['....p....', '..ppppp..', '.ppppppp.', 'ppppppppp', 'p.p.b.p.p', '....b....', '....b....', '..b.b....', '...b.....'] },
   { id: 'castle', rows: ['b.b...b.b', 'bbb.y.bbb', 'bbbbbbbbb', 'bybbbbbyb', 'bbbbbbbbb', 'bbbbrbbbb', 'bbbrrrbbb', 'bbbrrrbbb', 'ggggggggg'] },
   { id: 'penguin', rows: ['...bbb...', '..bbbbb..', '.bb.b.bb.', '.bbbybbb.', 'bb.....bb', 'bb.....bb', '.b.....b.', '..b...b..', '.yy...yy.'] },
