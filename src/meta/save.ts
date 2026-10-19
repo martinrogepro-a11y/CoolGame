@@ -7,7 +7,7 @@ import { LANDMARKS, type Landmark } from './landmarks';
 
 const KEY = 'tessera.save.v1';
 
-export type MissionKind = 'deliver_color' | 'score' | 'weeks' | 'bridges' | 'runs' | 'combo';
+export type MissionKind = 'deliver_color' | 'score' | 'weeks' | 'bridges' | 'runs' | 'combo' | 'levels' | 'perfect';
 
 export interface Mission {
   id: string;
@@ -42,6 +42,9 @@ export interface SaveData {
   /** Current fresco and how many tiles of each material are already laid in it. */
   fresco: { idx: number; filled: number[] };
   frescoesDone: string[];
+  /** Puzzle levels: index of the next level to play, and stars per level (1 done, 3 perfect). */
+  puzzle: { next: number; stars: number[] };
+  hints: number;
 }
 
 export const FRESCO_REWARD = 100;
@@ -69,6 +72,8 @@ export function freshSave(): SaveData {
     gift: 0,
     fresco: { idx: 0, filled: [0, 0, 0, 0, 0] },
     frescoesDone: [],
+    puzzle: { next: 0, stars: [] },
+    hints: 3,
   };
 }
 
@@ -90,6 +95,8 @@ export function migrate(raw: unknown): SaveData {
     best: { ...(r.best ?? {}) },
     fresco: { idx: r.fresco?.idx ?? 0, filled: base.fresco.filled.map((_, i) => r.fresco?.filled?.[i] ?? 0) },
     frescoesDone: [...(r.frescoesDone ?? [])],
+    puzzle: { next: r.puzzle?.next ?? 0, stars: [...(r.puzzle?.stars ?? [])] },
+    hints: r.hints ?? base.hints,
     v: 1,
   };
 }
@@ -126,9 +133,15 @@ const MISSION_TEMPLATES: { kind: MissionKind; goals: number[]; reward: number }[
   { kind: 'combo', goals: [6, 10, 14], reward: 35 },
 ];
 
+const PUZZLE_MISSIONS: { kind: MissionKind; goals: number[]; reward: number }[] = [
+  { kind: 'levels', goals: [3, 5, 8], reward: 30 },
+  { kind: 'perfect', goals: [2, 3, 5], reward: 35 },
+];
+
 export function makeMissions(day: string): Mission[] {
   const rng = new Rng(hashString('missions' + day));
-  const kinds = rng.shuffle(MISSION_TEMPLATES.slice()).slice(0, 3);
+  // Two puzzle missions (the main mode) plus one from the endless mode.
+  const kinds = [...PUZZLE_MISSIONS, rng.pick(MISSION_TEMPLATES)];
   return kinds.map((t, k) => {
     const goal = rng.pick(t.goals);
     return {
@@ -263,8 +276,55 @@ export function applyRun(s: SaveData, stats: RunStats, district: string, daily: 
   return { fresco, earned, total, newBest, missionsDone: done, unlockedDistricts, revealed };
 }
 
+export interface LevelResult {
+  earned: number[];
+  total: number;
+  firstClear: boolean;
+  missionsDone: Mission[];
+  revealed: Landmark[];
+  unlockedDistricts: string[];
+}
+
+/**
+ * Rewards a solved puzzle level: tesserae from the picture's colours (half a tile per
+ * coloured cell, +50 % when perfect, less on replays), stars, streak and missions.
+ */
+export function applyLevel(s: SaveData, level: number, colors: number[], perfect: boolean, daily: boolean): LevelResult {
+  const before = s.lifetime;
+  const unlockedBefore = DISTRICTS.filter((d) => districtUnlocked(s, d.id)).map((d) => d.id);
+  const firstClear = daily ? !s.daily.played : (s.puzzle.stars[level] ?? 0) === 0;
+  const count = [0, 0, 0, 0, 0];
+  for (const c of colors) if (c < 5) count[c]++;
+  const k = (perfect ? 0.75 : 0.5) * (firstClear ? 1 : 0.3) * (s.purchases.patron ? 1.5 : 1);
+  const earned = count.map((n) => Math.round(n * k));
+  earned.forEach((n, i) => (s.tesserae[i] += n));
+  const total = earned.reduce((a, b) => a + b, 0);
+  s.lifetime += total;
+  s.runs++;
+  if (daily) {
+    s.daily.played = true;
+    s.daily.best = Math.max(s.daily.best, perfect ? 3 : 1);
+  } else {
+    s.puzzle.stars[level] = Math.max(s.puzzle.stars[level] ?? 0, perfect ? 3 : 1);
+    if (level >= s.puzzle.next) s.puzzle.next = level + 1;
+  }
+  touchStreak(s);
+  const done: Mission[] = [];
+  for (const m of s.missions.list) {
+    if (m.claimed || m.progress >= m.goal) continue;
+    if (m.kind === 'levels' || m.kind === 'runs') m.progress++;
+    if (m.kind === 'perfect' && perfect) m.progress++;
+    m.progress = Math.min(m.progress, m.goal);
+    if (m.progress >= m.goal) done.push(m);
+  }
+  if (s.lifetime >= 200 && !s.palettes.includes('night')) s.palettes.push('night');
+  const unlockedDistricts = DISTRICTS.filter((d) => districtUnlocked(s, d.id) && !unlockedBefore.includes(d.id)).map((d) => d.id);
+  const revealed = LANDMARKS.filter((l) => !l.premium && l.revealAt > before && l.revealAt <= s.lifetime);
+  return { earned, total, firstClear, missionsDone: done, revealed, unlockedDistricts };
+}
+
 /** Doubles the tesserae of a finished run (rewarded ad). */
-export function doubleRun(s: SaveData, r: RunResult) {
+export function doubleRun(s: SaveData, r: { earned: number[]; total: number }) {
   r.earned.forEach((n, i) => (s.tesserae[i] += n));
   s.lifetime += r.total;
   r.earned = r.earned.map((n) => n * 2);

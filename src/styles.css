@@ -1199,3 +1199,207 @@ button[disabled] {
   font-size: 13px;
   text-align: center;
 }
+
+/* ------------------------------------------------------------------ puzzle mode */
+
+.level-card {
+  margin-top: 3vh;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 14px;
+}
+
+.level-card canvas {
+  position: static;
+  width: 72px;
+  height: 72px;
+  flex: none;
+}
+
+.level-card .txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.level-card b {
+  font-size: 22px;
+}
+
+.level-card small {
+  color: var(--sub);
+  font-weight: 600;
+}
+
+.level-card .go {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.link.small {
+  font-size: 13px;
+  margin: 8px auto 0;
+}
+
+.duo {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.card.mini {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 14px;
+  min-width: 0;
+}
+
+.card.mini .ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  margin-bottom: 4px;
+}
+
+.card.mini .ic.gold {
+  background: var(--gold);
+  color: #2a1e05;
+}
+
+.card.mini small {
+  color: var(--sub);
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+
+.pz-title span {
+  font-size: 24px;
+}
+
+.pz-hint {
+  position: relative;
+}
+
+.pz-hint b {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--gold);
+  color: #2a1e05;
+  font-size: 12px;
+  display: grid;
+  place-items: center;
+}
+
+.pz-pairs svg {
+  width: 22px;
+  height: 22px;
+}
+
+.tool svg {
+  width: 24px;
+  height: 24px;
+}
+
+.modal.modal-low {
+  align-items: flex-end;
+  background: rgba(20, 18, 16, 0.12);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.stars {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.star {
+  font-style: normal;
+  font-size: 30px;
+  color: var(--line);
+  animation: pop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.star:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.star:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+.star.on {
+  color: var(--gold);
+}
+
+.levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 10px;
+}
+
+.lvl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 6px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-weight: 800;
+  font-size: 14px;
+  min-width: 0;
+}
+
+.lvl canvas {
+  position: static;
+  width: 100%;
+  max-width: 64px;
+  aspect-ratio: 1;
+  height: auto;
+}
+
+.lvl small {
+  color: var(--gold);
+  font-size: 11px;
+  min-height: 14px;
+}
+
+.lvl small svg {
+  width: 13px;
+  height: 13px;
+  color: var(--sub);
+}
+
+.lvl.current {
+  outline: 3px solid var(--ink);
+}
+
+.lvl.locked {
+  opacity: 0.55;
+}

@@ -17,9 +17,12 @@ import { IAP } from '../monetization/config';
 import { iap } from '../monetization/iap';
 import { drawFresco } from './frescoRender';
 import { t, type Key } from './i18n';
+import { levelAt, PuzzleMode } from './puzzleMode';
+import { drawPictureThumb } from '../puzzle/puzzleRender';
+import type { LevelResult } from '../meta/save';
 import { icon } from './icons';
 
-type Screen = 'home' | 'game' | 'city' | 'collection' | 'shop' | 'settings';
+type Screen = 'home' | 'game' | 'city' | 'collection' | 'shop' | 'settings' | 'puzzle' | 'levels' | 'endless';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const sq = (c: number) => `<i class="sq" style="background:${MATERIALS[c].color}"></i>`;
@@ -55,6 +58,7 @@ export class App {
   private hudCache: Record<string, string | number> = {};
   private pointer: number | null = null;
   private cityDrag: { x: number; y: number; px: number; py: number } | null = null;
+  private puzzle: PuzzleMode;
   private frescoDirty = true;
   private frescoToasted = false;
 
@@ -67,11 +71,23 @@ export class App {
     this.renderer = new Renderer(this.board, pal);
     this.city = new CityRenderer(this.cityCanvas, pal);
     this.homeIdx = Math.max(0, DISTRICTS.findIndex((d) => d.id === save.district));
+    this.puzzle = new PuzzleMode({
+      ui: this.ui,
+      canvas: this.board,
+      pal: () => this.renderer.pal,
+      colorblind: () => save.settings.colorblind,
+      toast: (m) => this.toast(m),
+      modal: (h) => this.modal(h),
+      closeModal: () => this.closeModal(),
+      goHome: () => this.go('home'),
+      afterRewards: (r) => this.levelToasts(r),
+    });
     this.applySettings();
     this.bindInput();
     window.addEventListener('resize', () => {
       this.renderer.resize();
       this.city.resize();
+      this.puzzle.resize();
     });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && this.screen === 'game' && this.sim?.state === 'playing') this.setPaused(true);
@@ -205,12 +221,15 @@ export class App {
 
   private go(screen: Screen) {
     this.screen = screen;
-    this.board.style.display = screen === 'game' ? 'block' : 'none';
+    if (screen !== 'puzzle') this.puzzle.stop();
+    this.board.style.display = screen === 'game' || screen === 'puzzle' ? 'block' : 'none';
     this.cityCanvas.style.display = screen === 'city' ? 'block' : 'none';
     this.hud = {};
     this.hudCache = {};
     switch (screen) {
-      case 'home': this.ui.innerHTML = this.homeHtml(); this.drawDistrictPreview(); this.drawFrescoes(); break;
+      case 'home': this.ui.innerHTML = this.homeHtml(); this.drawHomeLevel(); break;
+      case 'endless': this.ui.innerHTML = this.endlessHtml(); this.drawDistrictPreview(); this.drawFrescoes(); break;
+      case 'levels': this.puzzle.showLevels(); break;
       case 'game': this.ui.innerHTML = this.hudHtml(); this.bindHud(); break;
       case 'city': this.ui.innerHTML = this.cityHtml(); this.city.resize(); this.city.setCity(save.lifetime, save.built); this.drawThumbs(); break;
       case 'collection': this.ui.innerHTML = this.collectionHtml(); this.drawThumbs(); this.drawFrescoes(); break;
@@ -249,10 +268,23 @@ export class App {
   // ---------------------------------------------------------------- actions
 
   private async action(a: string, v: string) {
+    if (a.startsWith('pz-')) {
+      if (a === 'pz-play' || a === 'pz-daily') {
+        this.screen = 'puzzle';
+        this.board.style.display = 'block';
+        this.cityCanvas.style.display = 'none';
+      }
+      if (a === 'pz-levels') {
+        this.screen = 'levels';
+        this.board.style.display = 'none';
+      }
+      await this.puzzle.action(a, v);
+      return;
+    }
     switch (a) {
       case 'go': this.go(v as Screen); break;
-      case 'prev': this.homeIdx = (this.homeIdx + DISTRICTS.length - 1) % DISTRICTS.length; this.go('home'); break;
-      case 'next': this.homeIdx = (this.homeIdx + 1) % DISTRICTS.length; this.go('home'); break;
+      case 'prev': this.homeIdx = (this.homeIdx + DISTRICTS.length - 1) % DISTRICTS.length; this.go('endless'); break;
+      case 'next': this.homeIdx = (this.homeIdx + 1) % DISTRICTS.length; this.go('endless'); break;
       case 'play': {
         const d = DISTRICTS[this.homeIdx];
         if (!districtUnlocked(save, d.id)) return this.toast(t('locked', { n: d.unlockAt }));
@@ -468,6 +500,8 @@ export class App {
       if (this.tutorial >= 0) this.tickTutorial(dt);
       this.renderer.draw(sim, dt);
       this.updateHud();
+    } else if (this.screen === 'puzzle') {
+      this.puzzle.frame(dt);
     } else if (this.screen === 'city') {
       this.city.draw(dt);
     }
@@ -692,11 +726,59 @@ export class App {
     return t(`m_${m.kind}` as Key, { n: m.goal, c });
   }
 
-  private homeHtml(): string {
-    refreshDaily(save);
+  private levelCardHtml(): string {
+    const lv = levelAt(save.puzzle.next);
+    return `<button class="card level-card" data-a="pz-play" data-v="${save.puzzle.next}">
+        <canvas class="next-pic"></canvas>
+        <span class="txt"><small>${t('pz_next_up')}</small><b>${t('pz_level', { n: save.puzzle.next + 1 })}</b>
+        <small>${lv.n}×${lv.n} · ${t('pz_pairs', { n: lv.pairs.length })}</small></span>
+        <span class="go">${icon.play}</span></button>
+      <button class="link small" data-a="pz-levels">${t('pz_levels')}</button>`;
+  }
+
+  private drawHomeLevel() {
+    requestAnimationFrame(() => {
+      const c = this.ui.querySelector<HTMLCanvasElement>('canvas.next-pic');
+      if (!c) return;
+      const lv = levelAt(save.puzzle.next);
+      drawPictureThumb(c, lv.colors, lv.n, false, this.renderer.pal);
+    });
+  }
+
+  private levelToasts(r: LevelResult) {
+    for (const m of r.missionsDone) this.toast(`✓ ${this.missionText(m)}`);
+    for (const d of r.unlockedDistricts) this.toast(t('unlockedDistrict', { d: t(`d_${d}` as Key) }));
+    for (const l of r.revealed) this.toast(t('revealed', { l: t(`lm_${l.id}` as Key) }));
+  }
+
+  /** The endless "Current" mode: district picker, fresco in progress. */
+  private endlessHtml(): string {
     const d = DISTRICTS[this.homeIdx];
     const unlocked = districtUnlocked(save, d.id);
     const best = save.best[d.id] ?? 0;
+    return `
+      <div class="screen">
+        <div class="topbar">
+          <button class="icon-btn" data-a="go" data-v="home" aria-label="${t('home')}">${icon.back}</button>
+          <h2>${t('endless')}<br><small>${t('endless_d')}</small></h2>
+        </div>
+        <div class="district">
+          <button class="icon-btn" data-a="prev" aria-label="prev">${icon.left}</button>
+          <div class="card ${unlocked ? '' : 'locked'}">
+            <canvas class="preview"></canvas>
+            <span><h2>${t(`d_${d.id}` as Key)}</h2>
+            <small>${unlocked ? t('best', { n: best }) : `${icon.lock} ${t('locked', { n: d.unlockAt })}`}</small></span>
+          </div>
+          <button class="icon-btn" data-a="next" aria-label="next">${icon.right}</button>
+        </div>
+        <button class="big-btn" data-a="play" ${unlocked ? '' : 'disabled'}>${unlocked ? icon.play : icon.lock} ${t('play')}</button>
+        ${FRESCOES[save.fresco.idx] ? this.frescoCard(FRESCOES[save.fresco.idx], save.fresco.filled, '') : ''}
+        <p class="note">${t('endless_how')}</p>
+      </div>`;
+  }
+
+  private homeHtml(): string {
+    refreshDaily(save);
     const tiles = [0, 1, 2, 3, 3, 0, 1, 2, 2, 3, 0, 1]
       .map((c, k) => `<i style="background:${MATERIALS[c].color};animation-delay:${k * 40}ms"></i>`)
       .join('');
@@ -712,8 +794,7 @@ export class App {
           <div class="bar"><i style="width:${Math.round((m.progress / m.goal) * 100)}%"></i></div></div>${right}</div>`;
       })
       .join('');
-    const dd = dailyDistrict();
-    const daily = save.daily.played ? t('dailyDone', { n: save.daily.best }) : `${t(`d_${dd}` as Key)} · ${t('dailyNew')}`;
+    const daily = save.daily.played ? t('pz_dailyDone') : t('dailyNew');
     const gift = save.gift > 0
       ? `<div class="card gift"><span class="ic">${icon.gift}</span><b>${t('gift', { n: save.gift })}</b>
           <button class="btn" data-a="gift">${t('collect')}</button><button class="btn gold" data-a="gift2">${icon.video}×2</button></div>`
@@ -726,18 +807,11 @@ export class App {
           <button class="icon-btn" data-a="go" data-v="settings" aria-label="${t('settings')}">${icon.gear}</button>
         </div>
         <div class="logo"><div class="tiles">${tiles}</div><h1>TESSERA</h1><p>${t('tagline')}</p></div>
-        <div class="district">
-          <button class="icon-btn" data-a="prev" aria-label="prev">${icon.left}</button>
-          <div class="card ${unlocked ? '' : 'locked'}">
-            <canvas class="preview"></canvas>
-            <span><h2>${t(`d_${d.id}` as Key)}</h2>
-            <small>${unlocked ? t('best', { n: best }) : `${icon.lock} ${t('locked', { n: d.unlockAt })}`}</small></span>
-          </div>
-          <button class="icon-btn" data-a="next" aria-label="next">${icon.right}</button>
+        ${this.levelCardHtml()}
+        <div class="duo">
+          <button class="card mini" data-a="pz-daily"><span class="ic gold">${icon.calendar}</span><b>${t('daily')}</b><small>${esc(daily)}</small></button>
+          <button class="card mini" data-a="go" data-v="endless"><span class="ic">${icon.belt}</span><b>${t('endless')}</b><small>${t('endless_d')}</small></button>
         </div>
-        <button class="big-btn" data-a="play" ${unlocked ? '' : 'disabled'}>${unlocked ? icon.play : icon.lock} ${t('play')}</button>
-        <button class="card daily" data-a="daily"><span class="ic">${icon.calendar}</span><span><b>${t('daily')}</b><small>${esc(daily)}</small></span></button>
-        ${FRESCOES[save.fresco.idx] ? this.frescoCard(FRESCOES[save.fresco.idx], save.fresco.filled, '') : ''}
         ${gift}
         <div class="section-title">${t('missions')}</div>
         <div class="card" style="padding:0">${missions}</div>

@@ -1,6 +1,6 @@
 # TESSERA — Game Design & Business Document
 
-> *Trace des canaux. Livre les mosaïstes. Complète les fresques.*
+> *Relie les canaux. Révèle la mosaïque.*
 
 ## 1. Le pitch (et pourquoi pas un simple clone de Mini Metro)
 
@@ -21,6 +21,30 @@ Je l'ai gardée et poussée sur trois points.
 **Références assumées** : Mini Metro (pression qui monte, choix hebdomadaires), Mini Motorways (carte qui s'agrandit),
 2048 (une seule règle, apprise en 10 secondes), Townscaper (ville à contempler), Islanders (score qui construit), et
 les jeux « cozy » à collection (Neko Atsume) pour la boucle quotidienne.
+
+## 1 ter. Mode principal : puzzles de canaux (v0.3)
+
+Constat : le temps réel façon Mini Metro est profond mais stressant, et c'est un modèle de jeu payant. Les jeux
+mobiles gratuits qui rapportent le plus sont **à niveaux** (Candy Crush, Royal Match). Ils montrent une progression
+claire, se jouent en 2 minutes, et se monétisent avec des indices et des pubs entre les niveaux. On reprend donc la
+règle éprouvée du genre Flow Free et on y ajoute notre identité :
+
+- Chaque fontaine se relie à **son** atelier (même couleur). Les canaux ne se croisent pas, et **toutes les cases**
+  doivent être couvertes.
+- **Chaque niveau cache un dessin en pixel art** : une fois la grille remplie, les canaux se transforment en mosaïque
+  (baleine, renard, phare…). Récompense visuelle, collection et partage.
+- Les niveaux sont **générés à partir des images** (`src/puzzle/puzzle.ts`) : les canaux suivent les zones de couleur
+  du dessin. Le nombre de paires est calé sur la taille de grille (5×5 → 5 paires … 9×9 → 10 paires). Une image =
+  un niveau, et les albums suivants réutilisent les images avec de nouvelles dispositions.
+- **Parfait (3 étoiles)** : chaque canal tracé d'un seul geste, sans indice. **Indices** : 3 offerts, puis contre une
+  vidéo (plus tard achetables).
+- **Défi du jour** : le même puzzle pour tout le monde, choisi parmi les grandes grilles.
+- **Missions** orientées puzzle (résoudre N niveaux, N niveaux parfaits). L'ancien mode devient le **Mode Courant**
+  (sans fin, temps réel), pour ceux qui veulent de la pression ; il remplit les fresques.
+- Pubs : pas d'interstitiel avant le niveau 8, puis au plus 1 niveau sur 3 et 150 s minimum d'écart.
+
+À faire ensuite : un solveur pour garantir une solution unique, une courbe de difficulté mesurée sur de vrais joueurs,
+et plus d'images (une image = un niveau).
 
 ## 1 bis. Pourquoi des canaux et des fresques (v0.2)
 

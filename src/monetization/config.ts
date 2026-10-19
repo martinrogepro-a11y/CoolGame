@@ -19,8 +19,8 @@ export const ADS = {
     android: { interstitial: 'ca-app-pub-XXXXXXXX/ANDROID_INTERSTITIAL', rewarded: 'ca-app-pub-XXXXXXXX/ANDROID_REWARDED' },
   },
   /** Interstitial pacing: never during the first runs, never twice in a row, at most every N seconds. */
-  minLifetimeRuns: 3,
-  runsBetween: 2,
+  minLifetimeRuns: 8,
+  runsBetween: 3,
   minSecondsBetween: 150,
 };
 

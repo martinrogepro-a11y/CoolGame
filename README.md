@@ -1,7 +1,8 @@
 # Tessera
 
-Jeu mobile (Android et iOS) minimaliste : on trace des canaux qui transportent des tuiles de mosaïque. Chaque partie
-complète des fresques et fait grandir une ville qu'on garde d'une partie à l'autre.
+Jeu mobile (Android et iOS) minimaliste de puzzles de canaux : relie chaque fontaine à son atelier sans croiser les
+canaux et couvre toute la grille, alors les canaux se transforment en un dessin en mosaïque. Les niveaux font grandir
+une ville persistante. Un second mode, « Courant », est un jeu de gestion de canaux en temps réel.
 
 Le design complet (mécaniques, rétention, monétisation, plan de lancement) est dans **[docs/GAME_DESIGN.md](docs/GAME_DESIGN.md)**.
 
@@ -43,7 +44,8 @@ npm run ios        # build + sync + ouvre Xcode (nécessite un Mac)
 
 ```
 src/
-  game/        simulation déterministe (sim.ts), terrain, contenu, rendu Canvas
+  puzzle/      puzzles de canaux : images, générateur de niveaux, état de jeu, rendu
+  game/        mode Courant : simulation déterministe (sim.ts), terrain, contenu, rendu Canvas
   city/        ville isométrique procédurale
   meta/        sauvegarde, missions, série, défi du jour, monuments
   monetization/ AdMob (pubs + consentement), RevenueCat (achats), règles de cadence
