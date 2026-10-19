@@ -159,6 +159,10 @@ export class Scene {
   private motes: { x: number; y: number; r: number; v: number; ph: number }[] = [];
   private bubbles: { x: number; y: number; r: number; v: number }[] = [];
   private fish: { x: number; y: number; v: number; s: number }[] = [];
+  /** Lantern of the harbour lighthouse (for its sweeping beam). */
+  private lighthouse: { x: number; y: number } | null = null;
+  /** Sea level at the foot of the harbour monument. */
+  private seaY = 0;
 
   draw(g: CanvasRenderingContext2D, w: number, h: number, dpr: number, board: { x: number; y: number; size: number }, time: number) {
     const t = THEMES[this.theme];
@@ -193,6 +197,7 @@ export class Scene {
     this.drawHaze(g, t, w, board.y, time);
     if (this.near) g.drawImage(this.near, dx, 0, w, h);
     for (const f of this.flags) this.drawFlag(g, t, f.x + dx, f.y, f.len, f.dir, time);
+    if (this.theme === 'harbour') this.drawHarbourLife(g, t, w, h, time);
     if (t.birds) this.drawBirds(g, t, w, board.y, time);
     if (t.underwater) this.drawDeepLife(g, w, h, time);
     this.drawMotes(g, t, w, h, time);
@@ -225,26 +230,29 @@ export class Scene {
     far.g.globalAlpha = 1;
     this.far = far.c;
 
-    // Near layer: towers rising behind the terrace, and the pillar under it.
+    // Near layer: the place's architecture rising behind the terrace, then the pillar under it.
     const near = mk();
     const g = near.g;
-    const slots = [rng.range(0.06, 0.2), rng.range(0.3, 0.42), rng.range(0.58, 0.7), rng.range(0.8, 0.95)];
-    for (const s of slots) {
-      if (rng.next() < 0.2) continue;
-      const cx = s * w;
-      const height = rng.range(board.y * 0.3, board.y * 0.62) * this.scale;
-      this.tower(g, t, cx, board.y + 10, rng.range(22, 40), rng.range(22, 40), height, rng, true);
-    }
-    // Bridge or stair linking two towers, a recurring motif of the genre.
-    if (rng.next() < 0.7) {
-      const y = board.y - rng.range(30, board.y * 0.25);
-      const x0 = slots[1] * w, x1 = slots[2] * w;
-      g.fillStyle = t.mid;
-      g.fillRect(x0, y, x1 - x0, 8);
-      g.fillStyle = t.light;
-      g.fillRect(x0, y - 3, x1 - x0, 3);
-      g.fillStyle = t.dark;
-      for (let x = x0 + 10; x < x1 - 6; x += 18) g.fillRect(x, y + 8, 3, 10);
+    this.lighthouse = null;
+    this.seaY = 0;
+    const slots = [rng.range(0.06, 0.18), rng.range(0.3, 0.42), rng.range(0.58, 0.7), rng.range(0.82, 0.95)];
+    const base = board.y + 10;
+    const tall = (k: number) => rng.range(board.y * 0.3, board.y * 0.62) * this.scale * k;
+    if (this.theme === 'harbour') {
+      // A striped lighthouse on one side, harbour houses with tiled roofs on the others.
+      const lhSlot = rng.next() < 0.5 ? 0 : 3;
+      slots.forEach((sx, k) => {
+        if (k === lhSlot) return;
+        this.harbourHouse(g, t, sx * w, base, rng.range(24, 34), rng.range(24, 34), tall(0.55), rng);
+      });
+      this.drawLighthouse(g, t, slots[lhSlot] * w, base, tall(1.15));
+    } else {
+      for (const sx of slots) {
+        if (rng.next() < 0.2) continue;
+        this.tower(g, t, sx * w, base, rng.range(22, 40), rng.range(22, 40), tall(1), rng, true);
+      }
+      if (this.theme === 'garden')
+        for (let k = 0; k < 5; k++) this.tree(g, t, ((k + rng.range(0.2, 0.8)) / 5) * w, board.y + 4, rng.range(16, 26));
     }
     if (board.size > 0) this.pillar(g, t, w, h, board);
     else {
@@ -279,8 +287,19 @@ export class Scene {
         const rows = Math.max(1, Math.floor(hh / 40));
         for (let row = 0; row < rows; row++) {
           const v = (row + 0.35) / rows;
-          windowOn(g, (u, vv) => onLeft(p!, u, vv), 0.5, v, 0.22, 0.16 / rows * 1.6, t.dark);
-          windowOn(g, (u, vv) => onRight(p!, u, vv), 0.5, v, 0.2, 0.16 / rows * 1.6, 'rgba(0,0,0,0.22)');
+          const lit = this.theme === 'night' && rng.next() < 0.6;
+          windowOn(g, (u, vv) => onLeft(p!, u, vv), 0.5, v, 0.22, 0.16 / rows * 1.6, lit ? '#FFE2A3' : t.dark);
+          windowOn(g, (u, vv) => onRight(p!, u, vv), 0.5, v, 0.2, 0.16 / rows * 1.6, lit && rng.next() < 0.7 ? '#F6CB84' : 'rgba(0,0,0,0.22)');
+        }
+        // Market stalls: striped awnings around the ground floor.
+        if (k === 0 && this.theme === 'market') {
+          const n = 6;
+          for (let sI = 0; sI < n; sI++) {
+            const col = sI % 2 ? t.accent : t.dark;
+            const q = (face: (u: number, v: number) => Pt): Pt[] => [face(sI / n, 0.16), face((sI + 1) / n, 0.16), face((sI + 1) / n, 0.24), face(sI / n, 0.24)];
+            poly(g, q((u, vv) => onLeft(p!, u, vv)), col);
+            poly(g, q((u, vv) => onRight(p!, u, vv)), sI % 2 ? '#E9D6C8' : t.dark);
+          }
         }
         // Cornice between tiers.
         poly(g, [p.Lt, p.Ft, [p.Ft[0], p.Ft[1] + 3], [p.Lt[0], p.Lt[1] + 3]], t.light);
@@ -393,6 +412,24 @@ export class Scene {
       g.closePath();
       g.fill();
     }
+    // The harbour monument stands in the sea; elsewhere it sinks into haze.
+    if (t.water) {
+      const seaY = top + 70;
+      this.seaY = seaY;
+      const sea = g.createLinearGradient(0, seaY, 0, h);
+      sea.addColorStop(0, t.water);
+      sea.addColorStop(1, t.dark);
+      g.fillStyle = sea;
+      g.fillRect(0, seaY, w, h - seaY);
+      g.fillStyle = 'rgba(255,255,255,0.35)';
+      g.fillRect(0, seaY, w, 2);
+      // Foam ring where the pillar meets the water.
+      g.fillStyle = 'rgba(255,255,255,0.55)';
+      g.beginPath();
+      g.ellipse(px + pw / 2 + 6, seaY + 3, pw / 2 + 18, 5, 0, 0, Math.PI * 2);
+      g.fill();
+      return;
+    }
     // Haze swallowing the pillar.
     const fog = g.createLinearGradient(0, top + 40, 0, h);
     fog.addColorStop(0, t.haze + '0)');
@@ -401,7 +438,146 @@ export class Scene {
     g.fillRect(0, top + 40, w, h - top - 40);
   }
 
+  /** A harbour house: an iso block with a pitched, tiled roof and shuttered windows. */
+  private harbourHouse(g: CanvasRenderingContext2D, t: Theme, cx: number, by: number, l: number, r: number, h: number, rng: Rng) {
+    const p = prism(g, t, cx, by, l, r, h);
+    const rows = Math.max(1, Math.floor(h / 34));
+    for (let row = 0; row < rows; row++) {
+      const v = (row + 0.4) / rows;
+      windowOn(g, (u, vv) => onLeft(p, u, vv), 0.35, v, 0.2, 0.12, t.dark);
+      windowOn(g, (u, vv) => onLeft(p, u, vv), 0.72, v, 0.2, 0.12, t.dark);
+      windowOn(g, (u, vv) => onRight(p, u, vv), 0.5, v, 0.22, 0.12, 'rgba(0,0,0,0.22)');
+    }
+    // Door on the left face.
+    poly(g, [onLeft(p, 0.45, 0), onLeft(p, 0.62, 0), onLeft(p, 0.62, 0.22 / rows), onLeft(p, 0.45, 0.22 / rows)], t.dark);
+    // Pitched roof: ridge parallel to the right face.
+    const mid = (a: Pt, b: Pt): Pt => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const rh = Math.min(l, r) * 0.7;
+    const m1 = mid(p.Lt, p.Ft), m2 = mid(p.Bt, p.Rt);
+    const r1: Pt = [m1[0], m1[1] - rh], r2: Pt = [m2[0], m2[1] - rh];
+    const roofLight = rng.next() < 0.5 ? t.accent : '#E8A48F';
+    poly(g, [p.Lt, r1, r2, p.Bt], roofLight);
+    poly(g, [p.Lt, p.Ft, r1], t.mid);
+    poly(g, [r1, p.Ft, p.Rt, r2], '#C8705E');
+  }
+
+  /** A tapered, red-and-white striped lighthouse with a glowing lantern room. */
+  private drawLighthouse(g: CanvasRenderingContext2D, t: Theme, cx: number, by: number, h: number) {
+    const r0 = 20, r1 = 14;
+    const bands = 6;
+    for (let k = 0; k < bands; k++) {
+      const y0 = by - (h * k) / bands, y1 = by - (h * (k + 1)) / bands;
+      const ra = r0 + (r1 - r0) * (k / bands), rb = r0 + (r1 - r0) * ((k + 1) / bands);
+      const grad = g.createLinearGradient(cx - ra, 0, cx + ra, 0);
+      const red = k % 2 === 1;
+      grad.addColorStop(0, red ? '#F49A86' : '#FFF6EE');
+      grad.addColorStop(0.55, red ? '#E0705C' : '#F2E3D6');
+      grad.addColorStop(1, red ? '#B4524A' : '#C9B8AE');
+      g.fillStyle = grad;
+      g.beginPath();
+      g.moveTo(cx - ra, y0);
+      g.ellipse(cx, y0, ra, ra * 0.35, 0, Math.PI, 0, true);
+      g.lineTo(cx + rb, y1);
+      g.ellipse(cx, y1, rb, rb * 0.35, 0, 0, Math.PI, true);
+      g.closePath();
+      g.fill();
+    }
+    const top = by - h;
+    // Gallery, lantern room and cap.
+    g.fillStyle = t.dark;
+    g.beginPath();
+    g.ellipse(cx, top, r1 + 6, (r1 + 6) * 0.35, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#FFE9B4';
+    g.fillRect(cx - 9, top - 18, 18, 18);
+    g.fillStyle = t.dark;
+    g.fillRect(cx - 1, top - 18, 2, 18);
+    g.beginPath();
+    g.ellipse(cx, top - 18, 12, 10, 0, Math.PI, 0);
+    g.fill();
+    g.fillRect(cx - 1, top - 34, 2, 8);
+    this.lighthouse = { x: cx, y: top - 9 };
+  }
+
+  /** A round garden tree with three-tone foliage. */
+  private tree(g: CanvasRenderingContext2D, t: Theme, x: number, by: number, r: number) {
+    g.fillStyle = 'rgba(0,0,0,0.08)';
+    g.beginPath();
+    g.ellipse(x + 3, by, r * 0.9, r * 0.3, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#8C6E58';
+    g.fillRect(x - 2, by - r * 0.9, 4, r * 0.9);
+    g.fillStyle = t.dark;
+    g.beginPath();
+    g.arc(x + r * 0.15, by - r * 1.25, r, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = t.mid;
+    g.beginPath();
+    g.arc(x - r * 0.1, by - r * 1.35, r * 0.85, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = t.light;
+    g.beginPath();
+    g.arc(x - r * 0.35, by - r * 1.6, r * 0.38, 0, Math.PI * 2);
+    g.fill();
+  }
+
   // ---------------------------------------------------------------- living details
+
+  /** Harbour life: the lighthouse beam sweeping, waves, sailboats and buoys on the sea. */
+  private drawHarbourLife(g: CanvasRenderingContext2D, t: Theme, w: number, h: number, time: number) {
+    if (this.lighthouse) {
+      const { x, y } = this.lighthouse;
+      const phase = Math.sin(time * 0.9);
+      const dir = phase >= 0 ? 1 : -1;
+      const len = 170 * Math.abs(phase);
+      const grad = g.createLinearGradient(x, y, x + dir * len, y);
+      grad.addColorStop(0, 'rgba(255,240,200,0.55)');
+      grad.addColorStop(1, 'rgba(255,240,200,0)');
+      g.fillStyle = grad;
+      g.beginPath();
+      g.moveTo(x, y - 3);
+      g.lineTo(x + dir * len, y - 22);
+      g.lineTo(x + dir * len, y + 18);
+      g.lineTo(x, y + 3);
+      g.closePath();
+      g.fill();
+    }
+    if (!this.seaY) return;
+    const sea = this.seaY;
+    // Waves: short white strokes drifting.
+    g.strokeStyle = 'rgba(255,255,255,0.45)';
+    g.lineWidth = 1.5;
+    g.lineCap = 'round';
+    const rng = new Rng(this.seed * 31 + 7);
+    g.beginPath();
+    for (let k = 0; k < 18; k++) {
+      const y = sea + 10 + rng.next() * (h - sea - 14);
+      const x = ((rng.next() * w + time * (6 + rng.next() * 8)) % (w + 40)) - 20;
+      const len = 6 + rng.next() * 12;
+      g.moveTo(x, y);
+      g.quadraticCurveTo(x + len / 2, y - 3, x + len, y);
+    }
+    g.stroke();
+    // Two sailboats crossing slowly, bobbing on the swell.
+    for (let k = 0; k < 2; k++) {
+      const speed = 9 + k * 5;
+      const x = ((time * speed + k * w * 0.55) % (w + 80)) - 40;
+      const y = sea + 22 + k * 30 + Math.sin(time * 1.6 + k) * 1.5;
+      if (y < h - 10) sailboat(g, x, y, 24 + k * 4, t.boat, k ? t.accent : t.dark, Math.sin(time * 1.6 + k) * 0.05);
+    }
+    // Buoys.
+    for (let k = 0; k < 2; k++) {
+      const x = w * (0.2 + k * 0.62);
+      const y = sea + 16 + k * 10 + Math.sin(time * 2 + k * 2) * 2;
+      g.fillStyle = '#E0705C';
+      g.beginPath();
+      g.arc(x, y, 4, Math.PI, 0);
+      g.fill();
+      g.fillStyle = '#FFF6EE';
+      g.fillRect(x - 4, y, 8, 2.5);
+    }
+  }
+
 
   private drawHaze(g: CanvasRenderingContext2D, t: Theme, w: number, boardY: number, time: number) {
     for (let k = 0; k < 3; k++) {
@@ -523,4 +699,40 @@ export class Scene {
       g.stroke();
     }
   }
+}
+
+/** A small sailboat seen from the side, rocking by `tilt` radians. */
+function sailboat(g: CanvasRenderingContext2D, x: number, y: number, len: number, hull: string, sail: string, tilt: number) {
+  g.save();
+  g.translate(x, y);
+  g.rotate(tilt);
+  g.fillStyle = 'rgba(0,0,0,0.12)';
+  g.beginPath();
+  g.ellipse(0, 5, len * 0.6, 2.5, 0, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = hull;
+  g.beginPath();
+  g.moveTo(-len / 2, -4);
+  g.lineTo(len / 2, -4);
+  g.lineTo(len / 2 - 6, 3);
+  g.lineTo(-len / 2 + 6, 3);
+  g.closePath();
+  g.fill();
+  g.fillStyle = '#6D5B45';
+  g.fillRect(-1, -24, 2, 20);
+  g.fillStyle = sail;
+  g.beginPath();
+  g.moveTo(1, -24);
+  g.lineTo(13, -6);
+  g.lineTo(1, -6);
+  g.closePath();
+  g.fill();
+  g.fillStyle = '#FFF6EE';
+  g.beginPath();
+  g.moveTo(-1, -20);
+  g.lineTo(-10, -6);
+  g.lineTo(-1, -6);
+  g.closePath();
+  g.fill();
+  g.restore();
 }
