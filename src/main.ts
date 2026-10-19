@@ -1,3 +1,4 @@
+import '@fontsource-variable/fraunces';
 import './styles.css';
 import { App as CapApp } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
@@ -8,6 +9,7 @@ import { loadSave, persist, save } from './meta/save';
 import { ads } from './monetization/ads';
 import { iap } from './monetization/iap';
 import { App } from './ui/app';
+import { scheduleReminders } from './ui/puzzleMode';
 
 async function boot() {
   await loadSave();
@@ -24,6 +26,8 @@ async function boot() {
   setTimeout(() => {
     void ads.init();
     void iap.init();
+    // Reminders are rescheduled on every launch so they always point at tomorrow.
+    if (save.settings.notifications) void scheduleReminders();
   }, 300);
 }
 

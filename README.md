@@ -5,13 +5,16 @@ canaux et couvre toute la grille, alors les canaux se transforment en un dessin 
 une ville persistante. Un second mode, « Courant », est un jeu de gestion de canaux en temps réel.
 
 Le design complet (mécaniques, rétention, monétisation, plan de lancement) est dans **[docs/GAME_DESIGN.md](docs/GAME_DESIGN.md)**.
+Tout ce qui fait une appli de jeu « premium », dans le jeu et autour (store, analytics, live ops, qualité), est dans
+**[docs/PREMIUM.md](docs/PREMIUM.md)**.
 
 ## Démarrer
 
 ```bash
 npm install
 npm run dev        # jeu dans le navigateur : http://localhost:5173 (ouvrable depuis ton téléphone sur le même Wi-Fi)
-npm test           # tests de la simulation, de la progression et de l'équilibrage
+npm test           # tests : simulation, progression, unicité des 40 niveaux, équilibrage
+npm run levels     # régénère les niveaux à solution unique (src/puzzle/levels.json)
 npm run build      # build de production dans dist/
 ```
 

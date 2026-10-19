@@ -1,6 +1,6 @@
 /**
  * Pixel pictures hidden in puzzle levels. Legend: r clay, b slate, g jade, y saffron,
- * p plum, . stone background. Level order = difficulty order (grid grows).
+ * p plum, . stone background. Order does not matter: chapters pick pictures by id.
  */
 
 export interface Picture {
@@ -28,6 +28,26 @@ export const PICTURES: readonly Picture[] = [
   { id: 'butterfly', rows: ['pp....pp', 'pyp..pyp', 'pppbbppp', '.ppbbpp.', '.ppbbpp.', 'pppbbppp', 'pyp..pyp', 'pp....pp'] },
   { id: 'turtle', rows: ['.........', '...ggg...', '..ggygg..', '.ggyggyg.', 'yggggggg.', '.ggygggg.', '..ggggg..', '.y.....y.', '.........'] },
   { id: 'balloon', rows: ['..rrrrr..', '.rryyyrr.', 'rrryyyrrr', 'rrryyyrrr', '.rryyyrr.', '..ryyyr..', '...b.b...', '...bbb...', '...bbb...'] },
+  { id: 'tulip', rows: ['......', '.p.p.p', '.ppppp', '..ppp.', '...g..', '.ggg..'] },
+  { id: 'apple', rows: ['...g..', '..g...', '.rrrr.', 'rrrrrr', 'rrrrrr', '.rr.r.'] },
+  { id: 'snail', rows: ['......', '.yyy..', 'yy.y..', 'yyy.y.', '.yyyyr', 'rrrrrr'] },
+  { id: 'leaf', rows: ['....gg', '..gggg', '.gggyg', '.ggygg', '.gygg.', 'y.gg..'] },
+  { id: 'anchor', rows: ['...b...', '..b.b..', '...b...', '.bbbbb.', '...b...', 'b..b..b', '.bbbbb.'] },
+  { id: 'shell', rows: ['...p...', '..ppp..', '.pyppy.', 'ppypypp', 'pypppyp', '.ppppp.', '..ppp..'] },
+  { id: 'crab', rows: ['r.....r', 'rr...rr', '.r.b.r.', '..rrr..', '.rrrrr.', 'rrrrrrr', 'r.r.r.r'] },
+  { id: 'jellyfish', rows: ['..ppp..', '.ppppp.', 'ppbpbpp', 'ppppppp', '.p.p.p.', 'p.p.p.p', '.p.p.p.'] },
+  { id: 'octopus', rows: ['..ppp..', '.ppppp.', '.pyppy.', '.ppppp.', 'p.ppp.p', '.p.p.p.', 'p..p..p'] },
+  { id: 'island', rows: ['...gg...', '..g..g..', '...gg...', '....r...', '....r...', '..yyyy..', '.yyyyyy.', 'bbbbbbbb'] },
+  { id: 'cup', rows: ['..y.y..', '...y...', '.rrrrr.', '.rrrrrr', '.rrrr.r', '.rrrrr.', 'bbbbbbb'] },
+  { id: 'cake', rows: ['...rr...', '...yy...', '.pppppp.', 'pppppppp', 'yyyyyyyy', 'pppppppp', 'yyyyyyyy', 'bbbbbbbb'] },
+  { id: 'pear', rows: ['....g...', '...gg...', '...yy...', '..yyyy..', '..yyyy..', '.yyyyyy.', '.yyyyyy.', '..yyyy..'] },
+  { id: 'teapot', rows: ['...yy...', '..bbbb..', 'b.bbbbbb', 'bbbbbb.b', '.bbbbb.b', '.bbbbbbb', '.bbbbbb.', '..yyyy..'] },
+  { id: 'strawberry', rows: ['.g.gg.g.', '..gggg..', '.rrrrrr.', 'rryrrrrr', 'rrrrryrr', '.rryrrr.', '..rrrr..', '...rr...'] },
+  { id: 'owl', rows: ['b......b', 'bbbbbbbb', 'byybbyyb', 'byrbbryb', 'bbbyybbb', '.bbbbbb.', '.bpppb..', '..y..y..'] },
+  { id: 'rocket', rows: ['....r....', '...rrr...', '...bbb...', '...bpb...', '...bbb...', '..rbbbr..', '.rrbbbrr.', '...yyy...', '....y....'] },
+  { id: 'star', rows: ['....y....', '...yyy...', '..yyyyy..', 'yyyyyyyyy', '.yyyyyyy.', '..yyyyy..', '.yyyyyyy.', '.yyy.yyy.', 'yy.....yy'] },
+  { id: 'umbrella', rows: ['....p....', '..ppppp..', '.ppppppp.', 'ppppppppp', 'p.p.b.p.p', '....b....', '....b....', '..b.b....', '...b.....'] },
+  { id: 'castle', rows: ['b.b...b.b', 'bbb...bbb', 'bbb.r.bbb', 'bbbbbbbbb', 'bbbbbbbbb', 'bbb...bbb', 'bbb...bbb', 'bbb...bbb', 'ggggggggg'] },
   { id: 'penguin', rows: ['...bbb...', '..bbbbb..', '.bb.b.bb.', '.bbbybbb.', 'bb.....bb', 'bb.....bb', '.b.....b.', '..b...b..', '.yy...yy.'] },
 ];
 
@@ -36,4 +56,10 @@ const CODE: Record<string, number> = { r: 0, b: 1, g: 2, y: 3, p: 4, '.': 5 };
 /** Colour index per cell (0-4 materials, 5 stone background). */
 export function pictureColors(p: Picture): number[] {
   return p.rows.join('').split('').map((ch) => CODE[ch] ?? 5);
+}
+
+export function pictureById(id: string): Picture {
+  const p = PICTURES.find((x) => x.id === id);
+  if (!p) throw new Error(`unknown picture ${id}`);
+  return p;
 }

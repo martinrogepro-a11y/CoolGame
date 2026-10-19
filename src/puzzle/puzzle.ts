@@ -32,7 +32,7 @@ export interface Level {
 
 const MIN_PATH = 3;
 
-function neighbors(i: number, n: number): number[] {
+export function neighbors(i: number, n: number): number[] {
   const x = i % n, y = Math.floor(i / n);
   const res: number[] = [];
   if (y > 0) res.push(i - n);
@@ -189,10 +189,27 @@ function coverRegion(region: number[], n: number, rng: Rng, mergeChance: number,
 }
 
 /** Most frequent picture colour along a path (stone only wins if nothing else is there). */
-function pathColor(path: number[], colors: number[]): number {
+export function pathColor(path: number[], colors: number[]): number {
   const count = [0, 0, 0, 0, 0, 0];
   for (const c of path) count[colors[c]] += colors[c] === 5 ? 0.8 : 1;
   return count.indexOf(Math.max(...count));
+}
+
+/** Each canal gets its own hue, preferring the material it mostly covers so the reveal feels continuous. */
+export function assignHues(paths: number[][], layout: number[]): Pair[] {
+  const used = new Set<number>();
+  const pairs = paths.map((p) => ({ c: pathColor(p, layout), hue: -1, a: p[0], b: p[p.length - 1] }));
+  for (const pr of pairs)
+    if (pr.c < 5 && !used.has(pr.c)) {
+      pr.hue = pr.c;
+      used.add(pr.c);
+    }
+  for (const pr of pairs)
+    if (pr.hue < 0) {
+      pr.hue = PUZZLE_COLORS.findIndex((_, h) => !used.has(h));
+      used.add(pr.hue);
+    }
+  return pairs;
 }
 
 /** Target number of pairs per grid size, close to the classic puzzles of this genre. */
@@ -204,16 +221,16 @@ export function targetPairs(n: number): number {
  * Builds a level: the grid is covered with paths that follow the picture's colour
  * regions as much as possible, then split or joined until the pair count suits the size.
  */
-export function generateLevel(pic: Picture, seed = 1): Level {
+export function generateLevel(pic: Picture, seed = 1, opts: { target?: number; attempts?: number } = {}): Level {
   const n = pic.rows.length;
   const colors = pictureColors(pic);
   const layout = puzzleColors(colors, n);
-  const target = targetPairs(n);
+  const target = opts.target ?? targetPairs(n);
   const all = Array.from({ length: n * n }, (_, i) => i);
   const adjacent = (a: number, b: number) => neighbors(a, n).includes(b);
   let best: number[][] | null = null;
   let bestScore = -Infinity;
-  for (let attempt = 0; attempt < 120; attempt++) {
+  for (let attempt = 0; attempt < (opts.attempts ?? 120); attempt++) {
     const rng = new Rng(seed * 7919 + attempt * 104729 + 1);
     const paths = coverRegion(all, n, rng, 0, layout);
     if (!paths) continue;
@@ -261,18 +278,25 @@ export function generateLevel(pic: Picture, seed = 1): Level {
     }
   }
   if (!best) throw new Error(`could not generate level ${pic.id}`);
-  // Each canal gets its own hue, preferring the material it mostly covers so the reveal feels continuous.
-  const used = new Set<number>();
-  const pairs = best.map((p) => ({ c: pathColor(p, layout), hue: -1, a: p[0], b: p[p.length - 1] }));
-  for (const pr of pairs) if (pr.c < 5 && !used.has(pr.c)) {
-    pr.hue = pr.c;
-    used.add(pr.c);
-  }
-  for (const pr of pairs) if (pr.hue < 0) {
-    pr.hue = PUZZLE_COLORS.findIndex((_, h) => !used.has(h));
-    used.add(pr.hue);
-  }
+  const pairs = assignHues(best, layout);
   return { id: pic.id, n, colors, pairs, solution: best };
+}
+
+/**
+ * True if some canal runs alongside itself (a 2x2 block of one canal, or a cell touching a
+ * non-consecutive cell of the same canal). Such layouts almost always allow a second solution.
+ */
+export function selfTouching(lv: Level): boolean {
+  const n = lv.n;
+  for (const path of lv.solution) {
+    const pos = new Map(path.map((c, i) => [c, i]));
+    for (let i = 0; i < path.length; i++)
+      for (const nb of neighbors(path[i], n)) {
+        const j = pos.get(nb);
+        if (j !== undefined && Math.abs(j - i) > 1) return true;
+      }
+  }
+  return false;
 }
 
 // ------------------------------------------------------------------ play state

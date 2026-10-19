@@ -29,7 +29,7 @@ export interface SaveData {
   built: string[];
   palettes: string[];
   palette: string;
-  settings: { sound: boolean; haptics: boolean; lang: 'auto' | 'en' | 'fr'; colorblind: boolean };
+  settings: { sound: boolean; music: boolean; haptics: boolean; lang: 'auto' | 'en' | 'fr'; colorblind: boolean; notifications: boolean };
   streak: { count: number; best: number; lastDay: string };
   daily: { day: string; played: boolean; best: number };
   missions: { day: string; list: Mission[] };
@@ -43,7 +43,16 @@ export interface SaveData {
   fresco: { idx: number; filled: number[] };
   frescoesDone: string[];
   /** Puzzle levels: index of the next level to play, and stars per level (1 done, 3 perfect). */
-  puzzle: { next: number; stars: number[] };
+  puzzle: {
+    next: number;
+    stars: number[];
+    /** Stars gathered towards the next chest. */
+    chest: number;
+    /** Chapters whose album reward was claimed. */
+    albums: string[];
+  };
+  /** One-time prompts already shown (store review, notification permission). */
+  asked: { review: boolean; notifications: boolean };
   hints: number;
 }
 
@@ -61,7 +70,7 @@ export function freshSave(): SaveData {
     built: [],
     palettes: ['paper'],
     palette: 'paper',
-    settings: { sound: true, haptics: true, lang: 'auto', colorblind: false },
+    settings: { sound: true, music: true, haptics: true, lang: 'auto', colorblind: false, notifications: false },
     streak: { count: 0, best: 0, lastDay: '' },
     daily: { day: '', played: false, best: 0 },
     missions: { day: '', list: [] },
@@ -72,7 +81,8 @@ export function freshSave(): SaveData {
     gift: 0,
     fresco: { idx: 0, filled: [0, 0, 0, 0, 0] },
     frescoesDone: [],
-    puzzle: { next: 0, stars: [] },
+    puzzle: { next: 0, stars: [], chest: 0, albums: [] },
+    asked: { review: false, notifications: false },
     hints: 3,
   };
 }
@@ -95,7 +105,13 @@ export function migrate(raw: unknown): SaveData {
     best: { ...(r.best ?? {}) },
     fresco: { idx: r.fresco?.idx ?? 0, filled: base.fresco.filled.map((_, i) => r.fresco?.filled?.[i] ?? 0) },
     frescoesDone: [...(r.frescoesDone ?? [])],
-    puzzle: { next: r.puzzle?.next ?? 0, stars: [...(r.puzzle?.stars ?? [])] },
+    puzzle: {
+      next: r.puzzle?.next ?? 0,
+      stars: [...(r.puzzle?.stars ?? [])],
+      chest: r.puzzle?.chest ?? 0,
+      albums: [...(r.puzzle?.albums ?? [])],
+    },
+    asked: { ...base.asked, ...(r.asked ?? {}) },
     hints: r.hints ?? base.hints,
     v: 1,
   };
@@ -276,7 +292,33 @@ export function applyRun(s: SaveData, stats: RunStats, district: string, daily: 
   return { fresco, earned, total, newBest, missionsDone: done, unlockedDistricts, revealed };
 }
 
+export const CHEST_STARS = 15;
+
+export interface ChestReward {
+  hints: number;
+  tesserae: number;
+  palette?: string;
+}
+
+/** Opens the star chest: hints and tesserae, sometimes a palette not owned yet. */
+export function openChest(s: SaveData, seed: number): ChestReward | null {
+  if (s.puzzle.chest < CHEST_STARS) return null;
+  s.puzzle.chest -= CHEST_STARS;
+  const rng = new Rng(seed);
+  const reward: ChestReward = { hints: 1 + rng.int(0, 2), tesserae: 40 + rng.int(0, 4) * 10 };
+  const missing = ['blueprint', 'dune', 'sakura', 'night'].filter((p) => !s.palettes.includes(p) && p !== 'blueprint');
+  if (missing.length && rng.next() < 0.35) {
+    reward.palette = rng.pick(missing);
+    s.palettes.push(reward.palette);
+  }
+  s.hints += reward.hints;
+  grantSpread(s, reward.tesserae);
+  return reward;
+}
+
 export interface LevelResult {
+  /** Stars added to the chest by this level (only improvements count). */
+  starsGained: number;
   earned: number[];
   total: number;
   firstClear: boolean;
@@ -293,6 +335,7 @@ export function applyLevel(s: SaveData, level: number, colors: number[], perfect
   const before = s.lifetime;
   const unlockedBefore = DISTRICTS.filter((d) => districtUnlocked(s, d.id)).map((d) => d.id);
   const firstClear = daily ? !s.daily.played : (s.puzzle.stars[level] ?? 0) === 0;
+  let starsGained = 0;
   const count = [0, 0, 0, 0, 0];
   for (const c of colors) if (c < 5) count[c]++;
   const k = (perfect ? 0.75 : 0.5) * (firstClear ? 1 : 0.3) * (s.purchases.patron ? 1.5 : 1);
@@ -302,10 +345,17 @@ export function applyLevel(s: SaveData, level: number, colors: number[], perfect
   s.lifetime += total;
   s.runs++;
   if (daily) {
+    if (!s.daily.played) {
+      starsGained = perfect ? 3 : 1;
+      s.puzzle.chest += starsGained;
+    }
     s.daily.played = true;
     s.daily.best = Math.max(s.daily.best, perfect ? 3 : 1);
   } else {
-    s.puzzle.stars[level] = Math.max(s.puzzle.stars[level] ?? 0, perfect ? 3 : 1);
+    const prev = s.puzzle.stars[level] ?? 0;
+    s.puzzle.stars[level] = Math.max(prev, perfect ? 3 : 1);
+    starsGained = s.puzzle.stars[level] - prev;
+    s.puzzle.chest += starsGained;
     if (level >= s.puzzle.next) s.puzzle.next = level + 1;
   }
   touchStreak(s);
@@ -320,7 +370,7 @@ export function applyLevel(s: SaveData, level: number, colors: number[], perfect
   if (s.lifetime >= 200 && !s.palettes.includes('night')) s.palettes.push('night');
   const unlockedDistricts = DISTRICTS.filter((d) => districtUnlocked(s, d.id) && !unlockedBefore.includes(d.id)).map((d) => d.id);
   const revealed = LANDMARKS.filter((l) => !l.premium && l.revealAt > before && l.revealAt <= s.lifetime);
-  return { earned, total, firstClear, missionsDone: done, revealed, unlockedDistricts };
+  return { starsGained, earned, total, firstClear, missionsDone: done, revealed, unlockedDistricts };
 }
 
 /** Doubles the tesserae of a finished run (rewarded ad). */
@@ -361,5 +411,14 @@ export function build(s: SaveData, l: Landmark): boolean {
   if (!canBuild(s, l)) return false;
   l.cost.forEach((c, i) => (s.tesserae[i] -= c));
   s.built.push(l.id);
+  return true;
+}
+
+/** Grants a chapter album reward once all its pictures are solved. Returns false if already claimed. */
+export function claimAlbum(s: SaveData, id: string, reward: { hints: number; palette?: string }): boolean {
+  if (s.puzzle.albums.includes(id)) return false;
+  s.puzzle.albums.push(id);
+  s.hints += reward.hints;
+  if (reward.palette && !s.palettes.includes(reward.palette)) s.palettes.push(reward.palette);
   return true;
 }

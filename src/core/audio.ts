@@ -104,9 +104,88 @@ function quantised(key: string): number | null {
   return slot * EIGHTH;
 }
 
+// ------------------------------------------------------------------ ambient music
+
+/** Slow generative pad (Imaj7 - vi7 - IVmaj7 - V6 in C) with sparse pentatonic bells, very quiet. */
+const CHORDS = [
+  [0, 4, 7, 11],
+  [-3, 0, 4, 7],
+  [-7, -3, 0, 4],
+  [-5, -1, 2, 7],
+];
+let musicOn = false;
+let musicTimer: ReturnType<typeof setTimeout> | null = null;
+let musicGain: GainNode | null = null;
+let chordIdx = 0;
+
+function semi(n: number, base = BASE_HZ / 2): number {
+  return base * Math.pow(2, n / 12);
+}
+
+function padChord() {
+  if (!ctx || !musicGain || !musicOn) return;
+  const t = ctx.currentTime + 0.05;
+  const dur = 8;
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 900;
+  lp.connect(musicGain);
+  for (const n of CHORDS[chordIdx % CHORDS.length]) {
+    for (const det of [-4, 4]) {
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = semi(n);
+      o.detune.value = det;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.05, t + 2.5);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1.5);
+      o.connect(g).connect(lp);
+      o.start(t);
+      o.stop(t + dur + 1.6);
+    }
+  }
+  // Two or three soft bells over the chord.
+  for (let k = 0; k < 3; k++) {
+    if (Math.random() < 0.35) continue;
+    const when = t + 1 + Math.random() * (dur - 2);
+    const deg = PENTA[Math.floor(Math.random() * PENTA.length)] + 12;
+    pluck(semi(deg + 12), when, 0.035, 2.4);
+  }
+  chordIdx++;
+  musicTimer = setTimeout(padChord, dur * 1000 - 400);
+}
+
+export const music = {
+  start() {
+    if (musicOn || !enabled) return;
+    if (!ensure() || !ctx || !master) return;
+    musicOn = true;
+    musicGain = ctx.createGain();
+    musicGain.gain.value = 0.9;
+    musicGain.connect(master);
+    padChord();
+  },
+  stop() {
+    musicOn = false;
+    if (musicTimer) clearTimeout(musicTimer);
+    musicTimer = null;
+    if (musicGain && ctx) {
+      const g = musicGain;
+      g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.6);
+      setTimeout(() => g.disconnect(), 3000);
+    }
+    musicGain = null;
+  },
+  get playing() {
+    return musicOn;
+  },
+};
+
 export const audio = {
   setEnabled(v: boolean) {
     enabled = v;
+    if (!v) music.stop();
     if (!v && ctx) void ctx.suspend();
     if (v && ctx) void ctx.resume();
   },
@@ -169,6 +248,36 @@ export const audio = {
   tap() {
     if (!ensure() || !ctx) return;
     click(ctx.currentTime, 2600, 0.08);
+  },
+  /** Water rushing into a finished canal: a filtered noise swell under the note. */
+  flow(color: number, index: number) {
+    if (!ensure() || !ctx || !master || !noiseBuf) return;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    src.playbackRate.value = 0.6;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(400, t);
+    bp.frequency.exponentialRampToValueAtTime(1600, t + 0.35);
+    bp.Q.value = 1.2;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.18, t + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+    src.connect(bp).connect(g).connect(master);
+    src.start(t);
+    src.stop(t + 0.5);
+    const deg = [0, 2, 4, 1, 3][color % 5] + index;
+    pluck(noteHz(deg), t + 0.12, 0.2, 1.4);
+  },
+  /** The mosaic appearing: a rising pentatonic run, then a chord. */
+  reveal(duration = 1.4) {
+    if (!ensure() || !ctx) return;
+    const t = ctx.currentTime + 0.05;
+    const steps = 10;
+    for (let k = 0; k < steps; k++) pluck(noteHz(k + 2), t + (k / steps) * duration, 0.12 + k * 0.006, 1.2);
+    [0, 4, 7, 12].forEach((d) => pluck(BASE_HZ * Math.pow(2, d / 12), t + duration + 0.05, 0.12, 2.6));
   },
   reward() {
     if (!ensure() || !ctx) return;

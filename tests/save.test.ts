@@ -112,3 +112,23 @@ describe('frescoes', () => {
     }
   });
 });
+
+describe('stars, chest and albums', () => {
+  it('fills the chest with new stars only and opens it', async () => {
+    const { applyLevel, openChest, CHEST_STARS, claimAlbum } = await import('../src/meta/save');
+    const s = freshSave();
+    const colors = Array(25).fill(0);
+    expect(applyLevel(s, 0, colors, false, false).starsGained).toBe(1);
+    expect(applyLevel(s, 0, colors, true, false).starsGained).toBe(2);
+    expect(applyLevel(s, 0, colors, true, false).starsGained).toBe(0);
+    expect(s.puzzle.chest).toBe(3);
+    expect(openChest(s, 1)).toBeNull();
+    s.puzzle.chest = CHEST_STARS + 2;
+    const hints = s.hints;
+    const r = openChest(s, 1)!;
+    expect(s.hints).toBe(hints + r.hints);
+    expect(s.puzzle.chest).toBe(2);
+    expect(claimAlbum(s, 'garden', { hints: 3 })).toBe(true);
+    expect(claimAlbum(s, 'garden', { hints: 3 })).toBe(false);
+  });
+});

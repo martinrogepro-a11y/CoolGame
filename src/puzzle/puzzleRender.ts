@@ -38,6 +38,14 @@ export class PuzzleRenderer {
   reveal = 0;
   /** Water pulse running along freshly connected canals. */
   private pulses: { k: number; t: number }[] = [];
+  /** Water fill progress (0..1) of each linked canal, keyed by its two ends. */
+  private flow = new Map<number, number>();
+  /** Name shown above the board when the picture is revealed. */
+  title = '';
+  /** Cells of a canal to demonstrate with a ghost finger (first level only). */
+  demo: number[] | null = null;
+  /** 0..1 sweep of light across the revealed mosaic. */
+  glint = 0;
 
   constructor(private canvas: HTMLCanvasElement, pal: Palette) {
     this.g = canvas.getContext('2d', { alpha: false })!;
@@ -105,19 +113,34 @@ export class PuzzleRenderer {
     const rv = this.reveal;
     if (rv < 1) {
       g.globalAlpha = 1 - Math.min(1, rv * 1.6);
-      this.drawCanals(st);
+      this.drawCanals(st, dt);
       this.drawEndpoints(st);
+      if (this.demo) this.drawDemo(st.n, this.demo);
       g.globalAlpha = 1;
     }
     if (rv > 0) this.drawPicture(st, rv);
     g.restore();
+    if (this.title && rv > 0.55) {
+      g.save();
+      g.globalAlpha = Math.min(1, (rv - 0.55) / 0.3);
+      g.fillStyle = p.ink;
+      g.textAlign = 'center';
+      g.textBaseline = 'bottom';
+      g.font = `600 ${Math.round(Math.min(34, this.cell * 0.8))}px 'Fraunces Variable', Georgia, serif`;
+      g.fillText(this.title, this.cw / 2, this.oy - 14 + (1 - g.globalAlpha) * 8);
+      g.restore();
+    }
   }
 
   private center(i: number, n: number): [number, number] {
     return [(i % n) + 0.5, Math.floor(i / n) + 0.5];
   }
 
-  private drawCanals(st: PuzzleState) {
+  /**
+   * Canals: while unlinked they are a dry stone bed tinted with their colour; once linked,
+   * water rushes in from the fountain (dash animation along the path) and then shimmers.
+   */
+  private drawCanals(st: PuzzleState, dt: number) {
     const g = this.g;
     const n = st.n;
     g.lineCap = 'round';
@@ -130,55 +153,126 @@ export class PuzzleRenderer {
         else g.lineTo(x, y);
       });
     };
-    // Banks first, so crossings of separate canals never look joined.
+    const live = new Set<number>();
+    st.paths.forEach((path, k) => {
+      if (path.length < 2) return;
+      const key = path[0] * 1000 + path[path.length - 1];
+      live.add(key);
+      if (st.isConnected(k)) this.flow.set(key, Math.min(1, (this.flow.get(key) ?? 0) + dt * (2.6 / Math.max(1, path.length / 4))));
+      else this.flow.delete(key);
+    });
+    for (const key of [...this.flow.keys()]) if (!live.has(key)) this.flow.delete(key);
+
+    // Banks first, so separate canals never look joined.
     st.paths.forEach((path) => {
       if (path.length < 2) return;
       trace(path);
       g.strokeStyle = this.pal.canalEdge;
-      g.lineWidth = 0.56;
+      g.lineWidth = 0.58;
       g.stroke();
     });
     st.paths.forEach((path, k) => {
       if (path.length < 2) return;
       const col = colorOf(st.pathColor(k));
+      const flow = this.flow.get(path[0] * 1000 + path[path.length - 1]) ?? 0;
       trace(path);
+      // Dry bed with a coloured guide line.
+      g.save();
+      g.globalAlpha *= 0.3;
       g.strokeStyle = col;
       g.lineWidth = 0.4;
       g.stroke();
-      // Moving water highlights.
-      g.strokeStyle = 'rgba(255,255,255,0.35)';
-      g.lineWidth = 0.06;
-      g.setLineDash([0.12, 0.38]);
-      g.lineDashOffset = -this.time * 1.2;
+      g.restore();
+      g.strokeStyle = col;
+      g.lineWidth = 0.1;
       g.stroke();
-      g.setLineDash([]);
+      if (flow > 0) {
+        const len = path.length - 1;
+        g.setLineDash([len * flow + 0.001, len + 1]);
+        g.lineDashOffset = 0;
+        g.strokeStyle = col;
+        g.lineWidth = 0.42;
+        g.stroke();
+        g.setLineDash([]);
+        if (flow < 1) {
+          // Foamy water front.
+          const pos = flow * len;
+          const i0 = Math.floor(pos);
+          const f = pos - i0;
+          const [ax, ay] = this.center(path[i0], n);
+          const [bx, by] = this.center(path[Math.min(len, i0 + 1)], n);
+          g.fillStyle = 'rgba(255,255,255,0.75)';
+          g.beginPath();
+          g.arc(ax + (bx - ax) * f, ay + (by - ay) * f, 0.13, 0, Math.PI * 2);
+          g.fill();
+        } else {
+          g.strokeStyle = 'rgba(255,255,255,0.32)';
+          g.lineWidth = 0.06;
+          g.setLineDash([0.1, 0.4]);
+          g.lineDashOffset = -this.time * 1.1;
+          g.stroke();
+          g.setLineDash([]);
+        }
+      }
       if (st.drawingPath === k) {
         const [hx, hy] = this.center(path[path.length - 1], n);
         g.save();
         g.fillStyle = col;
-        g.globalAlpha *= 0.25;
+        g.globalAlpha *= 0.22;
         g.beginPath();
-        g.arc(hx, hy, 0.48, 0, Math.PI * 2);
+        g.arc(hx, hy, 0.5, 0, Math.PI * 2);
         g.fill();
         g.restore();
       }
     });
-    // Celebration pulse along newly connected canals.
+    // Short highlight on canals laid by a hint.
     for (let j = this.pulses.length - 1; j >= 0; j--) {
       const pu = this.pulses[j];
-      pu.t += 1 / 60;
+      pu.t += dt;
       const path = st.paths[pu.k];
       if (!path || pu.t > 1) {
         this.pulses.splice(j, 1);
         continue;
       }
-      const at = Math.min(path.length - 1, Math.floor(pu.t * path.length));
-      const [x, y] = this.center(path[at], n);
-      g.fillStyle = 'rgba(255,255,255,0.7)';
-      g.beginPath();
-      g.arc(x, y, 0.16 * (1 - pu.t) + 0.06, 0, Math.PI * 2);
-      g.fill();
+      trace(path);
+      g.strokeStyle = `rgba(255,255,255,${0.5 * (1 - pu.t)})`;
+      g.lineWidth = 0.5;
+      g.stroke();
     }
+  }
+
+  /** A translucent finger tracing the first canal, looping until the player touches the board. */
+  private drawDemo(n: number, path: number[]) {
+    const g = this.g;
+    const cyc = (this.time % 2.8) / 2.2;
+    if (cyc > 1) return;
+    const pos = cyc * (path.length - 1);
+    const i0 = Math.floor(pos);
+    const f = pos - i0;
+    g.save();
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(40,40,46,0.18)';
+    g.lineWidth = 0.22;
+    g.beginPath();
+    for (let k = 0; k <= i0; k++) {
+      const [x, y] = this.center(path[k], n);
+      if (k === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    const [ax, ay] = this.center(path[i0], n);
+    const [bx, by] = this.center(path[Math.min(path.length - 1, i0 + 1)], n);
+    const hx = ax + (bx - ax) * f, hy = ay + (by - ay) * f;
+    g.lineTo(hx, hy);
+    g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    g.strokeStyle = 'rgba(40,40,46,0.55)';
+    g.lineWidth = 0.04;
+    g.beginPath();
+    g.arc(hx + 0.08, hy + 0.12, 0.2, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+    g.restore();
   }
 
   private drawEndpoints(st: PuzzleState) {
@@ -268,6 +362,17 @@ export class PuzzleRenderer {
       g.fill();
       g.fillStyle = 'rgba(255,255,255,0.22)';
       g.fillRect(-s / 2 + 0.1, -s / 2 + 0.1, s * 0.4, s * 0.12);
+      // A band of light sweeps diagonally across the finished mosaic.
+      if (this.glint > 0 && this.glint < 1) {
+        const d = this.glint * (2 * n + 4) - 2 - (x + y);
+        const a = Math.max(0, 1 - Math.abs(d) / 1.4) * 0.55;
+        if (a > 0) {
+          g.fillStyle = `rgba(255,255,255,${a})`;
+          g.beginPath();
+          g.roundRect(-s / 2, -s / 2, s, s, 0.12);
+          g.fill();
+        }
+      }
       g.restore();
     }
   }

@@ -17,9 +17,11 @@ import { IAP } from '../monetization/config';
 import { iap } from '../monetization/iap';
 import { drawFresco } from './frescoRender';
 import { t, type Key } from './i18n';
-import { levelAt, PuzzleMode } from './puzzleMode';
+import { levelAt, PuzzleMode, scheduleReminders } from './puzzleMode';
+import { notifications } from '../core/services';
 import { drawPictureThumb } from '../puzzle/puzzleRender';
-import type { LevelResult } from '../meta/save';
+import { CHEST_STARS, type LevelResult } from '../meta/save';
+import { chapterOf } from '../puzzle/chapters';
 import { icon } from './icons';
 
 type Screen = 'home' | 'game' | 'city' | 'collection' | 'shop' | 'settings' | 'puzzle' | 'levels' | 'endless';
@@ -382,8 +384,15 @@ export class App {
       }
       case 'restore': await iap.restore(); this.go('shop'); break;
       case 'toggle': {
-        const k = v as 'sound' | 'haptics' | 'colorblind';
+        const k = v as 'sound' | 'music' | 'haptics' | 'colorblind' | 'notifications';
         save.settings[k] = !save.settings[k];
+        if (k === 'notifications') {
+          save.asked.notifications = true;
+          if (save.settings.notifications) {
+            save.settings.notifications = await notifications.enable();
+            if (save.settings.notifications) await scheduleReminders();
+          } else await notifications.disable();
+        }
         persist();
         this.applySettings();
         this.go('settings');
@@ -727,13 +736,18 @@ export class App {
   }
 
   private levelCardHtml(): string {
-    const lv = levelAt(save.puzzle.next);
-    return `<button class="card level-card" data-a="pz-play" data-v="${save.puzzle.next}">
+    const next = save.puzzle.next;
+    const lv = levelAt(next);
+    const { chapter, ci, li } = chapterOf(next);
+    const chest = Math.min(100, Math.round((save.puzzle.chest / CHEST_STARS) * 100));
+    return `<button class="card level-card" data-a="pz-play" data-v="${next}">
         <canvas class="next-pic"></canvas>
-        <span class="txt"><small>${t('pz_next_up')}</small><b>${t('pz_level', { n: save.puzzle.next + 1 })}</b>
-        <small>${lv.n}×${lv.n} · ${t('pz_pairs', { n: lv.pairs.length })}</small></span>
+        <span class="txt"><small>${t('pz_chapter')} ${['I', 'II', 'III', 'IV'][ci] ?? ci + 1} · ${t(`ch_${chapter.id}` as Key)}</small><b>${t('pz_level', { n: next + 1 })}</b>
+        <small>${lv.n}×${lv.n} · ${li + 1}/${chapter.pictures.length}</small></span>
         <span class="go">${icon.play}</span></button>
-      <button class="link small" data-a="pz-levels">${t('pz_levels')}</button>`;
+      <button class="card chest-row ${save.puzzle.chest >= CHEST_STARS ? 'ready' : ''}" data-a="pz-levels">
+        <span class="ic">${icon.gift}</span><span class="txt"><b>${t('pz_journey')}</b><span class="bar"><i style="width:${chest}%"></i></span></span>
+        <small>${Math.min(save.puzzle.chest, CHEST_STARS)}/${CHEST_STARS} ★</small></button>`;
   }
 
   private drawHomeLevel() {
@@ -984,7 +998,7 @@ export class App {
 
   private settingsHtml(): string {
     const s = save.settings;
-    const tog = (k: 'sound' | 'haptics' | 'colorblind', label: Key) =>
+    const tog = (k: 'sound' | 'music' | 'haptics' | 'colorblind' | 'notifications', label: Key) =>
       `<div class="setting"><span>${t(label)}</span><button class="toggle ${s[k] ? 'on' : ''}" data-a="toggle" data-v="${k}" aria-pressed="${s[k]}"></button></div>`;
     const seg = (['auto', 'en', 'fr'] as const).map((l) => `<button class="${s.lang === l ? 'on' : ''}" data-a="lang" data-v="${l}">${l === 'auto' ? 'Auto' : l.toUpperCase()}</button>`).join('');
     return `
@@ -995,7 +1009,9 @@ export class App {
         </div>
         <div class="card" style="padding:0 14px">
           ${tog('sound', 'sound')}
+          ${tog('music', 'music')}
           ${tog('haptics', 'haptics')}
+          ${tog('notifications', 'notifSetting')}
           ${tog('colorblind', 'colorblind')}
           <div class="setting"><span>${t('language')}</span><div class="seg">${seg}</div></div>
           <div class="setting"><span>${t('privacy')}</span><button class="btn" data-a="privacy">›</button></div>

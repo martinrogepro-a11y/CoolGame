@@ -22,6 +22,19 @@ Je l'ai gardée et poussée sur trois points.
 2048 (une seule règle, apprise en 10 secondes), Townscaper (ville à contempler), Islanders (score qui construit), et
 les jeux « cozy » à collection (Neko Atsume) pour la boucle quotidienne.
 
+## 1 quater. Version premium (v0.4)
+
+Voir **[PREMIUM.md](PREMIUM.md)** pour le détail. En bref :
+
+- **40 niveaux à solution unique**, vérifiés par un solveur exact, avec une difficulté graduée par chapitre.
+- **Le voyage** : 4 chapitres-albums (Jardin, Port, Marché, Nuit) de 10 dessins chacun. Compléter un album donne
+  des indices et une palette.
+- **Coffre d'étoiles** (15 ★) et étiquette « Difficile » sur les niveaux durs.
+- **Sensation de jeu** : l'eau coule dans le canal une fois relié, puis la cérémonie de révélation (tuiles, notes,
+  reflet de lumière, nom du dessin en serif). Doigt fantôme au premier niveau.
+- **Autour du jeu** : partage du défi du jour façon Wordle, notifications locales (avec une pré-permission), demande
+  d'avis au bon moment, musique d'ambiance générative, typographie Fraunces.
+
 ## 1 ter. Mode principal : puzzles de canaux (v0.3)
 
 Constat : le temps réel façon Mini Metro est profond mais stressant, et c'est un modèle de jeu payant. Les jeux
