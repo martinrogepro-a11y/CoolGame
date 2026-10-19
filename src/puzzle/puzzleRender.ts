@@ -104,11 +104,26 @@ export class PuzzleRenderer {
     g.translate(this.ox, this.oy);
     g.scale(this.cell, this.cell);
 
-    // Board: a stone slab with soft cells.
-    g.fillStyle = 'rgba(0,0,0,0.06)';
-    g.beginPath();
-    g.roundRect(-0.12, -0.06, n + 0.24, n + 0.3, 0.3);
-    g.fill();
+    // Board: a mosaic inlaid in the square, a band of coloured tesserae around a stone slab.
+    const bw = 0.34;
+    g.fillStyle = 'rgba(0,0,0,0.1)';
+    g.fillRect(-bw, -bw + 0.08, n + bw * 2, n + bw * 2);
+    g.fillStyle = this.bs.slab;
+    g.fillRect(-bw, -bw, n + bw * 2, n + bw * 2);
+    const per = 3;
+    const ts = 1 / per;
+    const tess = this.bs.tess;
+    for (let k = 0; k < n * per + 2; k++) {
+      const u = -bw + 0.03 + k * ts * ((n + bw * 2 - 0.06) / (n + 2 / per));
+      const s = ts * 0.78;
+      const col = tess[k % tess.length];
+      g.fillStyle = col;
+      g.fillRect(u, -bw + 0.04, s, s);
+      g.fillRect(u, n + bw - 0.04 - s, s, s);
+      g.fillStyle = tess[(k + 2) % tess.length];
+      g.fillRect(-bw + 0.04, u, s, s);
+      g.fillRect(n + bw - 0.04 - s, u, s, s);
+    }
     g.fillStyle = this.bs.slab;
     g.beginPath();
     g.roundRect(-0.12, -0.12, n + 0.24, n + 0.24, 0.3);

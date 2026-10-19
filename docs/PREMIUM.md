@@ -1,6 +1,6 @@
 # Tessera : le niveau « premium »
 
-Ce document liste ce qui distingue les meilleurs jeux mobiles (Two Dots, Royal Match, Monument Valley, I Love Hue,
+Ce document liste ce qui distingue les meilleurs jeux mobiles (Two Dots, Royal Match, Townscaper, I Love Hue,
 Wordle, Alto's Odyssey) et ce que Tessera en fait. ✅ = fait dans le code, ⏳ = à faire (ordre de priorité indiqué).
 
 ## 1. Le jeu lui-même : qualité des niveaux
@@ -36,20 +36,23 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
 - ✅ **Musique d'ambiance générative** (nappes douces et cloches, façon Alto) et sons synthétisés : aucun fichier
   audio, aucune licence, et la musique ne tourne jamais en boucle à l'identique.
 - ✅ 5 palettes (Papier, Nuit, Sakura, Dune, Plan bleu).
-- ✅ **Un monument par chapitre** (`src/puzzle/scene.ts`), inspiré des règles visuelles de Monument Valley sans
-  le copier :
-  - une palette de 2 à 3 teintes voisines par lieu, chaque volume ombré clair / moyen / foncé selon sa face ;
-  - des tours en vraie projection isométrique (dômes, flèches, créneaux, ruines), une passerelle, un grand soleil,
-    un ciel en dégradé ;
-  - de la vie discrète : drapeaux qui ondulent, oiseaux, poussières de lumière, bancs de brume, et sous la mer
-    des rayons de lumière, des bulles et des poissons.
-  - Jardin menthe et pêche, Port turquoise et corail, Marché corail, Nuit violet et rose, Cité engloutie
-    sarcelle profond.
-  - **Le plateau devient la terrasse du monument** (socle, pilier d'arches qui plonge dans la brume), mais reste à
-    plat et vu de dessus : la lisibilité du puzzle passe avant tout. De petits bateaux (des poissons sous la mer)
-    naviguent dans les canaux reliés.
-  - Le décor du chapitre en cours sert aussi de fond à l'écran d'accueil : l'univers devient l'identité de l'appli.
-  - Tout est procédural et mis en cache : aucun coût d'illustration.
+- ✅ **Une identité à nous : un village de canaux méditerranéen en mosaïque** (`src/puzzle/scene.ts`). On prend
+  aux meilleurs ce qui marche (l'échelle douce de Townscaper, les canaux de Venise, les azulejos de Lisbonne), sans
+  copier Monument Valley : pas de tours géantes ni de grand soleil, des maisons basses à hauteur d'homme.
+  - des palettes chaudes et variées par lieu, chaque volume ombré par la même lumière, toits de tuiles à pignon,
+    volets, jardinières, cheminées ;
+  - **le plateau est la place du village** : une mosaïque incrustée dans les pavés, bordée de tesselles aux
+    couleurs du lieu, avec un quai et de l'eau devant ;
+  - **chaque lieu se reconnaît au premier coup d'œil** :
+    - Jardin : cottages, serre, cyprès, parterres fleuris, fontaine, étang avec nénuphars et canards ;
+    - Port : phare rayé et son faisceau, maisons de pêcheurs colorées, caisses et tonneaux, mer et voiliers ;
+    - Marché : étals à stores rayés chargés de fruits, cagettes, guirlandes, campanile au loin, gondole chargée ;
+    - Nuit : fenêtres allumées, réverbères, guirlandes, lune, étoiles, lucioles, reflets dans le canal ;
+    - Cité engloutie : maisons sans toit, colonnes brisées, coraux, algues qui ondulent, poissons et bulles ;
+  - de la vie discrète : nuages, oiseaux, jets d'eau, ampoules qui scintillent, bateaux, rides sur l'eau ;
+  - de petits bateaux (des poissons sous la mer) naviguent dans les canaux reliés ;
+  - le décor du chapitre en cours sert aussi de fond à l'écran d'accueil ;
+  - tout est procédural et mis en cache : aucun coût d'illustration.
 - ⏳ (5) Un vrai pass d'illustrateur sur les dessins (pixel art plus fin en 10×10 et 12×12) et sur l'icône.
 
 ## 4. Les boucles de rétention

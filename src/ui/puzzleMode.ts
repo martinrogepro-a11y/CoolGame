@@ -140,7 +140,7 @@ export class PuzzleMode {
     this.renderer.scene.theme = theme;
     this.renderer.scene.seed = (daily ? 999 : index) + 1;
     this.renderer.scene.scale = 1;
-    this.host.ui.classList.toggle('pz-dark', theme === 'deep');
+    this.host.ui.classList.toggle('pz-dark', theme === 'night' || theme === 'deep');
     this.host.ui.innerHTML = this.hudHtml();
     this.hud = {};
     this.host.ui.querySelectorAll<HTMLElement>('[data-h]').forEach((el) => (this.hud[el.dataset.h!] = el));
