@@ -278,6 +278,7 @@ export class PuzzleMode {
       </div>
       <div class="hud-bottom pz-bottom">
         <button class="tool" data-a="pz-reset" aria-label="${t('restart')}">${icon.reset}</button>
+        ${save.settings.dev ? `<button class="tool dev-solve" data-a="pz-devsolve" aria-label="Solve">⏭</button>` : ''}
         <div class="spacer"></div>
         <div class="res pz-pairs" data-h="pairs"></div>
       </div>`;
@@ -380,6 +381,16 @@ export class PuzzleMode {
   async action(a: string, v: string): Promise<boolean> {
     const st = this.st;
     switch (a) {
+      case 'pz-devsolve': {
+        if (!st || this.solvedAt >= 0) return true;
+        this.renderer.demo = null;
+        while (st.hint() >= 0);
+        this.checkSolved();
+        return true;
+      }
+      case 'pz-devjump':
+        this.host.ui.querySelector(`#ch-${v}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        return true;
       case 'pz-hint': {
         if (!st || this.solvedAt >= 0) return true;
         if (save.hints <= 0) {
@@ -496,6 +507,7 @@ export class PuzzleMode {
 
   /** The journey: chapters as album pages; solved pictures show their mosaic. */
   showLevels() {
+    const dev = !!save.settings.dev;
     const rounds = Math.floor(save.puzzle.next / LEVEL_COUNT) + 1;
     const chestReady = save.puzzle.chest >= CHEST_STARS;
     const parts: string[] = [];
@@ -504,20 +516,20 @@ export class PuzzleMode {
         const first = round * LEVEL_COUNT + firstLevelOf(ci);
         if (first > save.puzzle.next && round > 0) return;
         const solved = ch.pictures.filter((_, k) => (save.puzzle.stars[first + k] ?? 0) > 0).length;
-        const locked = first > save.puzzle.next;
+        const locked = !dev && first > save.puzzle.next;
         const claimed = round === 0 && save.puzzle.albums.includes(ch.id);
         const items = ch.pictures
           .map((_, k) => {
             const i = first + k;
             const stars = save.puzzle.stars[i] ?? 0;
-            const open = i <= save.puzzle.next;
+            const open = dev || i <= save.puzzle.next;
             const cls = i === save.puzzle.next ? 'current' : open ? '' : 'locked';
             return `<button class="lvl ${cls}" data-a="${open ? 'pz-play' : ''}" data-v="${i}" ${open ? '' : 'disabled'}>
               <canvas data-lvl="${i}" data-solved="${stars > 0 ? 1 : 0}"></canvas>
               <span>${i + 1}</span><small>${stars === 3 ? '★★★' : stars ? '★' : open ? (isHard(i) ? `<em class="hard">${t('pz_hard')}</em>` : '') : icon.lock}</small></button>`;
           })
           .join('');
-        parts.push(`<section class="chapter ${locked ? 'locked' : ''}">
+        parts.push(`<section class="chapter ${locked ? 'locked' : ''}" ${round === 0 ? `id="ch-${ci}"` : ''}>
           <header><span class="num">${ROMAN[ci]}</span><span class="txt"><b>${t(`ch_${ch.id}` as Key)}${round ? ` · ${t('pz_encore', { n: round })}` : ''}</b>
           <small>${t(`ch_${ch.id}_d` as Key)}</small></span>
           <span class="album-state ${claimed ? 'done' : ''}">${claimed ? icon.check : `${solved}/${ch.pictures.length}`}</span></header>
@@ -534,6 +546,7 @@ export class PuzzleMode {
           <span class="ic">${icon.gift}</span><span class="txt"><b>${chestReady ? t('pz_chestOpen') : t('pz_chest')}</b>
           <span class="bar"><i style="width:${Math.min(100, Math.round((save.puzzle.chest / CHEST_STARS) * 100))}%"></i></span></span>
           <small>${Math.min(save.puzzle.chest, CHEST_STARS)}/${CHEST_STARS} ★</small></button>
+        ${dev ? `<div class="dev-jump">🛠 ${CHAPTERS.map((ch, ci) => `<button class="btn" data-a="pz-devjump" data-v="${ci}">${ROMAN[ci]} · ${t(`ch_${ch.id}` as Key)}</button>`).join('')}</div>` : ''}
         ${parts.join('')}
       </div>`;
     requestAnimationFrame(() => {

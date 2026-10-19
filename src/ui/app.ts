@@ -385,6 +385,20 @@ export class App {
         break;
       }
       case 'restore': await iap.restore(); this.go('shop'); break;
+      case 'dev-tap': {
+        // Hidden developer mode (like Android's): 5 quick taps on the version line.
+        const now = performance.now();
+        this.devTaps = now - this.devTapAt < 600 ? this.devTaps + 1 : 1;
+        this.devTapAt = now;
+        if (this.devTaps >= 5) {
+          this.devTaps = 0;
+          save.settings.dev = !save.settings.dev;
+          persist();
+          this.go('settings');
+          this.toast(save.settings.dev ? '🛠 Mode dev activé : tous les niveaux sont ouverts' : 'Mode dev désactivé');
+        }
+        break;
+      }
       case 'toggle': {
         const k = v as 'sound' | 'music' | 'haptics' | 'colorblind' | 'notifications';
         save.settings[k] = !save.settings[k];
@@ -1000,6 +1014,9 @@ export class App {
       </div>`;
   }
 
+  private devTaps = 0;
+  private devTapAt = 0;
+
   private settingsHtml(): string {
     const s = save.settings;
     const tog = (k: 'sound' | 'music' | 'haptics' | 'colorblind' | 'notifications', label: Key) =>
@@ -1020,7 +1037,7 @@ export class App {
           <div class="setting"><span>${t('language')}</span><div class="seg">${seg}</div></div>
           <div class="setting"><span>${t('privacy')}</span><button class="btn" data-a="privacy">›</button></div>
         </div>
-        <div class="credits">Tessera v${__APP_VERSION__} · ${save.runs} runs · ${save.lifetime} tesserae</div>
+        <div class="credits" data-a="dev-tap">${s.dev ? '🛠 Mode dev · ' : ''}Tessera v${__APP_VERSION__} · ${save.runs} runs · ${save.lifetime} tesserae</div>
       </div>`;
   }
 }

@@ -1718,3 +1718,25 @@ button[disabled] {
 #ui.pz-dark .pz-title small {
   color: #b9c3d6;
 }
+
+/* Developer mode (5 taps on the version line in settings). */
+.credits[data-a='dev-tap'] {
+  cursor: default;
+  user-select: none;
+}
+.dev-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+.dev-jump .btn {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.tool.dev-solve {
+  font-size: 18px;
+  margin-left: 8px;
+}

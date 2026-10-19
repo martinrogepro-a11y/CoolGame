@@ -29,7 +29,7 @@ export interface SaveData {
   built: string[];
   palettes: string[];
   palette: string;
-  settings: { sound: boolean; music: boolean; haptics: boolean; lang: 'auto' | 'en' | 'fr'; colorblind: boolean; notifications: boolean };
+  settings: { sound: boolean; music: boolean; haptics: boolean; lang: 'auto' | 'en' | 'fr'; colorblind: boolean; notifications: boolean; dev?: boolean };
   streak: { count: number; best: number; lastDay: string };
   daily: { day: string; played: boolean; best: number };
   missions: { day: string; list: Mission[] };
