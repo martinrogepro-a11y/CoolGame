@@ -11,6 +11,7 @@ import { ads } from '../monetization/ads';
 import { chapterOf, CHAPTERS, firstLevelOf, LEVEL_COUNT } from '../puzzle/chapters';
 import { dailyLevel, isHard, levelAt } from '../puzzle/levels';
 import { PuzzleState } from '../puzzle/puzzle';
+import type { ThemeId } from '../puzzle/scene';
 import { drawPictureThumb, PuzzleRenderer } from '../puzzle/puzzleRender';
 import { t, type Key } from './i18n';
 import { icon } from './icons';
@@ -133,6 +134,12 @@ export class PuzzleMode {
     this.renderer.glint = 0;
     this.renderer.title = t(`pic_${lv.id}` as Key);
     this.renderer.demo = !daily && index === 0 ? lv.solution[0] : null;
+    // Each chapter has its own mood around the board; the daily puzzle rotates through them.
+    const themes: ThemeId[] = ['garden', 'harbour', 'market', 'night', 'deep'];
+    const theme: ThemeId = daily ? themes[new Date().getDate() % themes.length] : (chapterOf(index).chapter.id as ThemeId);
+    this.renderer.scene.theme = theme;
+    this.renderer.scene.seed = (daily ? 999 : index) + 1;
+    this.host.ui.classList.toggle('pz-dark', theme === 'night' || theme === 'deep');
     this.host.ui.innerHTML = this.hudHtml();
     this.hud = {};
     this.host.ui.querySelectorAll<HTMLElement>('[data-h]').forEach((el) => (this.hud[el.dataset.h!] = el));
@@ -156,6 +163,7 @@ export class PuzzleMode {
   }
 
   stop() {
+    this.host.ui.classList.remove('pz-dark');
     this.st = null;
     this.pointer = null;
     music.stop();

@@ -125,7 +125,7 @@ const force = process.argv.includes('--force');
 const out: Record<string, { paths: number[][]; nodes: number }> = !force && existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
 const only = process.argv.slice(2).find((a) => !a.startsWith('--'));
 // Difficulty ceiling per chapter (log2 of solver nodes): gentle garden, demanding night.
-const MAX_LOG = [5, 8, 11, 14];
+const MAX_LOG = [5, 8, 11, 14, 14];
 CHAPTERS.forEach((ch, ci) => {
   for (const id of ch.pictures) {
     if (only && id !== only) continue;

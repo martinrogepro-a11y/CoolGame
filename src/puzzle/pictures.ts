@@ -48,6 +48,16 @@ export const PICTURES: readonly Picture[] = [
   { id: 'lantern', rows: ['...bbb...', '..bbbbb..', '.byyyyyb.', '.byyyyyb.', '.byyryyb.', '.byyyyyb.', '.byyyyyb.', '..bbbbb..', '...bbb...'] },
   { id: 'umbrella', rows: ['....p....', '..ppppp..', '.ppppppp.', 'ppppppppp', 'p.p.b.p.p', '....b....', '....b....', '..b.b....', '...b.....'] },
   { id: 'castle', rows: ['b.b...b.b', 'bbb.y.bbb', 'bbbbbbbbb', 'bybbbbbyb', 'bbbbbbbbb', 'bbbbrbbbb', 'bbbrrrbbb', 'bbbrrrbbb', 'ggggggggg'] },
+  { id: 'seahorse', rows: ['..yyy...', '.yyyyy..', '..yyyyy.', '...yyy..', '..yyyy..', '..yyy...', '...yy.y.', '....yyy.'] },
+  { id: 'coral', rows: ['.p.pp.p.', '.pppppp.', '..pppp.p', 'p.pppppp', 'pppppp..', '..ppp...', '..pppp..', 'gggggggg'] },
+  { id: 'submarine', rows: ['.........', '....yy...', '....yy...', '.yyyyyyy.', 'yybybybyy', 'yyyyyyyyy', '.yyyyyyy.', '.........', 'bbbbbbbbb'] },
+  { id: 'treasure', rows: ['........', '.rrrrrr.', 'rryyyyrr', 'rrrrrrrr', 'rrryyrrr', 'rrryyrrr', 'rrrrrrrr', 'yyyyyyyy'] },
+  { id: 'manta', rows: ['.........', '....b....', '...bbb...', '..bbbbb..', 'bbbbbbbbb', '.bbbbbbb.', '...bbb...', '....b....', '....b....'] },
+  { id: 'helmet', rows: ['..yyyy..', '.yyyyyy.', 'yybbbbyy', 'yybbbbyy', 'yybbbbyy', '.yyyyyy.', 'yyyyyyyy', 'yy....yy'] },
+  { id: 'oyster', rows: ['........', '.pppppp.', 'pppppppp', 'ppyyyypp', 'ppyyyypp', 'pppppppp', '.pppppp.', '........'] },
+  { id: 'anglerfish', rows: ['y........', '.y.......', '..ppppp..', '.ppppppp.', 'pyppppppp', 'ppppppp.p', 'prpprpppp', '.ppppppp.', '..ppppp..'] },
+  { id: 'amphora', rows: ['..rrrr..', '...rr...', '.rrrrrr.', 'rrryyrrr', 'rryyyyrr', 'rrryyrrr', '.rrrrrr.', '..rrrr..'] },
+  { id: 'temple', rows: ['bbbbbbbbb', '.bbbbbbb.', '.b.b.b.b.', '.b.b.b.b.', '.b.b.b.b.', '.b.b.b.b.', 'bbbbbbbbb', 'ggggggggg', 'ggggggggg'] },
   { id: 'penguin', rows: ['...bbb...', '..bbbbb..', '.bb.b.bb.', '.bbbybbb.', 'bb.....bb', 'bb.....bb', '.b.....b.', '..b...b..', '.yy...yy.'] },
 ];
 

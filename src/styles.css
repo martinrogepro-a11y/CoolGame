@@ -1692,3 +1692,14 @@ button[disabled] {
   padding: 1px 4px;
   margin: 0;
 }
+
+/* Dark chapter moods (night, sunken city): light text over the scene. */
+#ui.pz-dark .pz-title,
+#ui.pz-dark .hint {
+  color: #f3eee4;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+}
+
+#ui.pz-dark .pz-title small {
+  color: #b9c3d6;
+}

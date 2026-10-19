@@ -5,8 +5,8 @@ import { PuzzleState } from '../src/puzzle/puzzle';
 import { solve } from '../src/puzzle/solver';
 
 describe('journey levels', () => {
-  it('has 4 chapters of 10 distinct pictures', () => {
-    expect(CHAPTERS).toHaveLength(4);
+  it('has 5 chapters of 10 distinct pictures', () => {
+    expect(CHAPTERS).toHaveLength(5);
     const ids = CHAPTERS.flatMap((c) => c.pictures);
     expect(new Set(ids).size).toBe(LEVEL_COUNT);
     expect(chapterOf(LEVEL_COUNT).encore).toBe(1);

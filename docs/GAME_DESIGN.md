@@ -27,7 +27,8 @@ les jeux « cozy » à collection (Neko Atsume) pour la boucle quotidienne.
 Voir **[PREMIUM.md](PREMIUM.md)** pour le détail. En bref :
 
 - **40 niveaux à solution unique**, vérifiés par un solveur exact, avec une difficulté graduée par chapitre.
-- **Le voyage** : 4 chapitres-albums (Jardin, Port, Marché, Nuit) de 10 dessins chacun. Compléter un album donne
+- **Le voyage** : 5 chapitres-albums (Jardin, Port, Marché, Nuit, Cité engloutie) de 10 dessins chacun, chacun
+  dans son propre décor vivant façon Townscaper autour du plateau. Compléter un album donne
   des indices et une palette.
 - **Coffre d'étoiles** (15 ★) et étiquette « Difficile » sur les niveaux durs.
 - **Sensation de jeu** : l'eau coule dans le canal une fois relié, puis la cérémonie de révélation (tuiles, notes,

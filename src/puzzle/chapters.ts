@@ -15,6 +15,7 @@ export const CHAPTERS: readonly Chapter[] = [
   { id: 'harbour', pictures: ['fish', 'boat', 'anchor', 'shell', 'crab', 'jellyfish', 'octopus', 'island', 'whale', 'lighthouse'], reward: { hints: 4, palette: 'dune' } },
   { id: 'market', pictures: ['icecream', 'cup', 'cat', 'fir', 'flower', 'pear', 'cake', 'strawberry', 'teapot', 'butterfly'], reward: { hints: 5, palette: 'sakura' } },
   { id: 'night', pictures: ['moon', 'fox', 'owl', 'lantern', 'umbrella', 'rocket', 'balloon', 'penguin', 'turtle', 'castle'], reward: { hints: 6, palette: 'night' } },
+  { id: 'deep', pictures: ['oyster', 'seahorse', 'coral', 'treasure', 'amphora', 'helmet', 'manta', 'submarine', 'temple', 'anglerfish'], reward: { hints: 7 } },
 ];
 
 export const LEVEL_COUNT = CHAPTERS.reduce((a, c) => a + c.pictures.length, 0);

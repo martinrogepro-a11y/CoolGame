@@ -742,7 +742,7 @@ export class App {
     const chest = Math.min(100, Math.round((save.puzzle.chest / CHEST_STARS) * 100));
     return `<button class="card level-card" data-a="pz-play" data-v="${next}">
         <canvas class="next-pic"></canvas>
-        <span class="txt"><small>${t('pz_chapter')} ${['I', 'II', 'III', 'IV'][ci] ?? ci + 1} · ${t(`ch_${chapter.id}` as Key)}</small><b>${t('pz_level', { n: next + 1 })}</b>
+        <span class="txt"><small>${t('pz_chapter')} ${['I', 'II', 'III', 'IV', 'V', 'VI'][ci] ?? ci + 1} · ${t(`ch_${chapter.id}` as Key)}</small><b>${t('pz_level', { n: next + 1 })}</b>
         <small>${lv.n}×${lv.n} · ${li + 1}/${chapter.pictures.length}</small></span>
         <span class="go">${icon.play}</span></button>
       <button class="card chest-row ${save.puzzle.chest >= CHEST_STARS ? 'ready' : ''}" data-a="pz-levels">

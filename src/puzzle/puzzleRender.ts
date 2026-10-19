@@ -1,6 +1,7 @@
 import { MATERIALS, type Palette } from '../game/content';
 import { drawGlyph } from '../game/render';
 import { PUZZLE_COLORS, type PuzzleState } from './puzzle';
+import { boatColor, isUnderwater, Scene } from './scene';
 
 const STONE = '#A99D8A';
 
@@ -40,6 +41,8 @@ export class PuzzleRenderer {
   private pulses: { k: number; t: number }[] = [];
   /** Water fill progress (0..1) of each linked canal, keyed by its two ends. */
   private flow = new Map<number, number>();
+  /** Decor around the board (chapter mood). */
+  readonly scene = new Scene();
   /** Name shown above the board when the picture is revealed. */
   title = '';
   /** Cells of a canal to demonstrate with a ghost finger (first level only). */
@@ -87,8 +90,7 @@ export class PuzzleRenderer {
     const p = this.pal;
     const n = st.n;
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    g.fillStyle = p.bg;
-    g.fillRect(0, 0, this.cw, this.ch);
+    this.scene.draw(g, this.cw, this.ch, this.dpr, { x: this.ox, y: this.oy, size: this.cell * n }, this.time);
     g.save();
     g.translate(this.ox, this.oy);
     g.scale(this.cell, this.cell);
@@ -123,7 +125,9 @@ export class PuzzleRenderer {
     if (this.title && rv > 0.55) {
       g.save();
       g.globalAlpha = Math.min(1, (rv - 0.55) / 0.3);
-      g.fillStyle = p.ink;
+      g.fillStyle = isUnderwater(this.scene.theme) || this.scene.theme === 'night' ? '#F3EEE4' : p.ink;
+      g.shadowColor = 'rgba(0,0,0,0.25)';
+      g.shadowBlur = 8;
       g.textAlign = 'center';
       g.textBaseline = 'bottom';
       g.font = `600 ${Math.round(Math.min(34, this.cell * 0.8))}px 'Fraunces Variable', Georgia, serif`;
@@ -225,6 +229,19 @@ export class PuzzleRenderer {
         g.restore();
       }
     });
+    // Boats (or fish, under the sea) drifting back and forth along finished canals.
+    st.paths.forEach((path, k) => {
+      if (path.length < 3 || (this.flow.get(path[0] * 1000 + path[path.length - 1]) ?? 0) < 1) return;
+      const len = path.length - 1;
+      const u = (this.time * (1.1 / len) + k * 0.37) % 2;
+      const pos = (u < 1 ? u : 2 - u) * len;
+      const i0 = Math.min(len - 1, Math.floor(pos));
+      const f = pos - i0;
+      const [ax, ay] = this.center(path[i0], n);
+      const [bx, by] = this.center(path[i0 + 1], n);
+      const ang = Math.atan2(by - ay, bx - ax) + (u < 1 ? 0 : Math.PI);
+      this.drawBoat(ax + (bx - ax) * f, ay + (by - ay) * f, ang, colorOf(st.pathColor(k)));
+    });
     // Short highlight on canals laid by a hint.
     for (let j = this.pulses.length - 1; j >= 0; j--) {
       const pu = this.pulses[j];
@@ -239,6 +256,46 @@ export class PuzzleRenderer {
       g.lineWidth = 0.5;
       g.stroke();
     }
+  }
+
+  /** A gondola seen from above (a little fish in the sunken city), heading `ang`. */
+  private drawBoat(x: number, y: number, ang: number, accent: string) {
+    const g = this.g;
+    g.save();
+    g.translate(x, y);
+    g.rotate(ang);
+    if (isUnderwater(this.scene.theme)) {
+      g.fillStyle = accent;
+      g.beginPath();
+      g.ellipse(0, 0, 0.16, 0.08, 0, 0, Math.PI * 2);
+      g.moveTo(-0.14, 0);
+      g.lineTo(-0.26, -0.08);
+      g.lineTo(-0.26, 0.08);
+      g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.8)';
+      g.beginPath();
+      g.arc(0.08, -0.02, 0.02, 0, Math.PI * 2);
+      g.fill();
+    } else {
+      g.fillStyle = 'rgba(0,0,0,0.18)';
+      g.beginPath();
+      g.ellipse(0.02, 0.04, 0.24, 0.09, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = boatColor(this.scene.theme);
+      g.beginPath();
+      g.moveTo(0.26, 0);
+      g.quadraticCurveTo(0.1, -0.11, -0.2, -0.08);
+      g.lineTo(-0.24, 0);
+      g.lineTo(-0.2, 0.08);
+      g.quadraticCurveTo(0.1, 0.11, 0.26, 0);
+      g.fill();
+      g.strokeStyle = 'rgba(40,40,46,0.35)';
+      g.lineWidth = 0.02;
+      g.stroke();
+      g.fillStyle = accent;
+      g.fillRect(-0.08, -0.05, 0.12, 0.1);
+    }
+    g.restore();
   }
 
   /** A translucent finger tracing the first canal, looping until the player touches the board. */
