@@ -17,8 +17,11 @@ export interface Pair {
   b: number;
 }
 
-/** Ten distinct canal colours in the game's palette; the first five are the materials. */
-export const PUZZLE_COLORS = ['#D2694A', '#3F5E9A', '#4E9A74', '#E0A332', '#8A4F8C', '#2F9C9C', '#E08AA6', '#9AA342', '#26375E', '#9A5B34'];
+/** Fourteen distinct canal colours in the game's palette; the first five are the materials. */
+export const PUZZLE_COLORS = [
+  '#D2694A', '#3F5E9A', '#4E9A74', '#E0A332', '#8A4F8C', '#2F9C9C', '#E08AA6', '#9AA342', '#26375E', '#9A5B34',
+  '#78B4DC', '#7A2E3A', '#B39BD9', '#5C5F66',
+];
 
 export interface Level {
   id: string;
