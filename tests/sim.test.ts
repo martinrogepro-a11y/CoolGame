@@ -104,7 +104,7 @@ describe('Sim', () => {
     expect(sim.state).toBe('playing');
   });
 
-  it('routes items at a split toward the matching workshop', () => {
+  it('never recycles on a single matching line', () => {
     const sim = makeSim(3);
     // Build a hand-made scenario on an empty board.
     const s = sim as unknown as { sources: Sim['sources']; sites: Sim['sites'] };
@@ -114,5 +114,98 @@ describe('Sim', () => {
     run(sim, 30);
     const recycled = sim.drainEvents().filter((e) => e.type === 'recycle').length;
     expect(recycled).toBe(0);
+  });
+});
+
+describe('overpasses', () => {
+  /** Builds a sim and clears its entities so we can lay out a controlled scenario. */
+  function blank() {
+    const sim = new Sim({ district: districtById('peaks'), seed: 5 });
+    for (const s of sim.sources) sim.sourceAt[sim.idx(s.x, s.y)] = -1;
+    for (const s of sim.sites) sim.siteAt[sim.idx(s.x, s.y)] = -1;
+    sim.sources.length = 0;
+    sim.sites.length = 0;
+    for (const c of sim.cells) c.terrain = 0;
+    sim.bounds = { x0: 0, y0: 0, x1: sim.w - 1, y1: sim.h - 1 };
+    sim.belts = 50;
+    sim.bridges = 2;
+    return sim;
+  }
+  function addSource(sim: Sim, x: number, y: number, color: number) {
+    const s = { id: sim.sources.length, x, y, color, outs: [], buffer: 3, timer: 1, rr: 0, age: 0 };
+    sim.sources.push(s as never);
+    sim.sourceAt[sim.idx(x, y)] = s.id;
+  }
+  function addSite(sim: Sim, x: number, y: number, color: number) {
+    const s = { id: sim.sites.length, x, y, color, pending: 3, stock: 0, incoming: 0, orderTimer: 99, overflow: 0, age: 0, delivered: 0, bump: 0 };
+    sim.sites.push(s as never);
+    sim.siteAt[sim.idx(x, y)] = s.id;
+  }
+
+  it('lets a perpendicular belt pass over another one, both keep flowing', () => {
+    const sim = blank();
+    // Horizontal line: source (0,5) -> site (6,5). Vertical line: source (3,2) -> site (3,8).
+    addSource(sim, 0, 5, 0);
+    addSite(sim, 6, 5, 0);
+    addSource(sim, 3, 2, 1);
+    addSite(sim, 3, 8, 1);
+    sim.beginStroke(0, 5);
+    sim.extendStroke(6, 5);
+    sim.endStroke();
+    const bridges = sim.bridges;
+    sim.beginStroke(3, 2);
+    for (let y = 3; y <= 8; y++) sim.extendStroke(3, y);
+    sim.endStroke();
+    expect(sim.cells[sim.idx(3, 5)].cross?.dir).toBe(2);
+    expect(sim.bridges).toBe(bridges - 1);
+    for (let t = 0; t < 20 * 60; t++) sim.step(1 / 60);
+    expect(sim.sites[0].delivered).toBeGreaterThan(3);
+    expect(sim.sites[1].delivered).toBeGreaterThan(3);
+    const recycled = sim.drainEvents().filter((e) => e.type === 'recycle').length;
+    expect(recycled).toBe(0);
+  });
+
+  it('refunds the bridge when backtracking or erasing an overpass', () => {
+    const sim = blank();
+    addSource(sim, 0, 5, 0);
+    addSite(sim, 6, 5, 0);
+    addSource(sim, 3, 2, 1);
+    sim.beginStroke(0, 5);
+    sim.extendStroke(6, 5);
+    sim.endStroke();
+    const b0 = sim.bridges, belts0 = sim.belts;
+    sim.beginStroke(3, 2);
+    for (let y = 3; y <= 7; y++) sim.extendStroke(3, y);
+    expect(sim.bridges).toBe(b0 - 1);
+    for (let y = 6; y >= 4; y--) sim.extendStroke(3, y); // drag back over the crossing
+    expect(sim.bridges).toBe(b0);
+    expect(sim.cells[sim.idx(3, 5)].cross).toBeNull();
+    for (let y = 5; y <= 7; y++) sim.extendStroke(3, y);
+    sim.endStroke();
+    expect(sim.bridges).toBe(b0 - 1);
+    sim.erase(3, 5);
+    expect(sim.bridges).toBe(b0);
+    // Four vertical belts placed, then the crossed horizontal belt erased (and refunded).
+    expect(sim.belts).toBe(belts0 - 4 + 1);
+  });
+
+  it('splits a mixed trunk so each colour reaches its own workshop', () => {
+    const sim = blank();
+    addSource(sim, 0, 4, 0);
+    addSource(sim, 0, 8, 1);
+    addSite(sim, 6, 6, 0);
+    addSite(sim, 5, 3, 1);
+    const draw = (pts: [number, number][]) => {
+      expect(sim.beginStroke(...pts[0])).toBe(true);
+      for (const p of pts.slice(1)) sim.extendStroke(...p);
+      sim.endStroke();
+    };
+    draw([[0, 4], [1, 4], [2, 4], [2, 5], [2, 6], [3, 6], [4, 6], [5, 6], [6, 6]]);
+    draw([[0, 8], [1, 8], [2, 8], [2, 7], [2, 6]]);
+    draw([[5, 6], [5, 5], [5, 4], [5, 3]]);
+    for (let t = 0; t < 30 * 60; t++) sim.step(1 / 60);
+    expect(sim.sites[0].delivered).toBeGreaterThan(3);
+    expect(sim.sites[1].delivered).toBeGreaterThan(3);
+    expect(sim.drainEvents().filter((e) => e.type === 'recycle')).toHaveLength(0);
   });
 });

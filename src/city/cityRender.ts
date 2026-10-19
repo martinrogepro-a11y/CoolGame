@@ -7,7 +7,7 @@ import { landmarkById, type Prim } from '../meta/landmarks';
  * houses grow with lifetime tesserae, landmarks are built with them.
  */
 
-const N = 11; // tiles per side
+const N = 15; // tiles per side (4 x 4 blocks of 3 x 3, with streets between)
 const BLOCK = 4; // 3 tiles + 1 street
 
 interface Placed {
@@ -27,7 +27,7 @@ function hexToRgb(hex: string): [number, number, number] {
 function shade(hex: string, f: number): string {
   const [r, g, b] = hexToRgb(hex);
   const k = (v: number) => Math.round(Math.max(0, Math.min(255, f >= 0 ? v + (255 - v) * f : v * (1 + f))));
-  return `rgb(${k(r)},${k(g)},${k(b)})`;
+  return '#' + ((1 << 24) | (k(r) << 16) | (k(g) << 8) | k(b)).toString(16).slice(1);
 }
 
 export function isStreet(x: number, y: number): boolean {
@@ -55,22 +55,28 @@ export function layoutCity(lifetime: number, built: string[]): Placed[] {
   const key = (x: number, y: number) => `${x},${y}`;
   const placed: Placed[] = [];
 
-  // Landmarks claim the 2x2 corner of a block (size 2) or a single tile.
+  // Each landmark gets its own block, spiralling out from the centre, so monuments stay visible.
+  const c = (N - 1) / 2;
+  const blocks: { x: number; y: number }[] = [];
+  for (let by = 0; by < N; by += BLOCK) for (let bx = 0; bx < N; bx += BLOCK) blocks.push({ x: bx, y: by });
+  blocks.sort((a, b) => Math.hypot(a.x + 1 - c, a.y + 1 - c) - Math.hypot(b.x + 1 - c, b.y + 1 - c) || a.y - b.y || a.x - b.x);
+  let slot = 0;
   for (const id of built) {
     const l = landmarkById(id);
-    if (!l) continue;
-    for (const t of ORDER) {
-      const fits: { x: number; y: number }[] = [];
-      for (let dy = 0; dy < l.size; dy++) for (let dx = 0; dx < l.size; dx++) fits.push({ x: t.x + dx, y: t.y + dy });
-      if (fits.every((f) => f.x < N && f.y < N && !isStreet(f.x, f.y) && !used.has(key(f.x, f.y)))) {
-        fits.forEach((f) => used.add(key(f.x, f.y)));
-        placed.push({ x: t.x, y: t.y, shape: l.shape, order: t.x + t.y + l.size * 2 - 1, kind: 'landmark', id });
-        break;
-      }
-    }
+    const b = blocks[slot];
+    if (!l || !b) continue;
+    slot++;
+    const x = l.size === 2 ? b.x + 1 : b.x + 1;
+    const y = l.size === 2 ? b.y + 1 : b.y + 1;
+    for (let dy = 0; dy < l.size; dy++) for (let dx = 0; dx < l.size; dx++) used.add(key(x + dx, y + dy));
+    // Keep a little plaza in front of the monument.
+    if (l.size === 1) used.add(key(x + 1, y + 1));
+    const plaza: Prim = { k: 'box', x: x - 0.1, y: y - 0.1, w: l.size + 0.2, d: l.size + 0.2, h: 0.04, c: 5 };
+    const shape = [plaza, ...l.shape.map((p) => ({ ...p, x: p.x + x, y: p.y + y }))];
+    placed.push({ x, y, shape, order: x + y + l.size * 2 - 1, kind: 'landmark', id });
   }
 
-  const houses = Math.min(ORDER.length, Math.floor(lifetime / 12));
+  const houses = Math.min(ORDER.length, Math.floor(lifetime / 25));
   let n = 0;
   for (const t of ORDER) {
     if (used.has(key(t.x, t.y))) continue;
@@ -253,7 +259,7 @@ export class CityRenderer {
     const th = tw / 2;
     const tz = th * 1.15;
     const ox = this.cw / 2 + this.panX;
-    const oy = this.ch * 0.36 - (N * th) / 2 + this.panY;
+    const oy = this.ch * 0.42 - (N * th) / 2 + this.panY;
     const P = (x: number, y: number, z = 0): [number, number] => [ox + ((x - y) * tw) / 2, oy + ((x + y) * th) / 2 - z * tz];
 
     // Floating island slab.

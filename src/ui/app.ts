@@ -552,6 +552,7 @@ export class App {
 
   private showUpgrade() {
     const sim = this.sim!;
+    if (sim.state !== 'upgrade' || sim.offer.length === 0) return;
     const cards = sim.offer
       .map((u) => `<button class="upgrade" data-a="upgrade" data-v="${u}"><span class="ic">${UPGRADE_ICON[u]}</span><b>${t(`up_${u}` as Key)}</b><small>${t(`up_${u}_d` as Key)}</small></button>`)
       .join('');

@@ -196,6 +196,7 @@ export class Renderer {
     this.drawFog(sim);
     this.drawBelts(sim);
     this.drawItems(sim);
+    this.drawOverpasses(sim);
     this.drawSources(sim);
     this.drawSites(sim);
     this.drawFx(dt);
@@ -372,28 +373,75 @@ export class Renderer {
   }
 
   private drawItems(sim: Sim) {
-    const g = this.g;
-    const s = 0.24;
     for (let i = 0; i < sim.cells.length; i++) {
       const cell = sim.cells[i];
       if (!cell.belt) continue;
-      for (const it of cell.items) {
-        const [x, y] = this.itemPos(sim, i, it);
-        const m = MATERIALS[it.color];
-        g.fillStyle = 'rgba(0,0,0,0.18)';
-        roundRect(g, x - s / 2 + 0.02, y - s / 2 + 0.03, s, s, 0.05);
-        g.fill();
-        g.fillStyle = m.color;
-        roundRect(g, x - s / 2, y - s / 2, s, s, 0.05);
-        g.fill();
-        g.fillStyle = 'rgba(255,255,255,0.28)';
-        roundRect(g, x - s / 2 + 0.03, y - s / 2 + 0.03, s * 0.45, s * 0.25, 0.03);
-        g.fill();
-        if (this.colorblind) {
-          g.fillStyle = 'rgba(255,255,255,0.9)';
-          drawGlyph(g, m.glyph, x, y, 0.06);
-        }
+      for (const it of cell.items) this.drawItem(sim, i, it);
+    }
+  }
+
+  /** An item is a small glossy tessera. */
+  private drawItem(sim: Sim, i: number, it: Item) {
+    const g = this.g;
+    const s = 0.24;
+    const [x, y] = this.itemPos(sim, i, it);
+    const m = MATERIALS[it.color];
+    g.fillStyle = 'rgba(0,0,0,0.18)';
+    roundRect(g, x - s / 2 + 0.02, y - s / 2 + 0.03, s, s, 0.05);
+    g.fill();
+    g.fillStyle = m.color;
+    roundRect(g, x - s / 2, y - s / 2, s, s, 0.05);
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.28)';
+    roundRect(g, x - s / 2 + 0.03, y - s / 2 + 0.03, s * 0.45, s * 0.25, 0.03);
+    g.fill();
+    if (this.colorblind) {
+      g.fillStyle = 'rgba(255,255,255,0.9)';
+      drawGlyph(g, m.glyph, x, y, 0.06);
+    }
+  }
+
+  /** Belts passing over other belts: drawn last so they sit on top, with a little shadow. */
+  private drawOverpasses(sim: Sim) {
+    const g = this.g;
+    const p = this.pal;
+    const phase = (this.time * TUNING.BELT_SPEED * sim.speedMul) % 0.5;
+    for (let i = 0; i < sim.cells.length; i++) {
+      const cross = sim.cells[i].cross;
+      if (!cross) continue;
+      const x = (i % sim.w) + 0.5, y = Math.floor(i / sim.w) + 0.5;
+      const dx = DX[cross.dir] * 0.5, dy = DY[cross.dir] * 0.5;
+      g.lineCap = 'butt';
+      g.strokeStyle = 'rgba(0,0,0,0.16)';
+      g.lineWidth = 0.66;
+      g.beginPath();
+      g.moveTo(x - dx + 0.04, y - dy + 0.07);
+      g.lineTo(x + dx + 0.04, y + dy + 0.07);
+      g.stroke();
+      g.strokeStyle = p.beltLine;
+      g.lineWidth = 0.62;
+      g.beginPath();
+      g.moveTo(x - dx, y - dy);
+      g.lineTo(x + dx, y + dy);
+      g.stroke();
+      g.strokeStyle = p.belt;
+      g.lineWidth = 0.44;
+      g.stroke();
+      g.lineCap = 'round';
+      // Chevrons.
+      g.strokeStyle = p.beltLine;
+      g.lineWidth = 0.05;
+      g.beginPath();
+      for (let o = -0.5 + phase; o < 0.5; o += 0.5) {
+        const cx = x + DX[cross.dir] * o, cy = y + DY[cross.dir] * o;
+        const px = -DY[cross.dir] * 0.1, py = DX[cross.dir] * 0.1;
+        const bx = -DX[cross.dir] * 0.08, by = -DY[cross.dir] * 0.08;
+        g.moveTo(cx + bx + px, cy + by + py);
+        g.lineTo(cx, cy);
+        g.lineTo(cx + bx - px, cy + by - py);
       }
+      g.stroke();
+      for (const it of cross.items) this.drawItem(sim, i, it);
     }
   }
 

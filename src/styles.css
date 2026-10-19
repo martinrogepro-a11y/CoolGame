@@ -1082,6 +1082,11 @@ button[disabled] {
 .screen.night {
   --ink: #f1ede4;
   --sub: #a9adc0;
+  color: var(--ink);
+}
+
+.screen.night .lm {
+  color: #29282e;
 }
 
 .screen.night .icon-btn {

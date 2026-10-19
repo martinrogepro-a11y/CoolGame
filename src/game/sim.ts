@@ -18,18 +18,20 @@ export const TUNING = {
   EMIT_PERIOD: 2.4,
   SOURCE_BUFFER: 3,
   STOCK_CAP: 2,
-  ORDER_START: 11,
+  ORDER_START: 12,
   ORDER_MIN: 5.5,
   ORDER_DECAY: 0.012,
   OVERFLOW_AT: 4,
-  OVERFLOW_TIME: 24,
+  OVERFLOW_TIME: 28,
   OVERFLOW_DRAIN: 10,
   WEEK: 45,
-  SITE_SPAWN_START: 16,
+  SITE_SPAWN_START: 18,
   SITE_SPAWN_MIN: 8,
   SITE_SPAWN_RAMP: 0.02,
   SITES_PER_SOURCE: 2.2,
   WEEK_BONUS_BELTS: 4,
+  /** A free bridge every N weeks. */
+  WEEK_BONUS_BRIDGE_EVERY: 2,
   MAX_OUTS: 3,
 } as const;
 
@@ -53,6 +55,8 @@ export interface Cell {
   rr: number;
   /** Seconds since the belt was placed, for the build animation. */
   age: number;
+  /** Overpass carrying a second, straight belt over this one (costs a bridge). */
+  cross: { dir: Dir; items: Item[] } | null;
 }
 
 export interface Source {
@@ -100,7 +104,7 @@ export type SimState = 'playing' | 'upgrade' | 'over';
 
 interface StrokeNode {
   i: number;
-  kind: 'anchor' | 'placed' | 'terminal';
+  kind: 'anchor' | 'placed' | 'terminal' | 'cross';
 }
 
 export interface SimOptions {
@@ -162,7 +166,7 @@ export class Sim {
     this.gentle = !!opts.gentle;
     // Terrain is fixed per district (players learn the map); spawns vary with the seed.
     const terrain = generateTerrain(opts.district.terrain, this.w, this.h, new Rng(hashString(opts.district.id)));
-    this.cells = Array.from(terrain, (t) => ({ terrain: t as T, belt: false, outs: [], items: [], rr: 0, age: 0 }));
+    this.cells = Array.from(terrain, (t) => ({ terrain: t as T, belt: false, outs: [], items: [], rr: 0, age: 0, cross: null }));
     this.sourceAt = new Int16Array(this.w * this.h).fill(-1);
     this.siteAt = new Int16Array(this.w * this.h).fill(-1);
     this.belts = opts.district.startBelts;
@@ -209,15 +213,25 @@ export class Sim {
   }
 
   /** Directions from which other belts/sources feed cell i. */
+  /** Sides from which belts/sources feed the main lane of cell i (overpasses included as feeders). */
   insOf(i: number): Dir[] {
     const res: Dir[] = [];
+    const own = this.cells[i].cross;
     for (let d = 0 as Dir; d < 4; d++) {
+      if (own && d === opposite(own.dir)) continue; // that input belongs to the overpass
       const n = this.neighbor(i, d);
       if (n < 0) continue;
       const o = this.outsOf(n);
-      if (o && o.includes(opposite(d))) res.push(d);
+      if ((o && o.includes(opposite(d))) || this.cells[n].cross?.dir === opposite(d)) res.push(d);
     }
     return res;
+  }
+
+  /** The cell an item leaving i by d really lands in, skipping over overpasses. */
+  landing(i: number, d: Dir): number {
+    let n = this.neighbor(i, d);
+    while (n >= 0 && this.cells[n].cross?.dir === d) n = this.neighbor(n, d);
+    return n;
   }
 
   isFree(i: number): boolean {
@@ -245,7 +259,7 @@ export class Sim {
   }
 
   /** Picks a free cell, away from other entities, optionally at a target distance from an anchor. */
-  private findSpot(anchor?: { x: number; y: number }, minDist = 2, maxDist = 99, central = false): number {
+  private findSpot(anchor?: { x: number; y: number }, minDist = 2, maxDist = 99, central = false, colorHint = -1): number {
     const b = this.bounds;
     let best = -1;
     let bestScore = -Infinity;
@@ -263,6 +277,7 @@ export class Sim {
         }
       if (crowd > 0) continue;
       let score = this.rng.next();
+      if (!this.landLinked(i, colorHint)) score -= 3;
       if (anchor) {
         const d = Math.abs(anchor.x - x) + Math.abs(anchor.y - y);
         if (d < minDist || d > maxDist) score -= 5;
@@ -280,9 +295,37 @@ export class Sim {
     return best;
   }
 
+  /**
+   * True if cell i shares a land region (ignoring belts) with a quarry/workshop of the
+   * given colour, so new spawns don't start out cut off by water or rocks.
+   */
+  private landLinked(i: number, color: number): boolean {
+    if (color < 0) return true;
+    const targets = new Set<number>();
+    for (const s of this.sources) if (s.color === color) targets.add(this.idx(s.x, s.y));
+    for (const s of this.sites) if (s.color === color) targets.add(this.idx(s.x, s.y));
+    if (targets.size === 0) return true;
+    const seen = new Uint8Array(this.w * this.h);
+    const stack = [i];
+    seen[i] = 1;
+    while (stack.length) {
+      const cur = stack.pop()!;
+      if (targets.has(cur)) return true;
+      for (let d = 0 as Dir; d < 4; d++) {
+        const n = this.neighbor(cur, d);
+        if (n < 0 || seen[n] || this.cells[n].terrain !== T.Land) continue;
+        const x = n % this.w, y = Math.floor(n / this.w);
+        if (!this.inBounds(x, y)) continue;
+        seen[n] = 1;
+        stack.push(n);
+      }
+    }
+    return false;
+  }
+
   private spawnSource(color: number, central = false): Source | null {
     const sameColorSite = this.sites.find((s) => s.color === color);
-    const i = this.findSpot(sameColorSite, 3, 6, central);
+    const i = this.findSpot(sameColorSite, 3, 6, central, this.week < 3 ? color : -1);
     if (i < 0) return null;
     const src: Source = {
       id: this.sources.length, x: i % this.w, y: Math.floor(i / this.w), color,
@@ -296,7 +339,8 @@ export class Sim {
   }
 
   private spawnSite(color: number, near?: { x: number; y: number }): Site | null {
-    const i = near ? this.findSpot(near, 3, 5) : this.findSpot();
+    const hint = this.week < 3 ? color : -1;
+    const i = near ? this.findSpot(near, 3, 5, false, hint) : this.findSpot(undefined, 2, 99, false, hint);
     if (i < 0) return null;
     const site: Site = {
       id: this.sites.length, x: i % this.w, y: Math.floor(i / this.w), color,
@@ -368,7 +412,8 @@ export class Sim {
       while (queue.length) {
         const cur = queue.shift()!;
         for (let d = 0 as Dir; d < 4; d++) {
-          const nb = this.neighbor(cur, d);
+          let nb = this.neighbor(cur, d);
+          while (nb >= 0 && this.cells[nb].cross?.dir === opposite(d)) nb = this.neighbor(nb, d);
           if (nb < 0 || seen[nb]) continue;
           const o = this.outsOf(nb);
           if (!o || !o.includes(opposite(d))) continue;
@@ -395,7 +440,7 @@ export class Sim {
     let bestScore = -1;
     const cands: { out: Dir; target: number }[] = [];
     for (const d of outs) {
-      const nb = this.neighbor(i, d);
+      const nb = this.landing(i, d);
       let score = 0;
       let target = -1;
       if (nb >= 0) {
@@ -443,6 +488,7 @@ export class Sim {
       this.week++;
       this.stats.weeks = this.week;
       this.belts += TUNING.WEEK_BONUS_BELTS;
+      if (this.week % TUNING.WEEK_BONUS_BRIDGE_EVERY === 0) this.bridges++;
       this.growBounds();
       this.unlockColors();
       this.offer = this.rollUpgrades();
@@ -484,21 +530,32 @@ export class Sim {
         continue;
       }
       const cell = this.cells[nb];
-      if (!cell.belt || !this.hasRoom(cell)) continue;
+      if (!cell.belt || !this.hasRoom(this.laneOf(nb, out))) continue;
       s.buffer--;
       const item: Item = { id: this.nextId++, color: s.color, p: 0, from: opposite(out), out: -1, target: -1 };
       this.retarget(item, target);
-      this.enterCell(nb, item);
+      this.enterCell(nb, item, out);
     }
   }
 
-  private hasRoom(cell: Cell): boolean {
-    if (cell.items.length === 0) return true;
-    return cell.items[cell.items.length - 1].p >= TUNING.SPACING;
+  private hasRoom(lane: Item[]): boolean {
+    if (lane.length === 0) return true;
+    return lane[lane.length - 1].p >= TUNING.SPACING;
   }
 
-  private enterCell(i: number, item: Item) {
+  /** Lane of cell i that an item travelling in direction d enters. */
+  private laneOf(i: number, d: Dir): Item[] {
+    const c = this.cells[i];
+    return c.cross && c.cross.dir === d ? c.cross.items : c.items;
+  }
+
+  private enterCell(i: number, item: Item, d: Dir) {
     const cell = this.cells[i];
+    if (cell.cross && cell.cross.dir === d) {
+      item.out = d;
+      cell.cross.items.push(item);
+      return;
+    }
     if (cell.outs.length > 1) {
       const r = this.route(i, cell.outs, item.color, cell);
       item.out = r.out;
@@ -513,43 +570,48 @@ export class Sim {
     const v = TUNING.BELT_SPEED * this.speedMul * dt;
     for (let i = 0; i < this.cells.length; i++) {
       const cell = this.cells[i];
-      if (!cell.belt || cell.items.length === 0) continue;
-      const items = cell.items;
-      for (let k = 0; k < items.length; k++) {
-        const it = items[k];
-        if (it.out < 0 && cell.outs.length > 0) {
-          const r = cell.outs.length > 1 ? this.route(i, cell.outs, it.color, cell) : { out: cell.outs[0], target: it.target };
-          it.out = r.out;
-          this.retarget(it, r.target);
-        }
-        const limit = k === 0 ? (it.out < 0 ? 0.5 : 1) : items[k - 1].p - TUNING.SPACING;
-        if (it.p < limit) it.p = Math.min(limit, it.p + v);
-      }
-      const front = items[0];
-      if (front.out === -1 || front.p < 1) continue;
-      const nb = this.neighbor(i, front.out);
-      if (nb < 0) continue;
-      if (this.siteAt[nb] >= 0) {
-        const site = this.sites[this.siteAt[nb]];
-        if (this.isFull(site, front.color)) continue; // line backs up until the workshop needs more
-        items.shift();
-        if (front.target >= 0) this.sites[front.target].incoming--;
-        front.target = -1;
-        this.accept(site, front.color);
-        continue;
-      }
-      const next = this.cells[nb];
-      if (!next.belt) {
-        // Belt ahead was removed: re-route next frame.
-        front.out = -1;
-        continue;
-      }
-      if (!this.hasRoom(next)) continue;
-      items.shift();
-      front.p = 0;
-      front.from = opposite(front.out);
-      this.enterCell(nb, front);
+      if (!cell.belt) continue;
+      if (cell.items.length) this.advanceLane(i, cell.items, false, v);
+      if (cell.cross?.items.length) this.advanceLane(i, cell.cross.items, true, v);
     }
+  }
+
+  private advanceLane(i: number, items: Item[], overpass: boolean, v: number) {
+    const cell = this.cells[i];
+    for (let k = 0; k < items.length; k++) {
+      const it = items[k];
+      if (!overpass && it.out === -1 && cell.outs.length > 0) {
+        const r = cell.outs.length > 1 ? this.route(i, cell.outs, it.color, cell) : { out: cell.outs[0], target: it.target };
+        it.out = r.out;
+        this.retarget(it, r.target);
+      }
+      const limit = k === 0 ? (it.out === -1 ? 0.5 : 1) : items[k - 1].p - TUNING.SPACING;
+      if (it.p < limit) it.p = Math.min(limit, it.p + v);
+    }
+    const front = items[0];
+    if (front.out === -1 || front.p < 1) return;
+    const nb = this.neighbor(i, front.out);
+    if (nb < 0) return;
+    if (this.siteAt[nb] >= 0) {
+      const site = this.sites[this.siteAt[nb]];
+      if (this.isFull(site, front.color)) return; // line backs up until the workshop needs more
+      items.shift();
+      if (front.target >= 0) this.sites[front.target].incoming--;
+      front.target = -1;
+      this.accept(site, front.color);
+      return;
+    }
+    const next = this.cells[nb];
+    if (!next.belt) {
+      // Belt ahead was removed: re-route (overpass items simply wait).
+      if (!overpass) front.out = -1;
+      return;
+    }
+    if (!this.hasRoom(this.laneOf(nb, front.out))) return;
+    items.shift();
+    front.p = 0;
+    front.from = opposite(front.out);
+    this.enterCell(nb, front, front.out);
   }
 
   /** A matching item waits at the door of a workshop that has no room for it. */
@@ -687,18 +749,26 @@ export class Sim {
       this.backtrack();
       return true;
     }
-    if (last.kind === 'terminal') return false;
     if (s.some((node) => node.i === n)) return false;
     const nx = n % this.w, ny = Math.floor(n / this.w);
     if (!this.inBounds(nx, ny)) return false;
     const d = this.dirBetween(last.i, n);
     if (d === -1) return false;
-    const outs = this.outsOf(last.i);
-    if (!outs || outs.includes(d) || outs.length >= TUNING.MAX_OUTS) return false;
+    if (last.kind === 'terminal') {
+      // Dragging straight through a belt we just merged into: turn the merge into an overpass.
+      if (!this.tryOverpass(s, d)) return false;
+      return this.extendAdjacent(n);
+    }
+    // From an overpass the path must continue straight; the link is implicit.
+    const outs = last.kind === 'cross' ? null : this.outsOf(last.i);
+    if (last.kind === 'cross') {
+      if (this.cells[last.i].cross!.dir !== d) return false;
+    } else if (!outs || outs.includes(d) || outs.length >= TUNING.MAX_OUTS) return false;
     const target = this.cells[n];
     if (this.siteAt[n] >= 0 || target.belt) {
       if (target.belt && target.outs.includes(opposite(d))) return false;
-      outs.push(d);
+      if (target.cross && (target.cross.dir === d || target.cross.dir === opposite(d))) return false;
+      outs?.push(d);
       s.push({ i: n, kind: 'terminal' });
       this.graphDirty = true;
       return true;
@@ -720,7 +790,8 @@ export class Sim {
     target.outs = [];
     target.age = 0;
     target.rr = 0;
-    outs.push(d);
+    target.cross = null;
+    outs?.push(d);
     s.push({ i: n, kind: 'placed' });
     this.graphDirty = true;
     this.events.push({ type: 'place', x: nx, y: ny, bridge: water });
@@ -733,7 +804,47 @@ export class Sim {
     const prev = s[s.length - 1];
     const d = this.dirBetween(prev.i, node.i) as Dir;
     if (node.kind === 'placed') this.removeBelt(node.i, false);
-    else this.disconnect(prev.i, d);
+    else if (node.kind === 'cross') {
+      this.removeOverpass(node.i);
+      this.disconnect(prev.i, d);
+    } else if (prev.kind !== 'cross') this.disconnect(prev.i, d);
+    this.graphDirty = true;
+  }
+
+  /**
+   * Converts the terminal merge at the end of the stroke into an overpass when the
+   * belt underneath runs straight across the drag direction and a bridge is available.
+   */
+  private tryOverpass(s: StrokeNode[], d: Dir): boolean {
+    const node = s[s.length - 1];
+    const prev = s[s.length - 2];
+    const cell = this.cells[node.i];
+    if (!cell.belt || cell.cross || cell.terrain === T.Water) return false;
+    if (this.dirBetween(prev.i, node.i) !== d) return false;
+    if (cell.outs.length !== 1 || cell.outs[0] === d || cell.outs[0] === opposite(d)) return false;
+    const ins = this.insOf(node.i).filter((x) => x !== opposite(d));
+    if (ins.some((x) => x !== opposite(cell.outs[0]))) return false;
+    if (this.bridges <= 0) {
+      this.events.push({ type: 'denied', reason: 'bridges' });
+      return false;
+    }
+    this.bridges--;
+    this.stats.bridgesUsed++;
+    cell.cross = { dir: d, items: [] };
+    node.kind = 'cross';
+    this.graphDirty = true;
+    const x = node.i % this.w, y = Math.floor(node.i / this.w);
+    this.events.push({ type: 'place', x, y, bridge: true });
+    return true;
+  }
+
+  private removeOverpass(i: number) {
+    const cell = this.cells[i];
+    if (!cell.cross) return;
+    const x = i % this.w, y = Math.floor(i / this.w);
+    for (const it of cell.cross.items) this.dropItem(it, x, y);
+    cell.cross = null;
+    this.bridges++;
     this.graphDirty = true;
   }
 
@@ -762,6 +873,7 @@ export class Sim {
   private removeBelt(i: number, event: boolean) {
     const cell = this.cells[i];
     const x = i % this.w, y = Math.floor(i / this.w);
+    this.removeOverpass(i);
     for (const it of cell.items) this.dropItem(it, x, y);
     cell.items = [];
     cell.belt = false;

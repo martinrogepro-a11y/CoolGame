@@ -84,7 +84,7 @@ export interface District {
 export const DISTRICTS: readonly District[] = [
   { id: 'coast', terrain: 'coast', colorWeeks: [0, 1, 3, 6], startBelts: 16, startBridges: 1, unlockAt: 0, pace: 1 },
   { id: 'peaks', terrain: 'peaks', colorWeeks: [0, 1, 2, 5, 9], startBelts: 18, startBridges: 0, unlockAt: 400, pace: 1.05 },
-  { id: 'delta', terrain: 'delta', colorWeeks: [0, 0, 2, 4, 8], startBelts: 16, startBridges: 3, unlockAt: 1200, pace: 1.1 },
+  { id: 'delta', terrain: 'delta', colorWeeks: [0, 1, 2, 4, 8], startBelts: 16, startBridges: 4, unlockAt: 1200, pace: 1.1 },
   { id: 'archipelago', terrain: 'archipelago', colorWeeks: [0, 1, 2, 4, 6], startBelts: 14, startBridges: 4, unlockAt: 3000, pace: 1.15 },
 ];
 
