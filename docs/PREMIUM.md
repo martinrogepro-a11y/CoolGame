@@ -36,14 +36,20 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
 - ✅ **Musique d'ambiance générative** (nappes douces et cloches, façon Alto) et sons synthétisés : aucun fichier
   audio, aucune licence, et la musique ne tourne jamais en boucle à l'identique.
 - ✅ 5 palettes (Papier, Nuit, Sakura, Dune, Plan bleu).
-- ✅ **Un décor vivant par chapitre, façon Townscaper** (`src/puzzle/scene.ts`) :
-  - Jardin : maisonnettes et arbres ; Port : façades colorées à la Burano ; Marché : stores rayés ;
-    Nuit : ciel étoilé, lune, fenêtres allumées ; Cité engloutie : ruines, rayons de lumière, bulles, poissons.
-  - Le plateau reste à plat, vu de dessus, posé sur la lagune : le décor encadre le puzzle sans jamais gêner la
-    lecture. C'est volontairement **pas** de l'isométrique jouable à la Monument Valley : en perspective, les cases
-    deviennent ambiguës et on rate ses glissements au doigt.
-  - De petits bateaux (des poissons sous la mer) naviguent dans chaque canal relié.
-  - Tout est procédural et mis en cache : aucun coût d'illustration et aucun impact sur la fluidité.
+- ✅ **Un monument par chapitre** (`src/puzzle/scene.ts`), inspiré des règles visuelles de Monument Valley sans
+  le copier :
+  - une palette de 2 à 3 teintes voisines par lieu, chaque volume ombré clair / moyen / foncé selon sa face ;
+  - des tours en vraie projection isométrique (dômes, flèches, créneaux, ruines), une passerelle, un grand soleil,
+    un ciel en dégradé ;
+  - de la vie discrète : drapeaux qui ondulent, oiseaux, poussières de lumière, bancs de brume, et sous la mer
+    des rayons de lumière, des bulles et des poissons.
+  - Jardin menthe et pêche, Port turquoise et corail, Marché corail, Nuit violet et rose, Cité engloutie
+    sarcelle profond.
+  - **Le plateau devient la terrasse du monument** (socle, pilier d'arches qui plonge dans la brume), mais reste à
+    plat et vu de dessus : la lisibilité du puzzle passe avant tout. De petits bateaux (des poissons sous la mer)
+    naviguent dans les canaux reliés.
+  - Le décor du chapitre en cours sert aussi de fond à l'écran d'accueil : l'univers devient l'identité de l'appli.
+  - Tout est procédural et mis en cache : aucun coût d'illustration.
 - ⏳ (5) Un vrai pass d'illustrateur sur les dessins (pixel art plus fin en 10×10 et 12×12) et sur l'icône.
 
 ## 4. Les boucles de rétention

@@ -224,7 +224,8 @@ export class App {
   private go(screen: Screen) {
     this.screen = screen;
     if (screen !== 'puzzle') this.puzzle.stop();
-    this.board.style.display = screen === 'game' || screen === 'puzzle' ? 'block' : 'none';
+    this.board.style.display = screen === 'game' || screen === 'puzzle' || screen === 'home' ? 'block' : 'none';
+    if (screen === 'home') requestAnimationFrame(() => this.puzzle.resizeAmbient());
     this.cityCanvas.style.display = screen === 'city' ? 'block' : 'none';
     this.hud = {};
     this.hudCache = {};
@@ -509,6 +510,8 @@ export class App {
       if (this.tutorial >= 0) this.tickTutorial(dt);
       this.renderer.draw(sim, dt);
       this.updateHud();
+    } else if (this.screen === 'home') {
+      this.puzzle.ambient(dt);
     } else if (this.screen === 'puzzle') {
       this.puzzle.frame(dt);
     } else if (this.screen === 'city') {

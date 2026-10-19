@@ -1,7 +1,7 @@
 import { MATERIALS, type Palette } from '../game/content';
 import { drawGlyph } from '../game/render';
 import { PUZZLE_COLORS, type PuzzleState } from './puzzle';
-import { boatColor, isUnderwater, Scene } from './scene';
+import { boardStyle, boatColor, isUnderwater, Scene } from './scene';
 
 const STONE = '#A99D8A';
 
@@ -43,6 +43,7 @@ export class PuzzleRenderer {
   private flow = new Map<number, number>();
   /** Decor around the board (chapter mood). */
   readonly scene = new Scene();
+  private bs = boardStyle('harbour');
   /** Name shown above the board when the picture is revealed. */
   title = '';
   /** Cells of a canal to demonstrate with a ghost finger (first level only). */
@@ -71,6 +72,14 @@ export class PuzzleRenderer {
     this.oy = Math.round(this.insets.top + (availH - this.cell * n) / 2);
   }
 
+  /** Draws only the chapter scene (menu backdrop), with the skyline standing at `horizon` (0..1 of the height). */
+  drawAmbient(dt: number, horizon = 0.62) {
+    this.time += dt;
+    const g = this.g;
+    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.scene.draw(g, this.cw, this.ch, this.dpr, { x: 0, y: this.ch * horizon, size: 0 }, this.time);
+  }
+
   cellAt(px: number, py: number, n: number): { i: number; inner: boolean } {
     const fx = (px - this.ox) / this.cell;
     const fy = (py - this.oy) / this.cell;
@@ -87,9 +96,9 @@ export class PuzzleRenderer {
   draw(st: PuzzleState, dt: number) {
     this.time += dt;
     const g = this.g;
-    const p = this.pal;
     const n = st.n;
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.bs = boardStyle(this.scene.theme);
     this.scene.draw(g, this.cw, this.ch, this.dpr, { x: this.ox, y: this.oy, size: this.cell * n }, this.time);
     g.save();
     g.translate(this.ox, this.oy);
@@ -100,13 +109,13 @@ export class PuzzleRenderer {
     g.beginPath();
     g.roundRect(-0.12, -0.06, n + 0.24, n + 0.3, 0.3);
     g.fill();
-    g.fillStyle = p.canalEdge;
+    g.fillStyle = this.bs.slab;
     g.beginPath();
     g.roundRect(-0.12, -0.12, n + 0.24, n + 0.24, 0.3);
     g.fill();
     for (let y = 0; y < n; y++)
       for (let x = 0; x < n; x++) {
-        g.fillStyle = p.card;
+        g.fillStyle = this.bs.cell;
         g.beginPath();
         g.roundRect(x + 0.04, y + 0.04, 0.92, 0.92, 0.16);
         g.fill();
@@ -125,7 +134,7 @@ export class PuzzleRenderer {
     if (this.title && rv > 0.55) {
       g.save();
       g.globalAlpha = Math.min(1, (rv - 0.55) / 0.3);
-      g.fillStyle = isUnderwater(this.scene.theme) || this.scene.theme === 'night' ? '#F3EEE4' : p.ink;
+      g.fillStyle = this.bs.titleOnDark ? '#F3EEE4' : this.bs.ink;
       g.shadowColor = 'rgba(0,0,0,0.25)';
       g.shadowBlur = 8;
       g.textAlign = 'center';
@@ -171,7 +180,7 @@ export class PuzzleRenderer {
     st.paths.forEach((path) => {
       if (path.length < 2) return;
       trace(path);
-      g.strokeStyle = this.pal.canalEdge;
+      g.strokeStyle = this.bs.slab;
       g.lineWidth = 0.58;
       g.stroke();
     });
@@ -352,7 +361,7 @@ export class PuzzleRenderer {
         g.beginPath();
         g.arc(x + 0.02, y + 0.05, 0.36, 0, Math.PI * 2);
         g.fill();
-        g.fillStyle = this.pal.canalEdge;
+        g.fillStyle = this.bs.slab;
         g.beginPath();
         g.arc(x, y, 0.36, 0, Math.PI * 2);
         g.fill();
@@ -375,7 +384,7 @@ export class PuzzleRenderer {
         g.beginPath();
         g.roundRect(x - 0.33 + 0.02, y - 0.33 + 0.05, 0.66, 0.66, 0.14);
         g.fill();
-        g.fillStyle = this.pal.card;
+        g.fillStyle = this.bs.cell;
         g.strokeStyle = col;
         g.lineWidth = 0.09;
         g.beginPath();

@@ -139,7 +139,8 @@ export class PuzzleMode {
     const theme: ThemeId = daily ? themes[new Date().getDate() % themes.length] : (chapterOf(index).chapter.id as ThemeId);
     this.renderer.scene.theme = theme;
     this.renderer.scene.seed = (daily ? 999 : index) + 1;
-    this.host.ui.classList.toggle('pz-dark', theme === 'night' || theme === 'deep');
+    this.renderer.scene.scale = 1;
+    this.host.ui.classList.toggle('pz-dark', theme === 'deep');
     this.host.ui.innerHTML = this.hudHtml();
     this.hud = {};
     this.host.ui.querySelectorAll<HTMLElement>('[data-h]').forEach((el) => (this.hud[el.dataset.h!] = el));
@@ -162,6 +163,23 @@ export class PuzzleMode {
     }
   }
 
+  /** Home backdrop: the scene of the chapter the player is in. */
+  ambient(dt: number) {
+    const { chapter } = chapterOf(save.puzzle.next);
+    if (this.renderer.scene.theme !== chapter.id || this.renderer.scene.seed !== 7) {
+      this.renderer.scene.theme = chapter.id as ThemeId;
+      this.renderer.scene.seed = 7;
+      this.renderer.scene.scale = 0.55;
+      this.renderer.pal = this.host.pal();
+      this.renderer.resize();
+    }
+    this.renderer.drawAmbient(dt, 0.42);
+  }
+
+  resizeAmbient() {
+    this.renderer.resize();
+  }
+
   stop() {
     this.host.ui.classList.remove('pz-dark');
     this.st = null;
@@ -170,9 +188,8 @@ export class PuzzleMode {
   }
 
   resize() {
-    if (!this.st) return;
     this.renderer.resize();
-    this.renderer.layout(this.st.n);
+    if (this.st) this.renderer.layout(this.st.n);
   }
 
   frame(dt: number) {
