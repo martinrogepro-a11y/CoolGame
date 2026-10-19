@@ -120,9 +120,22 @@ export const audio = {
     const t = quantised(`d${degree}`);
     if (t !== null) pluck(noteHz(degree), t, 0.22 + Math.min(combo, 8) * 0.01, 1.1);
   },
+  /** Digging a canal section: a soft water "bloop" (sine with a quick downward glide). */
   place() {
-    if (!ensure() || !ctx) return;
-    click(ctx.currentTime, 1800 + Math.random() * 300, 0.12);
+    if (!ensure() || !ctx || !master) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    const f = 420 + Math.random() * 160;
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.exponentialRampToValueAtTime(f * 1.9, t + 0.05);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    o.connect(g).connect(master);
+    o.start(t);
+    o.stop(t + 0.14);
   },
   erase() {
     if (!ensure() || !ctx) return;

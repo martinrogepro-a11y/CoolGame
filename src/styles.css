@@ -1092,3 +1092,110 @@ button[disabled] {
 .screen.night .icon-btn {
   color: #29282e;
 }
+
+/* ------------------------------------------------------------------ frescoes */
+
+.hud-fresco {
+  position: static;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  flex: none;
+  pointer-events: none;
+}
+
+.fresco-card {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+}
+
+.fresco-card canvas {
+  position: static;
+  width: 64px;
+  height: 64px;
+  flex: none;
+}
+
+.fresco-card .txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fresco-card small {
+  color: var(--sub);
+}
+
+.fresco-card .bar {
+  display: block;
+}
+
+.fresco-end {
+  margin: 14px auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.fresco-end canvas {
+  position: static;
+  width: 176px;
+  height: 176px;
+}
+
+.fresco-end small {
+  color: var(--sub);
+  font-size: 13px;
+}
+
+.fresco-end .badge {
+  margin: 0;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.gallery .frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+}
+
+.gallery canvas {
+  position: static;
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 100%;
+  height: auto;
+}
+
+.gallery small {
+  color: var(--sub);
+  font-size: 12px;
+}
+
+.gallery small svg {
+  width: 14px;
+  height: 14px;
+}
+
+.note {
+  color: var(--sub);
+  font-size: 13px;
+  text-align: center;
+}

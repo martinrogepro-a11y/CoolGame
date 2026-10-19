@@ -6,6 +6,7 @@ import { DISTRICTS, districtById, MATERIALS, PALETTES, paletteById, type Palette
 import { Renderer } from '../game/render';
 import { Sim, TUNING, type SimEvent, type UpgradeId } from '../game/sim';
 import { generateTerrain, T } from '../game/terrain';
+import { FRESCOES, type Fresco, frescoNeeds, frescoProgress } from '../meta/frescoes';
 import { LANDMARKS, type Landmark } from '../meta/landmarks';
 import {
   applyRun, build, canBuild, claimMission, dailyDistrict, dailySeed, districtUnlocked, doubleRun, grantSpread,
@@ -14,6 +15,7 @@ import {
 import { ads } from '../monetization/ads';
 import { IAP } from '../monetization/config';
 import { iap } from '../monetization/iap';
+import { drawFresco } from './frescoRender';
 import { t, type Key } from './i18n';
 import { icon } from './icons';
 
@@ -53,6 +55,8 @@ export class App {
   private hudCache: Record<string, string | number> = {};
   private pointer: number | null = null;
   private cityDrag: { x: number; y: number; px: number; py: number } | null = null;
+  private frescoDirty = true;
+  private frescoToasted = false;
 
   constructor(root: HTMLElement) {
     root.innerHTML = '<canvas id="board"></canvas><canvas id="city"></canvas><div id="ui"></div>';
@@ -206,10 +210,10 @@ export class App {
     this.hud = {};
     this.hudCache = {};
     switch (screen) {
-      case 'home': this.ui.innerHTML = this.homeHtml(); this.drawDistrictPreview(); break;
+      case 'home': this.ui.innerHTML = this.homeHtml(); this.drawDistrictPreview(); this.drawFrescoes(); break;
       case 'game': this.ui.innerHTML = this.hudHtml(); this.bindHud(); break;
       case 'city': this.ui.innerHTML = this.cityHtml(); this.city.resize(); this.city.setCity(save.lifetime, save.built); this.drawThumbs(); break;
-      case 'collection': this.ui.innerHTML = this.collectionHtml(); this.drawThumbs(); break;
+      case 'collection': this.ui.innerHTML = this.collectionHtml(); this.drawThumbs(); this.drawFrescoes(); break;
       case 'shop': this.ui.innerHTML = this.shopHtml(); break;
       case 'settings': this.ui.innerHTML = this.settingsHtml(); break;
     }
@@ -369,6 +373,8 @@ export class App {
     this.runDaily = daily;
     this.result = null;
     this.doubled = false;
+    this.frescoDirty = true;
+    this.frescoToasted = false;
     this.timeScale = 1;
     this.paused = false;
     this.eraseMode = false;
@@ -471,7 +477,7 @@ export class App {
   private handleEvents(events: SimEvent[]) {
     for (const e of events) {
       switch (e.type) {
-        case 'deliver': audio.deliver(e.color, e.combo); haptics.tick(); break;
+        case 'deliver': audio.deliver(e.color, e.combo); haptics.tick(); this.frescoDirty = true; break;
         case 'place': audio.place(); haptics.tick(); break;
         case 'erase': audio.erase(); haptics.light(); break;
         case 'denied': {
@@ -506,6 +512,7 @@ export class App {
       <div class="hud-top">
         <button class="icon-btn" data-a="pause" aria-label="${t('paused')}">${icon.pause}</button>
         <div class="score"><span data-h="score">0</span><small data-h="label"></small></div>
+        ${FRESCOES[save.fresco.idx] ? '<canvas class="hud-fresco" data-h="fresco" aria-hidden="true"></canvas>' : ''}
         <div class="week" aria-label="week">
           <svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" fill="none" stroke="var(--line)" stroke-width="4"/>
           <circle data-h="ring" cx="22" cy="22" r="19" fill="none" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="119.4"/></svg>
@@ -539,6 +546,10 @@ export class App {
 
   private updateHud() {
     const sim = this.sim!;
+    if (this.frescoDirty) {
+      this.frescoDirty = false;
+      this.drawHudFresco();
+    }
     this.setHud('score', sim.stats.score);
     this.setHud('week', sim.week + 1);
     this.setHud('belts', sim.belts);
@@ -559,6 +570,77 @@ export class App {
     this.modal(`<h2>${t('weekDone', { n: sim.week })}</h2><p>${t('weekBonus', { n: TUNING.WEEK_BONUS_BELTS })}</p><div class="upgrades">${cards}</div>`);
   }
 
+  // ---------------------------------------------------------------- frescoes
+
+  /** The fresco the current run is filling, with tiles laid before the run and by the run so far. */
+  private runFresco(): { f: Fresco; filled: number[]; fresh: number[] } | null {
+    const base = this.result ? this.result.fresco.before : save.fresco;
+    const f = FRESCOES[base.idx];
+    if (!f || !this.sim) return null;
+    const need = frescoNeeds(f);
+    const fresh = need.map((n, c) => Math.max(0, Math.min(this.sim!.stats.delivered[c], n - base.filled[c])));
+    return { f, filled: base.filled, fresh };
+  }
+
+  private drawHudFresco() {
+    const canvas = this.hud.fresco as HTMLCanvasElement | undefined;
+    const rf = this.runFresco();
+    if (!canvas || !rf) return;
+    drawFresco(canvas, rf.f, this.renderer.pal, { filled: rf.filled, fresh: rf.fresh, anim: 1 });
+    const done = frescoProgress(rf.f, rf.filled.map((n, c) => n + rf.fresh[c])) >= 1;
+    if (done && !this.frescoToasted) {
+      this.frescoToasted = true;
+      this.toast(`${t('frescoDone')} ${t(`fr_${rf.f.id}` as Key)}`);
+      audio.reward();
+      haptics.success();
+    }
+  }
+
+  private frescoCard(f: Fresco, filled: number[], cls: string): string {
+    const pct = Math.round(frescoProgress(f, filled) * 100);
+    const left = frescoNeeds(f).reduce((a, n, c) => a + Math.max(0, n - filled[c]), 0);
+    return `<button class="card fresco-card ${cls}" data-a="go" data-v="collection">
+      <canvas data-fresco="${f.id}"></canvas>
+      <span class="txt"><b>${t('fresco')} · ${t(`fr_${f.id}` as Key)}</b><small>${pct}% · ${t('frescoLeft', { n: left })}</small>
+      <span class="bar"><i style="width:${pct}%"></i></span></span></button>`;
+  }
+
+  /** Draws every fresco canvas currently in the UI from its data attributes. */
+  private drawFrescoes() {
+    requestAnimationFrame(() => {
+      this.ui.querySelectorAll<HTMLCanvasElement>('canvas[data-fresco]').forEach((c) => {
+        const f = FRESCOES.find((x) => x.id === c.dataset.fresco);
+        if (!f) return;
+        const idx = FRESCOES.indexOf(f);
+        const done = save.frescoesDone.includes(f.id);
+        const filled = done ? frescoNeeds(f) : idx === save.fresco.idx ? save.fresco.filled : [0, 0, 0, 0, 0];
+        drawFresco(c, f, this.renderer.pal, { filled, hidden: !done && idx > save.fresco.idx });
+      });
+    });
+  }
+
+  /** Lays this run's tiles into the big fresco of the end screen, one after another. */
+  private animateEndFresco() {
+    const canvas = this.ui.querySelector<HTMLCanvasElement>('canvas.fresco-big');
+    const rf = this.runFresco();
+    if (!canvas || !rf) return;
+    const t0 = performance.now();
+    const total = rf.fresh.reduce((a, b) => a + b, 0);
+    const dur = Math.min(2200, 600 + total * 18);
+    let lastTick = 0;
+    const step = (now: number) => {
+      if (!canvas.isConnected) return;
+      const a = Math.min(1, (now - t0) / dur);
+      drawFresco(canvas, rf.f, this.renderer.pal, { filled: rf.filled, fresh: rf.fresh, anim: a });
+      if (a - lastTick > 0.08 && a < 1) {
+        lastTick = a;
+        haptics.tick();
+      }
+      if (a < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
   private showGameOver() {
     const sim = this.sim;
     if (!sim || this.screen !== 'game') return;
@@ -570,17 +652,31 @@ export class App {
     const canRevive = !sim.continued && !this.result && ads.rewardedAvailable();
     const canDouble = !this.doubled && earned.some((n) => n > 0) && ads.rewardedAvailable();
     const chips = earned.map((n, c) => (n > 0 ? `<span class="t">${sq(c)}${n}</span>` : '')).join('');
+    const rf = this.runFresco();
+    let frescoBlock = '';
+    if (rf) {
+      const after = rf.filled.map((n, c) => n + rf.fresh[c]);
+      const done = frescoProgress(rf.f, after) >= 1;
+      const laid = rf.fresh.reduce((a, b) => a + b, 0);
+      const next = FRESCOES[FRESCOES.indexOf(rf.f) + 1];
+      const sub = done
+        ? `<span class="badge">${t('frescoDone')}</span><small>${t('frescoReward', { n: 100, f: next ? t(`fr_${next.id}` as Key) : '—' })}</small>`
+        : `<small>${t('frescoLaid', { n: laid })} · ${Math.round(frescoProgress(rf.f, after) * 100)}%</small>`;
+      frescoBlock = `<div class="fresco-end"><canvas class="fresco-big"></canvas><b>${t(`fr_${rf.f.id}` as Key)}</b>${sub}</div>`;
+    }
     this.modal(`
       <h2>${t('gameOver')}</h2>
       <p>${esc(this.districtName())} · ${t('week', { n: sim.week + 1 })}</p>
       <div class="big-score">${stats.score}</div>
       ${newBest ? `<span class="badge">${t('newBest')}</span>` : `<p style="margin:6px 0 0">${t('best', { n: best })}</p>`}
+      ${frescoBlock}
       <div class="earned">${chips || '—'}</div>
       <div class="stack">
         ${canRevive ? `<button class="btn gold" data-a="revive">${icon.video} ${t('continueAd')}</button>` : ''}
         ${canDouble ? `<button class="btn" data-a="double">${icon.video} ${t('doubleAd')}</button>` : ''}
         <div class="row2"><button class="btn" data-a="home">${t('home')}</button><button class="btn primary" data-a="again">${t('again')}</button></div>
       </div>`);
+    this.animateEndFresco();
   }
 
   // ---------------------------------------------------------------- home
@@ -641,6 +737,7 @@ export class App {
         </div>
         <button class="big-btn" data-a="play" ${unlocked ? '' : 'disabled'}>${unlocked ? icon.play : icon.lock} ${t('play')}</button>
         <button class="card daily" data-a="daily"><span class="ic">${icon.calendar}</span><span><b>${t('daily')}</b><small>${esc(daily)}</small></span></button>
+        ${FRESCOES[save.fresco.idx] ? this.frescoCard(FRESCOES[save.fresco.idx], save.fresco.filled, '') : ''}
         ${gift}
         <div class="section-title">${t('missions')}</div>
         <div class="card" style="padding:0">${missions}</div>
@@ -682,17 +779,20 @@ export class App {
           g.fill();
         }
       }
-    // A hint of belts and tiles, as a signature.
+    // A hint of a canal and tiles, as a signature.
     const rng = new Rng(hashString('pv' + d.id));
     const cx = Math.floor(w / 2), cy = Math.floor(h / 2);
-    g.strokeStyle = pal.belt;
-    g.lineWidth = cell * 0.4;
     g.lineCap = 'round';
     g.lineJoin = 'round';
     g.beginPath();
     g.moveTo(ox + (cx - 1.5) * cell, (cy - 1.5) * cell);
     g.lineTo(ox + (cx + 1.5) * cell, (cy - 1.5) * cell);
     g.lineTo(ox + (cx + 1.5) * cell, (cy + 1.5) * cell);
+    g.strokeStyle = pal.canalEdge;
+    g.lineWidth = cell * 0.55;
+    g.stroke();
+    g.strokeStyle = pal.canal;
+    g.lineWidth = cell * 0.36;
     g.stroke();
     const c1 = MATERIALS[rng.int(0, 4)].color;
     g.fillStyle = c1;
@@ -758,7 +858,7 @@ export class App {
           ? `<button class="btn primary" data-a="palette" data-v="${p.id}">${t('use')}</button>`
           : `<span>${icon.lock}</span>`;
       const how = owned ? '' : `<small>${t(`palHow_${p.id}` as Key)}</small>`;
-      return `<div class="pal"><span class="sw"><i style="background:${p.bg}"></i><i style="background:${p.water}"></i><i style="background:${p.belt}"></i><i style="background:${p.card}"></i></span>
+      return `<div class="pal"><span class="sw"><i style="background:${p.bg}"></i><i style="background:${p.water}"></i><i style="background:${p.canal}"></i><i style="background:${p.card}"></i></span>
         <span class="txt"><b>${t(`pal_${p.id}` as Key)}</b>${how}</span>${right}</div>`;
     }).join('');
     const built = LANDMARKS.filter((l) => save.built.includes(l.id)).length;
@@ -769,6 +869,15 @@ export class App {
           <h2>${t('collection')}<br><small>${t('landmarks')} ${built}/${LANDMARKS.length}</small></h2>
         </div>
         ${this.wallet()}
+        <div class="section-title">${t('frescoes')} ${save.frescoesDone.length}/${FRESCOES.length}</div>
+        <div class="gallery">${FRESCOES.map((f, i) => {
+          const done = save.frescoesDone.includes(f.id);
+          const known = done || i <= save.fresco.idx;
+          const label = known ? t(`fr_${f.id}` as Key) : '???';
+          const sub = done ? icon.check : i === save.fresco.idx ? `${Math.round(frescoProgress(f, save.fresco.filled) * 100)}%` : icon.lock;
+          return `<div class="frame"><canvas data-fresco="${f.id}"></canvas><span>${esc(label)}</span><small>${sub}</small></div>`;
+        }).join('')}</div>
+        ${FRESCOES[save.fresco.idx] ? '' : `<p class="note">${t('frescoAll')}</p>`}
         <div class="section-title">${t('landmarks')}</div>
         <div class="coll-grid">${LANDMARKS.map((l) => this.landmarkCard(l)).join('')}</div>
         <div class="section-title">${t('palettes')}</div>

@@ -1,6 +1,6 @@
 # TESSERA — Game Design & Business Document
 
-> *Pose des tapis. Nourris les ateliers. Fais grandir ta ville.*
+> *Trace des canaux. Livre les mosaïstes. Complète les fresques.*
 
 ## 1. Le pitch (et pourquoi pas un simple clone de Mini Metro)
 
@@ -21,6 +21,19 @@ Je l'ai gardée et poussée sur trois points.
 **Références assumées** : Mini Metro (pression qui monte, choix hebdomadaires), Mini Motorways (carte qui s'agrandit),
 2048 (une seule règle, apprise en 10 secondes), Townscaper (ville à contempler), Islanders (score qui construit), et
 les jeux « cozy » à collection (Neko Atsume) pour la boucle quotidienne.
+
+## 1 bis. Pourquoi des canaux et des fresques (v0.2)
+
+Les tapis roulants de la v0.1 étaient froids, industriels, proches visuellement de Mini Motorways et sans lien avec
+la ville. On a gardé le geste (tracer un chemin, celui de Flow Free et Mini Metro) et changé l'habillage et le but :
+
+- **Canaux d'eau** : les tuiles flottent sur des canaux bordés de pierre. Fontaines = sources, ateliers de mosaïstes =
+  destinations, **aqueducs** = croisements et passages au-dessus de l'eau (une seule ressource, plus simple).
+- **Fresques** : chaque tuile livrée se pose dans une mosaïque en pixel art qui se dévoile partie après partie
+  (mécanique de complétion d'image des applis de coloriage). Une fresque finie rapporte 100 tesselles et entre dans la
+  galerie. Le contenu est très peu coûteux à produire : une fresque = une grille de texte (`src/meta/frescoes.ts`).
+
+La simulation est identique : dans le code, `belt` désigne un canal et `bridges` les aqueducs.
 
 ## 2. Boucle de partie (le « run »)
 

@@ -85,3 +85,30 @@ describe('save & meta loop', () => {
     expect(canBuild(s, arch)).toBe(true);
   });
 });
+
+describe('frescoes', () => {
+  it('lays matching tiles, completes, rewards and overflows into the next fresco', async () => {
+    const { layFresco, FRESCO_REWARD } = await import('../src/meta/save');
+    const { FRESCOES, frescoNeeds, frescoProgress } = await import('../src/meta/frescoes');
+    const s = freshSave();
+    const need = frescoNeeds(FRESCOES[0]);
+    const half = layFresco(s, need.map((n) => Math.floor(n / 2)));
+    expect(half.completed).toEqual([]);
+    expect(frescoProgress(FRESCOES[0], s.fresco.filled)).toBeGreaterThan(0.4);
+    const before = s.lifetime;
+    const step = layFresco(s, [500, 500, 0, 0, 0]);
+    expect(step.completed[0]).toBe(FRESCOES[0].id);
+    expect(s.lifetime - before).toBeGreaterThanOrEqual(FRESCO_REWARD);
+    expect(s.fresco.idx).toBeGreaterThanOrEqual(1);
+    expect(s.fresco.filled.some((n) => n > 0)).toBe(true);
+  });
+
+  it('every fresco is square and uses only known colours', async () => {
+    const { FRESCOES, frescoNeeds } = await import('../src/meta/frescoes');
+    for (const f of FRESCOES) {
+      expect(f.rows.every((r) => r.length === f.rows.length)).toBe(true);
+      expect(f.rows.join('')).toMatch(/^[rbgyp.]+$/);
+      expect(frescoNeeds(f).reduce((a, b) => a + b, 0)).toBeGreaterThan(50);
+    }
+  });
+});

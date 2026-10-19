@@ -158,7 +158,7 @@ export class Renderer {
           this.fx.push({ kind: 'ring', x: e.x + 0.5, y: e.y + 0.5, t: 0, life: 1.1, color: MATERIALS[e.color].color });
           break;
         case 'erase':
-          this.fx.push({ kind: 'puff', x: e.x + 0.5, y: e.y + 0.5, t: 0, life: 0.4, color: this.pal.belt });
+          this.fx.push({ kind: 'puff', x: e.x + 0.5, y: e.y + 0.5, t: 0, life: 0.4, color: this.pal.canal });
           break;
         case 'over':
           this.focusSite = e.site;
@@ -276,65 +276,79 @@ export class Renderer {
     g.setLineDash([]);
   }
 
+  /** Sides a canal cell connects to (its outputs plus everything feeding it). */
+  private links(sim: Sim, i: number): Dir[] {
+    return [...sim.cells[i].outs, ...sim.insOf(i)];
+  }
+
+  /**
+   * Canals: a sandstone edge, vivid water inside and foam ripples drifting in the
+   * direction of the current. Built in three passes so junctions merge cleanly.
+   */
   private drawBelts(sim: Sim) {
     const g = this.g;
     const p = this.pal;
     const stroke = new Set(sim.strokeCells());
+    const path = (i: number, ext: number) => {
+      const x = (i % sim.w) + 0.5, y = Math.floor(i / sim.w) + 0.5;
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x + 0.0001, y);
+      for (const d of this.links(sim, i)) {
+        const nb = sim.neighbor(i, d);
+        const len = nb >= 0 && (sim.siteAt[nb] >= 0 || sim.sourceAt[nb] >= 0) ? 0.5 + ext : 0.5;
+        g.moveTo(x, y);
+        g.lineTo(x + DX[d] * len, y + DY[d] * len);
+      }
+    };
     g.lineCap = 'round';
     g.lineJoin = 'round';
 
-    // Pass 1: bridge decks under the belt.
+    // Pass 1: stone edging (wider and squared on water cells, where the canal becomes a small aqueduct).
     for (let i = 0; i < sim.cells.length; i++) {
       const cell = sim.cells[i];
-      if (!cell.belt || cell.terrain !== T.Water) continue;
-      const x = (i % sim.w) + 0.5, y = Math.floor(i / sim.w) + 0.5;
-      const dirs = new Set<Dir>([...cell.outs, ...sim.insOf(i)]);
-      g.strokeStyle = p.beltLine;
-      g.lineWidth = 0.66;
-      g.lineCap = 'butt';
-      g.beginPath();
-      for (const d of dirs) {
-        g.moveTo(x, y);
-        g.lineTo(x + DX[d] * 0.5, y + DY[d] * 0.5);
+      if (!cell.belt) continue;
+      const grow = Math.min(1, easeOutBack(Math.min(1, cell.age * 5)));
+      const onWater = cell.terrain === T.Water;
+      if (onWater) {
+        g.lineCap = 'butt';
+        g.strokeStyle = 'rgba(0,0,0,0.12)';
+        g.lineWidth = 0.7;
+        g.save();
+        g.translate(0.03, 0.06);
+        path(i, 0);
+        g.stroke();
+        g.restore();
       }
-      g.stroke();
-      g.strokeStyle = p.bg;
-      g.lineWidth = 0.54;
+      g.strokeStyle = p.canalEdge;
+      g.lineWidth = (onWater ? 0.66 : 0.52) * grow;
+      path(i, 0.1);
       g.stroke();
       g.lineCap = 'round';
     }
 
-    // Pass 2: belt bodies.
+    // Pass 2: water.
     for (let i = 0; i < sim.cells.length; i++) {
       const cell = sim.cells[i];
       if (!cell.belt) continue;
-      const x = (i % sim.w) + 0.5, y = Math.floor(i / sim.w) + 0.5;
       const grow = Math.min(1, easeOutBack(Math.min(1, cell.age * 5)));
-      const dirs = [...cell.outs, ...sim.insOf(i)];
-      g.strokeStyle = p.belt;
-      g.lineWidth = 0.42 * grow;
-      g.beginPath();
-      g.moveTo(x, y);
-      g.lineTo(x + 0.0001, y);
-      for (const d of dirs) {
-        const nb = sim.neighbor(i, d);
-        const len = nb >= 0 && (sim.siteAt[nb] >= 0 || sim.sourceAt[nb] >= 0) ? 0.62 : 0.5;
-        g.moveTo(x, y);
-        g.lineTo(x + DX[d] * len, y + DY[d] * len);
-      }
+      g.strokeStyle = p.canal;
+      g.lineWidth = 0.36 * grow;
+      path(i, 0.1);
       g.stroke();
       if (stroke.has(i)) {
-        g.strokeStyle = 'rgba(255,255,255,0.18)';
-        g.lineWidth = 0.18;
+        g.strokeStyle = 'rgba(255,255,255,0.22)';
+        g.lineWidth = 0.14;
         g.stroke();
       }
     }
 
-    // Pass 3: animated chevrons showing the direction of travel.
+    // Pass 3: foam ripples drifting with the current.
     const speed = TUNING.BELT_SPEED * sim.speedMul;
     const phase = (this.time * speed) % 0.5;
-    g.strokeStyle = p.beltLine;
-    g.lineWidth = 0.05;
+    g.strokeStyle = p.foam;
+    g.lineWidth = 0.035;
+    g.beginPath();
     for (let i = 0; i < sim.cells.length; i++) {
       const cell = sim.cells[i];
       if (!cell.belt || cell.outs.length === 0) continue;
@@ -342,22 +356,23 @@ export class Renderer {
       const ins = sim.insOf(i);
       const segs: { d: Dir; from: number; to: number }[] = [];
       for (const d of ins) segs.push({ d: opposite(d), from: -0.5, to: 0 });
-      if (ins.length === 0) segs.push({ d: cell.outs[0], from: 0, to: 0 });
       for (const d of cell.outs) segs.push({ d, from: 0, to: 0.5 });
-      g.beginPath();
-      for (const s of segs) {
-        for (let o = s.from + phase - 0.5; o < s.to; o += 0.5) {
-          if (o < s.from) continue;
-          const cx = x + DX[s.d] * o;
-          const cy = y + DY[s.d] * o;
-          const px = -DY[s.d] * 0.1, py = DX[s.d] * 0.1;
-          const bx = -DX[s.d] * 0.08, by = -DY[s.d] * 0.08;
-          g.moveTo(cx + bx + px, cy + by + py);
-          g.lineTo(cx, cy);
-          g.lineTo(cx + bx - px, cy + by - py);
-        }
-      }
-      g.stroke();
+      for (const sg of segs) this.foamSegment(x, y, sg.d, sg.from, sg.to, phase, i);
+    }
+    g.stroke();
+  }
+
+  /** Short foam strokes along one half-cell of canal, alternating sides like ripples. */
+  private foamSegment(x: number, y: number, d: Dir, from: number, to: number, phase: number, seed: number) {
+    const g = this.g;
+    let k = 0;
+    for (let o = from + phase - 0.5; o < to; o += 0.25, k++) {
+      if (o < from) continue;
+      const side = (k + seed) % 2 === 0 ? 0.08 : -0.08;
+      const cx = x + DX[d] * o - DY[d] * side;
+      const cy = y + DY[d] * o + DX[d] * side;
+      g.moveTo(cx - DX[d] * 0.05, cy - DY[d] * 0.05);
+      g.lineTo(cx + DX[d] * 0.05, cy + DY[d] * 0.05);
     }
   }
 
@@ -380,28 +395,34 @@ export class Renderer {
     }
   }
 
-  /** An item is a small glossy tessera. */
+  /** An item is a small glossy tessera floating on the canal, bobbing gently. */
   private drawItem(sim: Sim, i: number, it: Item) {
     const g = this.g;
-    const s = 0.24;
+    const s = 0.22;
     const [x, y] = this.itemPos(sim, i, it);
     const m = MATERIALS[it.color];
-    g.fillStyle = 'rgba(0,0,0,0.18)';
-    roundRect(g, x - s / 2 + 0.02, y - s / 2 + 0.03, s, s, 0.05);
+    const bob = Math.sin(this.time * 3 + it.id * 1.7);
+    g.save();
+    g.translate(x, y);
+    g.fillStyle = 'rgba(0,30,40,0.16)';
+    roundRect(g, -s / 2 + 0.02, -s / 2 + 0.04, s, s, 0.05);
     g.fill();
+    g.rotate(bob * 0.14);
+    g.translate(0, bob * 0.012);
     g.fillStyle = m.color;
-    roundRect(g, x - s / 2, y - s / 2, s, s, 0.05);
+    roundRect(g, -s / 2, -s / 2, s, s, 0.05);
     g.fill();
-    g.fillStyle = 'rgba(255,255,255,0.28)';
-    roundRect(g, x - s / 2 + 0.03, y - s / 2 + 0.03, s * 0.45, s * 0.25, 0.03);
+    g.fillStyle = 'rgba(255,255,255,0.3)';
+    roundRect(g, -s / 2 + 0.03, -s / 2 + 0.03, s * 0.45, s * 0.22, 0.03);
     g.fill();
     if (this.colorblind) {
       g.fillStyle = 'rgba(255,255,255,0.9)';
-      drawGlyph(g, m.glyph, x, y, 0.06);
+      drawGlyph(g, m.glyph, 0, 0, 0.06);
     }
+    g.restore();
   }
 
-  /** Belts passing over other belts: drawn last so they sit on top, with a little shadow. */
+  /** Aqueducts carrying one canal over another: drawn last, raised, with a shadow and arches. */
   private drawOverpasses(sim: Sim) {
     const g = this.g;
     const p = this.pal;
@@ -411,40 +432,46 @@ export class Renderer {
       if (!cross) continue;
       const x = (i % sim.w) + 0.5, y = Math.floor(i / sim.w) + 0.5;
       const dx = DX[cross.dir] * 0.5, dy = DY[cross.dir] * 0.5;
+      const px = -DY[cross.dir], py = DX[cross.dir];
       g.lineCap = 'butt';
-      g.strokeStyle = 'rgba(0,0,0,0.16)';
-      g.lineWidth = 0.66;
+      g.strokeStyle = 'rgba(0,0,0,0.18)';
+      g.lineWidth = 0.68;
       g.beginPath();
-      g.moveTo(x - dx + 0.04, y - dy + 0.07);
-      g.lineTo(x + dx + 0.04, y + dy + 0.07);
+      g.moveTo(x - dx + 0.04, y - dy + 0.08);
+      g.lineTo(x + dx + 0.04, y + dy + 0.08);
       g.stroke();
-      g.strokeStyle = p.beltLine;
-      g.lineWidth = 0.62;
+      g.strokeStyle = p.canalEdge;
+      g.lineWidth = 0.66;
       g.beginPath();
       g.moveTo(x - dx, y - dy);
       g.lineTo(x + dx, y + dy);
       g.stroke();
-      g.strokeStyle = p.belt;
-      g.lineWidth = 0.44;
+      // Arches on both parapets.
+      g.fillStyle = 'rgba(0,0,0,0.14)';
+      for (const side of [-1, 1]) {
+        for (const o of [-0.25, 0.25]) {
+          g.beginPath();
+          g.arc(x + DX[cross.dir] * o + px * side * 0.33, y + DY[cross.dir] * o + py * side * 0.33, 0.07, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+      g.strokeStyle = p.canal;
+      g.lineWidth = 0.36;
+      g.beginPath();
+      g.moveTo(x - dx, y - dy);
+      g.lineTo(x + dx, y + dy);
       g.stroke();
       g.lineCap = 'round';
-      // Chevrons.
-      g.strokeStyle = p.beltLine;
-      g.lineWidth = 0.05;
+      g.strokeStyle = p.foam;
+      g.lineWidth = 0.035;
       g.beginPath();
-      for (let o = -0.5 + phase; o < 0.5; o += 0.5) {
-        const cx = x + DX[cross.dir] * o, cy = y + DY[cross.dir] * o;
-        const px = -DY[cross.dir] * 0.1, py = DX[cross.dir] * 0.1;
-        const bx = -DX[cross.dir] * 0.08, by = -DY[cross.dir] * 0.08;
-        g.moveTo(cx + bx + px, cy + by + py);
-        g.lineTo(cx, cy);
-        g.lineTo(cx + bx - px, cy + by - py);
-      }
+      this.foamSegment(x, y, cross.dir, -0.5, 0.5, phase, i);
       g.stroke();
       for (const it of cross.items) this.drawItem(sim, i, it);
     }
   }
 
+  /** Fountains: a stone basin with rippling water around a coloured spring. */
   private drawSources(sim: Sim) {
     const g = this.g;
     const p = this.pal;
@@ -452,30 +479,49 @@ export class Renderer {
       const x = s.x + 0.5, y = s.y + 0.5;
       const m = MATERIALS[s.color];
       const pop = easeOutBack(Math.min(1, s.age * 2.5));
-      const r = 0.36 * pop;
+      const r = 0.4 * pop;
       g.fillStyle = 'rgba(0,0,0,0.12)';
       g.beginPath();
-      g.arc(x + 0.02, y + 0.04, r, 0, Math.PI * 2);
+      g.arc(x + 0.02, y + 0.05, r, 0, Math.PI * 2);
       g.fill();
-      g.fillStyle = m.color;
+      g.fillStyle = p.canalEdge;
       g.beginPath();
       g.arc(x, y, r, 0, Math.PI * 2);
       g.fill();
-      // Emission timer ring.
+      g.fillStyle = p.canal;
+      g.beginPath();
+      g.arc(x, y, r * 0.78, 0, Math.PI * 2);
+      g.fill();
+      // Ripples spreading from the spring.
+      g.strokeStyle = p.foam;
+      g.lineWidth = 0.025;
+      for (let k = 0; k < 2; k++) {
+        const t = (this.time * 0.6 + k * 0.5 + s.id * 0.37) % 1;
+        g.globalAlpha = 1 - t;
+        g.beginPath();
+        g.arc(x, y, r * (0.4 + t * 0.36), 0, Math.PI * 2);
+        g.stroke();
+      }
+      g.globalAlpha = 1;
+      // Emission progress around the spring.
       const prog = 1 - s.timer / TUNING.EMIT_PERIOD;
-      g.strokeStyle = 'rgba(255,255,255,0.85)';
+      g.strokeStyle = m.color;
       g.lineWidth = 0.05;
       g.lineCap = 'round';
       g.beginPath();
-      g.arc(x, y, r * 0.66, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.02, prog));
+      g.arc(x, y, r * 0.62, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.02, prog));
       g.stroke();
+      g.fillStyle = m.color;
+      g.beginPath();
+      g.arc(x, y, r * 0.4, 0, Math.PI * 2);
+      g.fill();
       g.fillStyle = 'rgba(255,255,255,0.95)';
-      drawGlyph(g, m.glyph, x, y, 0.1 * pop);
-      // Buffered items.
+      drawGlyph(g, m.glyph, x, y, 0.08 * pop);
+      // Tiles waiting in the basin.
       for (let k = 0; k < TUNING.SOURCE_BUFFER; k++) {
         g.fillStyle = k < s.buffer ? m.color : p.dots;
         const bx = x - 0.16 + k * 0.16;
-        roundRect(g, bx - 0.045, y + r + 0.06, 0.09, 0.09, 0.02);
+        roundRect(g, bx - 0.045, y + r + 0.05, 0.09, 0.09, 0.02);
         g.fill();
       }
     }

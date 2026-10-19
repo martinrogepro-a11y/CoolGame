@@ -2,6 +2,7 @@ import { dayKey, daysBetween, hashString, Rng } from '../core/rng';
 import { storage } from '../core/storage';
 import { DISTRICTS } from '../game/content';
 import type { RunStats } from '../game/sim';
+import { FRESCOES, frescoNeeds } from './frescoes';
 import { LANDMARKS, type Landmark } from './landmarks';
 
 const KEY = 'tessera.save.v1';
@@ -38,7 +39,12 @@ export interface SaveData {
   firstDay: string;
   /** Pending gift shown on the home screen (e.g. streak milestone). */
   gift: number;
+  /** Current fresco and how many tiles of each material are already laid in it. */
+  fresco: { idx: number; filled: number[] };
+  frescoesDone: string[];
 }
+
+export const FRESCO_REWARD = 100;
 
 export function freshSave(): SaveData {
   const today = dayKey();
@@ -61,6 +67,8 @@ export function freshSave(): SaveData {
     tutorialDone: false,
     firstDay: today,
     gift: 0,
+    fresco: { idx: 0, filled: [0, 0, 0, 0, 0] },
+    frescoesDone: [],
   };
 }
 
@@ -80,6 +88,8 @@ export function migrate(raw: unknown): SaveData {
     purchases: { ...base.purchases, ...(r.purchases ?? {}) },
     ads: { ...base.ads, ...(r.ads ?? {}) },
     best: { ...(r.best ?? {}) },
+    fresco: { idx: r.fresco?.idx ?? 0, filled: base.fresco.filled.map((_, i) => r.fresco?.filled?.[i] ?? 0) },
+    frescoesDone: [...(r.frescoesDone ?? [])],
     v: 1,
   };
 }
@@ -164,7 +174,40 @@ export function dailyDistrict(day = dayKey()): string {
 
 // ------------------------------------------------------------------ runs & economy
 
+export interface FrescoStep {
+  /** Fresco state before the run, for the reveal animation. */
+  before: { idx: number; filled: number[] };
+  laid: number;
+  completed: string[];
+}
+
+/**
+ * Lays delivered tiles into the current fresco; overflow continues into the next one.
+ * Frescoes only take tiles, they never cost tesserae.
+ */
+export function layFresco(s: SaveData, delivered: number[]): FrescoStep {
+  const step: FrescoStep = { before: { idx: s.fresco.idx, filled: s.fresco.filled.slice() }, laid: 0, completed: [] };
+  const pool = delivered.slice();
+  while (s.fresco.idx < FRESCOES.length) {
+    const f = FRESCOES[s.fresco.idx];
+    const need = frescoNeeds(f);
+    for (let c = 0; c < need.length; c++) {
+      const take = Math.max(0, Math.min(pool[c] ?? 0, need[c] - s.fresco.filled[c]));
+      s.fresco.filled[c] += take;
+      pool[c] -= take;
+      step.laid += take;
+    }
+    if (!need.every((n, c) => s.fresco.filled[c] >= n)) break;
+    step.completed.push(f.id);
+    s.frescoesDone.push(f.id);
+    grantSpread(s, FRESCO_REWARD);
+    s.fresco = { idx: s.fresco.idx + 1, filled: [0, 0, 0, 0, 0] };
+  }
+  return step;
+}
+
 export interface RunResult {
+  fresco: FrescoStep;
   earned: number[];
   total: number;
   newBest: boolean;
@@ -216,7 +259,8 @@ export function applyRun(s: SaveData, stats: RunStats, district: string, daily: 
   if ((s.best['peaks'] ?? 0) >= 100 && !s.palettes.includes('dune')) s.palettes.push('dune');
   const unlockedDistricts = DISTRICTS.filter((d) => districtUnlocked(s, d.id) && !unlockedBefore.includes(d.id)).map((d) => d.id);
   const revealed = LANDMARKS.filter((l) => !l.premium && l.revealAt > before && l.revealAt <= s.lifetime);
-  return { earned, total, newBest, missionsDone: done, unlockedDistricts, revealed };
+  const fresco = layFresco(s, stats.delivered);
+  return { fresco, earned, total, newBest, missionsDone: done, unlockedDistricts, revealed };
 }
 
 /** Doubles the tesserae of a finished run (rewarded ad). */

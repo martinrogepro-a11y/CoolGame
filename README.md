@@ -1,7 +1,7 @@
 # Tessera
 
-Jeu mobile (Android et iOS) minimaliste de routage par tapis roulants. Chaque partie fait grandir une ville en mosaïque
-qu'on garde d'une partie à l'autre.
+Jeu mobile (Android et iOS) minimaliste : on trace des canaux qui transportent des tuiles de mosaïque. Chaque partie
+complète des fresques et fait grandir une ville qu'on garde d'une partie à l'autre.
 
 Le design complet (mécaniques, rétention, monétisation, plan de lancement) est dans **[docs/GAME_DESIGN.md](docs/GAME_DESIGN.md)**.
 

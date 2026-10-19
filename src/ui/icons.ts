@@ -18,9 +18,10 @@ export const icon = {
   lock: wrap('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
   video: wrap('<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/>'),
   check: wrap('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
-  belt: wrap('<rect x="3" y="8" width="18" height="8" rx="4"/><path d="M8 10.5l1.5 1.5L8 13.5M13 10.5l1.5 1.5-1.5 1.5"/>'),
-  bridge: wrap('<path d="M3 17h18"/><path d="M3 10c3 0 5 3 9 3s6-3 9-3"/><path d="M6 11v6M12 13v4M18 11v6"/>'),
+  belt: wrap('<path d="M3 7h18M3 17h18"/><path d="M5 12c1.5-1.5 3-1.5 4.5 0s3 1.5 4.5 0 3-1.5 4.5 0"/>'),
+  bridge: wrap('<path d="M3 6h18v4H3z"/><path d="M4 10v10M20 10v10"/><path d="M8 20v-4a4 4 0 0 1 8 0v4"/>'),
   close: wrap('<path d="M6 6l12 12M18 6L6 18"/>'),
   gift: wrap('<rect x="3" y="9" width="18" height="12" rx="2"/><path d="M12 9v12M3 13h18"/><path d="M12 9c-2-4-6-4-6-1.5S10 9 12 9zm0 0c2-4 6-4 6-1.5S14 9 12 9z"/>'),
+  frame: wrap('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>'),
   calendar: wrap('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
 };
