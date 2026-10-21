@@ -4,10 +4,11 @@ import { DISTRICTS } from '../game/content';
 import type { RunStats } from '../game/sim';
 import { FRESCOES, frescoNeeds } from './frescoes';
 import { LANDMARKS, type Landmark } from './landmarks';
+import type { VillageSave } from './village';
 
 const KEY = 'tessera.save.v1';
 
-export type MissionKind = 'deliver_color' | 'score' | 'weeks' | 'bridges' | 'runs' | 'combo' | 'levels' | 'perfect';
+export type MissionKind = 'deliver_color' | 'score' | 'weeks' | 'bridges' | 'runs' | 'combo' | 'levels' | 'perfect' | 'restore';
 
 export interface Mission {
   id: string;
@@ -54,6 +55,8 @@ export interface SaveData {
   /** One-time prompts already shown (store review, notification permission). */
   asked: { review: boolean; notifications: boolean };
   hints: number;
+  /** Stars to spend and restored elements of each place's village. */
+  village: VillageSave;
 }
 
 export const FRESCO_REWARD = 100;
@@ -84,6 +87,7 @@ export function freshSave(): SaveData {
     puzzle: { next: 0, stars: [], chest: 0, albums: [] },
     asked: { review: false, notifications: false },
     hints: 3,
+    village: { stars: 0, done: [] },
   };
 }
 
@@ -113,6 +117,10 @@ export function migrate(raw: unknown): SaveData {
     },
     asked: { ...base.asked, ...(r.asked ?? {}) },
     hints: r.hints ?? base.hints,
+    // Saves from before the village: every star already won becomes a star to spend.
+    village: r.village
+      ? { stars: r.village.stars ?? 0, done: [...(r.village.done ?? [])] }
+      : { stars: (r.puzzle?.stars ?? []).reduce((a, b) => a + (b ?? 0), 0), done: [] },
     v: 1,
   };
 }
@@ -140,15 +148,6 @@ export function persist(now = false) {
 
 // ------------------------------------------------------------------ daily loop
 
-const MISSION_TEMPLATES: { kind: MissionKind; goals: number[]; reward: number }[] = [
-  { kind: 'deliver_color', goals: [25, 40, 60], reward: 30 },
-  { kind: 'score', goals: [60, 90, 130], reward: 40 },
-  { kind: 'weeks', goals: [4, 6, 8], reward: 40 },
-  { kind: 'bridges', goals: [2, 4], reward: 25 },
-  { kind: 'runs', goals: [2, 3], reward: 25 },
-  { kind: 'combo', goals: [6, 10, 14], reward: 35 },
-];
-
 const PUZZLE_MISSIONS: { kind: MissionKind; goals: number[]; reward: number }[] = [
   { kind: 'levels', goals: [3, 5, 8], reward: 30 },
   { kind: 'perfect', goals: [2, 3, 5], reward: 35 },
@@ -156,8 +155,8 @@ const PUZZLE_MISSIONS: { kind: MissionKind; goals: number[]; reward: number }[] 
 
 export function makeMissions(day: string): Mission[] {
   const rng = new Rng(hashString('missions' + day));
-  // Two puzzle missions (the main mode) plus one from the endless mode.
-  const kinds = [...PUZZLE_MISSIONS, rng.pick(MISSION_TEMPLATES)];
+  // Two puzzle missions plus one in the village.
+  const kinds = [...PUZZLE_MISSIONS, { kind: 'restore' as MissionKind, goals: [1, 2], reward: 30 }];
   return kinds.map((t, k) => {
     const goal = rng.pick(t.goals);
     return {
@@ -348,6 +347,7 @@ export function applyLevel(s: SaveData, level: number, colors: number[], perfect
     if (!s.daily.played) {
       starsGained = perfect ? 3 : 1;
       s.puzzle.chest += starsGained;
+      s.village.stars += starsGained;
     }
     s.daily.played = true;
     s.daily.best = Math.max(s.daily.best, perfect ? 3 : 1);
@@ -356,6 +356,7 @@ export function applyLevel(s: SaveData, level: number, colors: number[], perfect
     s.puzzle.stars[level] = Math.max(prev, perfect ? 3 : 1);
     starsGained = s.puzzle.stars[level] - prev;
     s.puzzle.chest += starsGained;
+    s.village.stars += starsGained;
     if (level >= s.puzzle.next) s.puzzle.next = level + 1;
   }
   touchStreak(s);

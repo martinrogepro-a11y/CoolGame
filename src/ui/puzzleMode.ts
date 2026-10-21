@@ -8,6 +8,7 @@ import { MATERIALS, type Palette } from '../game/content';
 import {
   applyLevel, CHEST_STARS, claimAlbum, doubleRun, openChest, persist, save, type ChestReward, type LevelResult,
 } from '../meta/save';
+import { restoredIn } from '../meta/village';
 import { ads } from '../monetization/ads';
 import { chapterOf, CHAPTERS, firstLevelOf, LEVEL_COUNT } from '../puzzle/chapters';
 import { dailyLevel, isHard, levelAt } from '../puzzle/levels';
@@ -142,6 +143,7 @@ export class PuzzleMode {
     this.renderer.scene.theme = theme;
     this.renderer.scene.seed = (daily ? 999 : index) + 1;
     this.renderer.scene.scale = 1;
+    this.renderer.scene.restored = restoredIn(save.village, theme);
     if (save.settings.ambience) {
       ambience.play(theme);
       ambience.setVolume(1);
@@ -173,10 +175,11 @@ export class PuzzleMode {
   /** Home backdrop: the scene of the chapter the player is in. */
   ambient(dt: number) {
     const { chapter } = chapterOf(save.puzzle.next);
-    if (this.renderer.scene.theme !== chapter.id || this.renderer.scene.seed !== 7) {
+    if (this.renderer.scene.theme !== chapter.id || this.renderer.scene.seed !== 7 || this.renderer.scene.scale !== 0.55) {
       this.renderer.scene.theme = chapter.id as ThemeId;
       this.renderer.scene.seed = 7;
       this.renderer.scene.scale = 0.55;
+      this.renderer.scene.restored = restoredIn(save.village, chapter.id as ThemeId);
       this.renderer.pal = this.host.pal();
       this.renderer.resize();
     }
@@ -185,6 +188,24 @@ export class PuzzleMode {
       ambience.setVolume(0.55);
     }
     this.renderer.drawAmbient(dt, 0.42);
+  }
+
+  /** The village screen: the place's scene, large, with its soundscape. */
+  villageView(dt: number, place: ThemeId) {
+    const sc = this.renderer.scene;
+    const restored = restoredIn(save.village, place);
+    if (sc.theme !== place || sc.seed !== 7 || sc.scale !== 0.85 || [...restored].join() !== [...sc.restored].join()) {
+      sc.theme = place;
+      sc.seed = 7;
+      sc.scale = 0.85;
+      sc.restored = restored;
+      this.renderer.resize();
+    }
+    if (save.settings.ambience && save.settings.sound) {
+      ambience.play(place);
+      ambience.setVolume(0.8);
+    }
+    this.renderer.drawAmbient(dt, 0.36);
   }
 
   resizeAmbient() {

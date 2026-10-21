@@ -22,10 +22,11 @@ import { levelAt, PuzzleMode, scheduleReminders } from './puzzleMode';
 import { notifications } from '../core/services';
 import { drawPictureThumb } from '../puzzle/puzzleRender';
 import { CHEST_STARS, type LevelResult } from '../meta/save';
-import { chapterOf } from '../puzzle/chapters';
+import { chapterOf, CHAPTERS, firstLevelOf } from '../puzzle/chapters';
+import { isComplete, nextRestoration, PLACES, type PlaceId, restore, restoredIn, VILLAGES } from '../meta/village';
 import { icon } from './icons';
 
-type Screen = 'home' | 'game' | 'city' | 'collection' | 'shop' | 'settings' | 'puzzle' | 'levels' | 'endless';
+type Screen = 'home' | 'game' | 'city' | 'collection' | 'shop' | 'settings' | 'puzzle' | 'levels' | 'endless' | 'village';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const sq = (c: number) => `<i class="sq" style="background:${MATERIALS[c].color}"></i>`;
@@ -227,9 +228,9 @@ export class App {
     this.screen = screen;
     if (screen !== 'puzzle') this.puzzle.stop();
     // Each place has its soundscape, in levels and (softer) behind the home screen.
-    if (screen !== 'home' && screen !== 'puzzle' && screen !== 'levels') ambience.stop();
-    this.board.style.display = screen === 'game' || screen === 'puzzle' || screen === 'home' ? 'block' : 'none';
-    if (screen === 'home') requestAnimationFrame(() => this.puzzle.resizeAmbient());
+    if (screen !== 'home' && screen !== 'puzzle' && screen !== 'levels' && screen !== 'village') ambience.stop();
+    this.board.style.display = screen === 'game' || screen === 'puzzle' || screen === 'home' || screen === 'village' ? 'block' : 'none';
+    if (screen === 'home' || screen === 'village') requestAnimationFrame(() => this.puzzle.resizeAmbient());
     this.cityCanvas.style.display = screen === 'city' ? 'block' : 'none';
     this.hud = {};
     this.hudCache = {};
@@ -242,7 +243,11 @@ export class App {
       case 'collection': this.ui.innerHTML = this.collectionHtml(); this.drawThumbs(); this.drawFrescoes(); break;
       case 'shop': this.ui.innerHTML = this.shopHtml(); break;
       case 'settings': this.ui.innerHTML = this.settingsHtml(); break;
+      case 'village': this.ui.innerHTML = this.villageHtml(); break;
     }
+    // Light text over the dark places (night, sunken city).
+    const shown = screen === 'village' ? this.place : screen === 'home' ? chapterOf(save.puzzle.next).chapter.id : '';
+    this.ui.classList.toggle('pz-dark', shown === 'night' || shown === 'deep');
     if (screen === 'game') this.renderer.resize();
   }
 
@@ -338,6 +343,13 @@ export class App {
       }
       case 'again': this.endRunAndLeave('again'); break;
       case 'home': this.endRunAndLeave('home'); break;
+      case 'village': {
+        if (v) this.place = v as PlaceId;
+        else this.place = chapterOf(save.puzzle.next).chapter.id as PlaceId;
+        this.go('village');
+        break;
+      }
+      case 'restore': this.restoreNext(); break;
       case 'claim': {
         const n = claimMission(save, v);
         if (n) {
@@ -529,6 +541,8 @@ export class App {
       if (this.tutorial >= 0) this.tickTutorial(dt);
       this.renderer.draw(sim, dt);
       this.updateHud();
+    } else if (this.screen === 'village') {
+      this.puzzle.villageView(dt, this.place);
     } else if (this.screen === 'home') {
       this.puzzle.ambient(dt);
     } else if (this.screen === 'puzzle') {
@@ -846,13 +860,13 @@ export class App {
         ${this.levelCardHtml()}
         <div class="duo">
           <button class="card mini" data-a="pz-daily"><span class="ic gold">${icon.calendar}</span><b>${t('daily')}</b><small>${esc(daily)}</small></button>
-          <button class="card mini" data-a="go" data-v="endless"><span class="ic">${icon.belt}</span><b>${t('endless')}</b><small>${t('endless_d')}</small></button>
+          ${this.villageCardHtml()}
         </div>
         ${gift}
         <div class="section-title">${t('missions')}</div>
         <div class="card" style="padding:0">${missions}</div>
         <div class="nav">
-          <button data-a="go" data-v="city">${icon.city}${t('city')}</button>
+          <button data-a="village">${icon.city}${t('village')}</button>
           <button data-a="go" data-v="collection">${icon.grid}${t('collection')}</button>
           <button data-a="go" data-v="shop">${icon.bag}${t('shop')}</button>
         </div>
@@ -956,6 +970,90 @@ export class App {
         ${this.wallet()}
         <div class="city-sheet">${list.map((l) => this.landmarkCard(l)).join('')}</div>
       </div>`;
+  }
+
+  /** Place shown on the village screen. */
+  private place: PlaceId = 'garden';
+
+  private placeOpen(p: PlaceId): boolean {
+    const ci = CHAPTERS.findIndex((c) => c.id === p);
+    return ci >= 0 && save.puzzle.next >= firstLevelOf(ci);
+  }
+
+  private villageCardHtml(): string {
+    const place = chapterOf(save.puzzle.next).chapter.id as PlaceId;
+    const next = nextRestoration(save.village, place);
+    const ready = !!next && save.village.stars >= next.cost;
+    const sub = next ? `${t(`v_${place}_${next.id}` as Key)} · ★${next.cost}` : t('v_doneAll', { p: t(`ch_${place}` as Key) });
+    return `<button class="card mini village-mini ${ready ? 'ready' : ''}" data-a="village"><span class="ic">${icon.city}</span><b>${t('village')} <em>★ ${save.village.stars}</em></b><small>${esc(sub)}</small></button>`;
+  }
+
+  /** The village of a place: its scene, large, and the list of things to bring back. */
+  private villageHtml(): string {
+    const p = this.place;
+    const done = restoredIn(save.village, p);
+    const list = VILLAGES[p];
+    const next = nextRestoration(save.village, p);
+    const open = this.placeOpen(p);
+    const tabs = PLACES.map((q, i) => {
+      const o = this.placeOpen(q);
+      return `<button class="vtab ${q === p ? 'on' : ''} ${isComplete(save.village, q) ? 'full' : ''}" data-a="${o ? 'village' : ''}" data-v="${q}" ${o ? '' : 'disabled'}>${o ? ['I', 'II', 'III', 'IV', 'V'][i] : icon.lock}</button>`;
+    }).join('');
+    const rows = list
+      .map((r) => {
+        const isDone = done.has(r.id);
+        const isNext = next?.id === r.id;
+        const state = isDone ? `<span class="vstate done">${icon.check}</span>` : `<span class="vstate">★${r.cost}</span>`;
+        return `<div class="vrow ${isDone ? 'done' : isNext ? 'next' : 'later'}"><span class="txt"><b>${t(`v_${p}_${r.id}` as Key)}</b>
+          ${isDone ? `<small>${t(`v_${p}_${r.id}_d` as Key)}</small>` : ''}</span>${state}</div>`;
+      })
+      .join('');
+    let action = '';
+    if (!open) action = `<p class="note">${t('v_locked')}</p>`;
+    else if (next && save.village.stars >= next.cost)
+      action = `<button class="btn primary big" data-a="restore">${t('v_restore')} · ★${next.cost}</button>`;
+    else if (next)
+      action = `<p class="note">${t('v_need')}</p><button class="btn primary big" data-a="pz-play" data-v="${save.puzzle.next}">${icon.play} ${t('play')}</button>`;
+    else action = `<p class="note">${t('v_doneAll', { p: t(`ch_${p}` as Key) })}</p>`;
+    return `
+      <div class="screen village">
+        <div class="topbar">
+          <button class="icon-btn" data-a="go" data-v="home" aria-label="${t('home')}">${icon.back}</button>
+          <h2 class="vtitle">${t(`ch_${p}` as Key)}<br><small>${t('v_progress', { n: done.size, m: list.length })}</small></h2>
+          <span class="chip star">★ <b>${save.village.stars}</b></span>
+        </div>
+        <div class="vtabs">${tabs}</div>
+        <div class="spacer"></div>
+        <div class="card vsheet">${rows}${action}</div>
+      </div>`;
+  }
+
+  private restoreNext() {
+    const p = this.place;
+    if (!this.placeOpen(p)) return;
+    const r = restore(save.village, p);
+    if (!r) return;
+    for (const m of save.missions.list) if (m.kind === 'restore' && !m.claimed) m.progress = Math.min(m.goal, m.progress + 1);
+    let extra = '';
+    if (isComplete(save.village, p)) {
+      save.hints += 3;
+      extra = t('v_reward', { n: 3 });
+    }
+    persist();
+    audio.reward();
+    haptics.success();
+    this.go('village');
+    this.flash();
+    this.toast(t(`v_${p}_${r.id}_d` as Key));
+    if (extra) setTimeout(() => this.toast(extra), 1600);
+  }
+
+  /** A soft bloom of light over the scene when something comes back to life. */
+  private flash() {
+    const el = document.createElement('div');
+    el.className = 'restore-flash';
+    this.ui.appendChild(el);
+    setTimeout(() => el.remove(), 1400);
   }
 
   private collectionHtml(): string {

@@ -1740,3 +1740,132 @@ button[disabled] {
   font-size: 18px;
   margin-left: 8px;
 }
+
+/* Village: the place's scene fills the screen, the list sits in a sheet at the bottom. */
+.screen.village .topbar h2 {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+}
+.chip.star b {
+  margin-left: 2px;
+}
+.vtabs {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.vtab {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--card);
+  color: var(--ink);
+  font: 600 14px 'Fraunces Variable', Georgia, serif;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  display: grid;
+  place-items: center;
+}
+.vtab svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.5;
+}
+.vtab.on {
+  background: var(--ink);
+  color: var(--card);
+}
+.vtab.full {
+  box-shadow: 0 0 0 2px #e0a332, 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.vtab:disabled {
+  opacity: 0.6;
+}
+.vsheet {
+  padding: 8px 14px 14px;
+  max-height: 42vh;
+  overflow-y: auto;
+}
+.vrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.vrow .txt {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.vrow .txt small {
+  color: var(--sub);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.vrow.later {
+  opacity: 0.45;
+}
+.vrow.next b {
+  font-weight: 700;
+}
+.vstate {
+  font-weight: 700;
+  color: #b9852a;
+}
+.vstate.done svg {
+  width: 18px;
+  height: 18px;
+  color: #4e9a74;
+}
+.vsheet .note {
+  margin: 12px 0 8px;
+  text-align: center;
+}
+.vsheet .btn.big {
+  width: 100%;
+  margin-top: 10px;
+  padding: 14px;
+  font-size: 16px;
+}
+.village-mini em {
+  font-style: normal;
+  color: #b9852a;
+  margin-left: 4px;
+}
+.village-mini.ready {
+  box-shadow: 0 0 0 2px #e0a332, 0 6px 18px rgba(224, 163, 50, 0.25);
+}
+.restore-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 38%, rgba(255, 244, 214, 0.85), rgba(255, 244, 214, 0) 60%);
+  animation: restore-flash 1.4s ease-out forwards;
+}
+@keyframes restore-flash {
+  from {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.screen.village .vtitle {
+  flex: 1;
+  white-space: nowrap;
+}
+#ui.pz-dark .vtitle,
+#ui.pz-dark .vtitle small {
+  color: #f3eee4;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+#ui.pz-dark .logo h1,
+#ui.pz-dark .logo p,
+#ui.pz-dark .section-title {
+  color: #f3eee4;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+}

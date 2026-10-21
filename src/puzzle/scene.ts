@@ -150,6 +150,13 @@ function shade(col: string, k: number): string {
   return `rgb(${f(c[0])},${f(c[1])},${f(c[2])})`;
 }
 
+/** Blends two #rrggbb colours (k = share of b). */
+function mix(a: string, b: string, k: number): string {
+  const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [p(a), p(b)];
+  return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * k)).join(',')})`;
+}
+
 function poly(g: CanvasRenderingContext2D, pts: Pt[], fill: string) {
   g.beginPath();
   g.moveTo(pts[0][0], pts[0][1]);
@@ -238,6 +245,11 @@ export class Scene {
   seed = 1;
   /** Building height multiplier (lower on menus, so titles stay readable). */
   scale = 1;
+  /** Village elements restored by the player (see meta/village.ts); the rest sleeps. */
+  restored = new Set<string>();
+  /** While true, props draw into a throwaway canvas and leave no living details behind. */
+  private mute = false;
+  private sinkCtx: CanvasRenderingContext2D | null = null;
   private far: HTMLCanvasElement | null = null;
   private near: HTMLCanvasElement | null = null;
   private key = '';
@@ -256,7 +268,7 @@ export class Scene {
 
   draw(g: CanvasRenderingContext2D, w: number, h: number, dpr: number, board: { x: number; y: number; size: number }, time: number) {
     const t = THEMES[this.theme];
-    const key = `${this.theme}|${this.scale}|${w}|${h}|${Math.round(board.x)}|${Math.round(board.y)}|${Math.round(board.size)}|${this.seed}|${dpr}`;
+    const key = `${this.theme}|${[...this.restored].join()}|${this.scale}|${w}|${h}|${Math.round(board.x)}|${Math.round(board.y)}|${Math.round(board.size)}|${this.seed}|${dpr}`;
     if (key !== this.key) {
       this.key = key;
       this.build(t, w, h, dpr, board);
@@ -296,7 +308,7 @@ export class Scene {
     this.flies = [];
     const menu = board.size === 0;
     const ground = menu ? board.y : board.y - 20;
-    const quayY = menu ? ground + (h - ground) * 0.42 : board.y + board.size + 30;
+    const quayY = menu ? ground + Math.min(80, (h - ground) * 0.42) : board.y + board.size + 30;
     this.skyY = ground - 16;
     this.waterY = quayY + 9;
     const P: Place = { rng: new Rng(this.seed * 977 + 13), t, w, ground, scale: this.scale };
@@ -321,7 +333,7 @@ export class Scene {
     const r2 = new Rng(this.seed + 5);
     if (t.underwater) {
       for (let k = 0; k < 18; k++) this.bubbles.push({ x: r2.next() * w, y: r2.next() * h, r: 1.5 + r2.next() * 3, v: 10 + r2.next() * 20 });
-      for (let k = 0; k < 4; k++) this.fish.push({ x: r2.next() * w, y: 50 + r2.next() * Math.max(40, ground - 120), v: (r2.next() < 0.5 ? -1 : 1) * (8 + r2.next() * 10), s: 6 + r2.next() * 5 });
+      for (let k = 0; k < (this.has('fish') ? 4 : 0); k++) this.fish.push({ x: r2.next() * w, y: 50 + r2.next() * Math.max(40, ground - 120), v: (r2.next() < 0.5 ? -1 : 1) * (8 + r2.next() * 10), s: 6 + r2.next() * 5 });
     }
     if (t.night) for (let k = 0; k < 14; k++) this.flies.push({ x: r2.next() * w, y: ground - 90 + r2.next() * 100, ph: r2.next() * 6 });
   }
@@ -364,9 +376,11 @@ export class Scene {
       if (this.theme === 'market') {
         // The bell tower of the market square.
         const bx = w * rng.range(0.2, 0.8);
+        if (this.has('belltower')) {
         g.fillStyle = shade(t.sky[1], -0.16);
         g.fillRect(bx, base - 70 * P.scale, 16, 70 * P.scale);
         poly(g, [[bx - 2, base - 70 * P.scale], [bx + 8, base - 86 * P.scale], [bx + 18, base - 70 * P.scale]], g.fillStyle as string);
+        }
       }
     }
     g.globalAlpha = 1;
@@ -412,7 +426,7 @@ export class Scene {
     g.fillRect(0, wy, w, h - wy);
     g.fillStyle = 'rgba(0,0,0,0.12)';
     g.fillRect(0, wy, w, 5);
-    if (this.theme === 'garden') {
+    if (this.theme === 'garden' && this.has('ducks')) {
       // Lily pads and their flowers on the pond.
       const rng = new Rng(this.seed * 13 + 1);
       for (let k = 0; k < 9; k++) {
@@ -434,6 +448,27 @@ export class Scene {
 
   // ---------------------------------------------------------------- places
 
+  private has(id: string): boolean {
+    return this.restored.has(id);
+  }
+
+  /**
+   * Draws a prop only if its village element is restored. Otherwise it is drawn into a
+   * throwaway canvas, so the random layout of everything else stays exactly the same.
+   */
+  private gate(id: string, g: CanvasRenderingContext2D, draw: (g: CanvasRenderingContext2D) => void) {
+    const ok = this.has(id);
+    const prev = this.mute;
+    this.mute = prev || !ok;
+    if (!this.sinkCtx) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 1;
+      this.sinkCtx = c.getContext('2d')!;
+    }
+    draw(ok && !prev ? g : this.sinkCtx);
+    this.mute = prev;
+  }
+
   /** Positions across the width, with a little jitter, for a row of `n` items. */
   private slots(P: Place, n: number): number[] {
     return Array.from({ length: n }, (_, k) => ((k + 0.5) / n) * P.w + P.rng.range(-8, 8));
@@ -442,16 +477,25 @@ export class Scene {
   private garden(g: CanvasRenderingContext2D, P: Place) {
     const { rng, ground, scale } = P;
     const back = this.slots(P, Math.ceil(P.w / 75));
-    back.forEach((x, k) => (k % 2 ? this.tree(g, P, x, ground - 12, rng.range(13, 18)) : this.house(g, P, x, ground - 12, rng.range(36, 54) * scale)));
+    back.forEach((x, k) => {
+      if (k % 2) {
+        const r = rng.range(13, 18);
+        this.gate('trees', g, (gg) => this.tree(gg, P, x, ground - 12, r));
+      } else this.house(g, P, x, ground - 12, rng.range(36, 54) * scale);
+    });
     const front = this.slots(P, Math.ceil(P.w / 90));
     const gh = rng.int(0, front.length);
     front.forEach((x, k) => {
-      if (k === gh) this.greenhouse(g, P, x, ground);
-      else if (k % 2) this.cypress(g, P, x + 10, ground, 34 * scale);
+      if (k === gh) this.gate('greenhouse', g, (gg) => this.greenhouse(gg, P, x, ground));
+      else if (k % 2) this.gate('trees', g, (gg) => this.cypress(gg, P, x + 10, ground, 34 * scale));
       else this.house(g, P, x, ground, rng.range(30, 42) * scale);
     });
-    for (let k = 0; k < 4; k++) this.flowerBed(g, P, P.w * (0.12 + k * 0.26) + rng.range(-10, 10), ground + 8);
-    this.fountain(g, P, P.w * (rng.next() < 0.5 ? 0.3 : 0.7), ground + 4, 14);
+    for (let k = 0; k < 4; k++) {
+      const x = P.w * (0.12 + k * 0.26) + rng.range(-10, 10);
+      this.gate('flowers', g, (gg) => this.flowerBed(gg, P, x, ground + 8));
+    }
+    const fx = P.w * (rng.next() < 0.5 ? 0.3 : 0.7);
+    this.gate('fountain', g, (gg) => this.fountain(gg, P, fx, ground + 4, 14));
   }
 
   private harbour(g: CanvasRenderingContext2D, P: Place) {
@@ -461,14 +505,17 @@ export class Scene {
     const lhX = left ? w * 0.1 : w * 0.9;
     const xs = this.slots(P, Math.ceil(w / 44)).filter((x) => Math.abs(x - lhX) > 34);
     for (const x of xs) this.house(g, P, x, ground - 4, rng.range(40, 54) * scale, 15, 17);
-    this.lighthouse(g, P, lhX, ground + 2, 92 * scale);
+    this.gate('lighthouse', g, (gg) => this.lighthouse(gg, P, lhX, ground + 2, 92 * scale));
     // Crates, barrels and mooring bollards along the quay.
     for (let k = 0; k < 3; k++) {
       const x = w * (0.22 + k * 0.28) + rng.range(-12, 12);
-      this.crate(g, x, ground + 10, 7, null);
-      this.crate(g, x + 13, ground + 12, 6, null);
-      if (rng.next() < 0.6) this.crate(g, x + 4, ground + 3, 6, null);
-      this.barrel(g, x - 14, ground + 12, 5);
+      const third = rng.next() < 0.6;
+      this.gate('crates', g, (gg) => {
+        this.crate(gg, x, ground + 10, 7, null);
+        this.crate(gg, x + 13, ground + 12, 6, null);
+        if (third) this.crate(gg, x + 4, ground + 3, 6, null);
+        this.barrel(gg, x - 14, ground + 12, 5);
+      });
     }
   }
 
@@ -476,14 +523,17 @@ export class Scene {
     const { rng, ground, scale, w } = P;
     const roofs: Pt[] = [];
     for (const x of this.slots(P, Math.ceil(w / 52))) roofs.push(this.house(g, P, x, ground - 12, rng.range(46, 62) * scale, 18, 18));
-    this.stringLights(roofs, 3);
+    this.gate('garlands', g, () => this.stringLights(roofs, 3));
     // Stalls with striped awnings, crates of fruit between them.
     const stripes: [string, string][] = [['#C4553F', '#FBF1E1'], ['#3E7C8C', '#FBF1E1'], ['#F2B23C', '#FBF1E1'], ['#6F8F4E', '#F6E7C9']];
     const xs = this.slots(P, Math.ceil(w / 95));
     xs.forEach((x, k) => {
-      this.stall(g, x, ground + 6, 22, 12, stripes[(k + this.seed) % stripes.length]);
-      this.crate(g, x + 34, ground + 12, 6, rng.pick(FRUIT));
-      this.crate(g, x + 46, ground + 13, 6, rng.pick(FRUIT));
+      this.gate('stalls', g, (gg) => this.stall(gg, x, ground + 6, 22, 12, stripes[(k + this.seed) % stripes.length]));
+      const f1 = rng.pick(FRUIT), f2 = rng.pick(FRUIT);
+      this.gate('fruit', g, (gg) => {
+        this.crate(gg, x + 34, ground + 12, 6, f1);
+        this.crate(gg, x + 46, ground + 13, 6, f2);
+      });
     });
   }
 
@@ -492,20 +542,31 @@ export class Scene {
     const roofs: Pt[] = [];
     for (const x of this.slots(P, Math.ceil(w / 60))) this.house(g, P, x, ground - 14, rng.range(48, 66) * scale, 18, 16);
     for (const x of this.slots(P, Math.ceil(w / 70))) roofs.push(this.house(g, P, x, ground, rng.range(32, 44) * scale, 16, 18));
-    this.stringLights(roofs, 4);
-    for (let k = 0; k < 3; k++) this.lamp(g, w * (0.18 + k * 0.32) + rng.range(-10, 10), ground + 12, 30);
+    this.gate('garlands', g, () => this.stringLights(roofs, 4));
+    for (let k = 0; k < 3; k++) {
+      const x = w * (0.18 + k * 0.32) + rng.range(-10, 10);
+      this.gate('lamps', g, (gg) => this.lamp(gg, x, ground + 12, 30));
+    }
   }
 
   private ruins(g: CanvasRenderingContext2D, P: Place) {
     const { rng, ground, scale, w } = P;
     for (const x of this.slots(P, Math.ceil(w / 70))) {
-      if (rng.next() < 0.45) this.column(g, P, x, ground - 10, rng.range(40, 70) * scale);
-      else this.ruinHouse(g, P, x, ground - 10, rng.range(30, 52) * scale);
+      if (rng.next() < 0.45) {
+        const h = rng.range(40, 70) * scale;
+        this.gate('columns', g, (gg) => this.column(gg, P, x, ground - 10, h));
+      } else this.ruinHouse(g, P, x, ground - 10, rng.range(30, 52) * scale);
     }
     // A fallen arch, coral and swaying seaweed in front.
     for (const x of this.slots(P, Math.ceil(w / 60))) {
-      if (rng.next() < 0.5) this.coral(g, x, ground + 8, rng.pick(['#F09A86', '#F2C46B', '#E58FA0']));
-      for (let k = 0; k < 3; k++) this.weeds.push({ x: x + rng.range(-20, 20), y: ground + 10 + rng.range(-4, 6), h: rng.range(16, 34), c: rng.pick(P.t.greens) });
+      if (rng.next() < 0.5) {
+        const c = rng.pick(['#F09A86', '#F2C46B', '#E58FA0']);
+        this.gate('coral', g, (gg) => this.coral(gg, x, ground + 8, c));
+      }
+      for (let k = 0; k < 3; k++) {
+        const wd = { x: x + rng.range(-20, 20), y: ground + 10 + rng.range(-4, 6), h: rng.range(16, 34), c: rng.pick(P.t.greens) };
+        if (this.has('seaweed')) this.weeds.push(wd);
+      }
     }
     for (let k = 0; k < 3; k++) {
       const x = w * (0.2 + k * 0.3) + rng.range(-10, 10);
@@ -520,8 +581,11 @@ export class Scene {
     const { rng, t } = P;
     l = l || rng.range(15, 24);
     r = r || rng.range(15, 22);
-    const wall = rng.pick(t.walls);
-    const shutter = rng.pick(t.shutters);
+    // Until the village is repainted, the walls and shutters stay faded.
+    const faded = !t.night && !t.underwater && !this.has('paint');
+    const wall = faded ? mix(rng.pick(t.walls), '#D6D0C6', 0.6) : rng.pick(t.walls);
+    const shutter = faded ? mix(rng.pick(t.shutters), '#A9A49C', 0.6) : rng.pick(t.shutters);
+    const lights = this.has('lights');
     const p = box(g, x, by, l, r, h, wall, false);
     const L = onLeft(p), R = onRight(p);
     const floors = Math.max(1, Math.round(h / 22));
@@ -530,31 +594,33 @@ export class Scene {
       const v0 = (f + 0.3) / floors, v1 = v0 + 0.42 / floors;
       const us = f === 0 ? [0.2] : l > 18 ? [0.3, 0.7] : [0.5];
       for (const u of us) {
-        const lit = t.night && rng.next() < 0.6;
+        const lit = t.night && rng.next() < 0.6 && lights;
         quadOn(g, L, u - 0.07, u + 0.07, v0, v1, lit ? GLOW : dark);
-        if (lit) this.lit.push(L(u, v0)[0]);
+        if (lit && !this.mute) this.lit.push(L(u, v0)[0]);
         if (!t.night) {
           quadOn(g, L, u - 0.13, u - 0.07, v0, v1, shutter);
           quadOn(g, L, u + 0.07, u + 0.13, v0, v1, shutter);
         }
         if (f === 1 && !t.night && rng.next() < 0.45) {
-          // Flower box under the window.
-          quadOn(g, L, u - 0.12, u + 0.12, v0 - 0.06 / floors, v0, t.greens[0]);
-          const c = L(u, v0);
-          g.fillStyle = rng.pick(FLOWERS);
-          g.fillRect(c[0] - 2, c[1] - 2, 2, 2);
-          g.fillRect(c[0] + 2, c[1] - 1, 2, 2);
+          // Flower box under the window (in the garden, once the flowers are back).
+          this.gate(this.theme === 'garden' ? 'flowers' : 'paint', g, (gg) => {
+            quadOn(gg, L, u - 0.12, u + 0.12, v0 - 0.06 / floors, v0, t.greens[0]);
+            const c = L(u, v0);
+            gg.fillStyle = rng.pick(FLOWERS);
+            gg.fillRect(c[0] - 2, c[1] - 2, 2, 2);
+            gg.fillRect(c[0] + 2, c[1] - 1, 2, 2);
+          });
         }
       }
       if (r > 12) {
-        const lit = t.night && rng.next() < 0.5;
+        const lit = t.night && rng.next() < 0.5 && lights;
         quadOn(g, R, 0.42, 0.58, v0, v1, lit ? shade(GLOW, -0.08) : 'rgba(30,36,48,0.4)');
-        if (lit) this.lit.push(R(0.5, v0)[0]);
+        if (lit && !this.mute) this.lit.push(R(0.5, v0)[0]);
       }
     }
     // Door.
     quadOn(g, L, 0.55, 0.75, 0, 0.62 / floors, shade(shutter, -0.15));
-    if (t.night) {
+    if (t.night && lights) {
       const d = L(0.65, 0.3 / floors);
       const glow = g.createRadialGradient(d[0], d[1], 1, d[0], d[1], 14);
       glow.addColorStop(0, 'rgba(255,217,138,0.35)');
@@ -683,7 +749,7 @@ export class Scene {
     g.ellipse(x, by - 5, r - 2.5, r * 0.45 - 2, 0, 0, Math.PI * 2);
     g.fill();
     cylinder(g, x, by - 5, 2.5, 10, shade(P.t.quay, 0.1));
-    this.fountains.push([x, by - 15]);
+    if (!this.mute) this.fountains.push([x, by - 15]);
   }
 
   private crate(g: CanvasRenderingContext2D, x: number, by: number, s: number, fruit: string | null) {
@@ -753,7 +819,7 @@ export class Scene {
     g.fillRect(x - 3, by - 2, 6, 2);
     poly(g, [[x - 4, by - h], [x + 4, by - h], [x + 3, by - h - 7], [x - 3, by - h - 7]], GLOW);
     poly(g, [[x - 5, by - h - 7], [x + 5, by - h - 7], [x, by - h - 11]], '#2A2440');
-    this.lamps.push([x, by - h - 3]);
+    if (!this.mute) this.lamps.push([x, by - h - 3]);
   }
 
   private lighthouse(g: CanvasRenderingContext2D, P: Place, x: number, by: number, h: number) {
@@ -780,7 +846,7 @@ export class Scene {
     g.beginPath();
     g.ellipse(x, top - 12, 8, 7, 0, Math.PI, 0);
     g.fill();
-    this.beacon = [x, top - 6];
+    if (!this.mute) this.beacon = [x, top - 6];
   }
 
   private column(g: CanvasRenderingContext2D, P: Place, x: number, by: number, h: number) {
@@ -803,7 +869,10 @@ export class Scene {
       g.ellipse(x + 16, by + 2, 8, 4, 0.3, 0, Math.PI * 2);
       g.fill();
     }
-    for (let k = 0; k < 2; k++) this.weeds.push({ x: x + P.rng.range(-10, 10), y: by + 2, h: P.rng.range(12, 22), c: P.rng.pick(P.t.greens) });
+    for (let k = 0; k < 2; k++) {
+      const wd = { x: x + P.rng.range(-10, 10), y: by + 2, h: P.rng.range(12, 22), c: P.rng.pick(P.t.greens) };
+      if (!this.mute && this.has('seaweed')) this.weeds.push(wd);
+    }
   }
 
   /** A drowned house: no roof, a jagged broken top, dark empty windows. */
@@ -835,6 +904,7 @@ export class Scene {
 
   /** A garland of bulbs hanging between consecutive roof peaks. */
   private stringLights(peaks: Pt[], every: number) {
+    if (this.mute) return;
     const cols = ['#FFE3A1', '#FFD27A', '#FFF1CF'];
     for (let k = 0; k + 1 < peaks.length; k++) {
       const [a, b] = [peaks[k], peaks[k + 1]];
@@ -904,7 +974,7 @@ export class Scene {
       g.fillRect(x - r, y - r, r * 2, r * 2);
     }
     if (this.beacon) this.drawBeam(g, this.beacon, time);
-    if (t.night) {
+    if (t.night && this.has('fireflies')) {
       for (const f of this.flies) {
         const a = 0.5 + 0.5 * Math.sin(time * 2.3 + f.ph);
         g.fillStyle = `rgba(230,255,150,${a * 0.8})`;
@@ -925,7 +995,7 @@ export class Scene {
     }
     this.drawWater(g, t, w, h, time);
     if (t.underwater) this.drawDeepLife(g, w, h, time);
-    else if (!t.night) this.drawBirds(g, w, time);
+    else if (!t.night && (this.theme !== 'harbour' || this.has('gulls'))) this.drawBirds(g, w, time);
   }
 
   private drawWater(g: CanvasRenderingContext2D, t: Theme, w: number, h: number, time: number) {
@@ -960,23 +1030,23 @@ export class Scene {
     const bob = (k: number) => Math.sin(time * 1.6 + k) * 1.2;
     switch (this.theme) {
       case 'harbour':
-        for (let k = 0; k < 2; k++) {
+        for (let k = 0; k < 2 && this.has('boats'); k++) {
           const x = ((time * (8 + k * 5) + k * w * 0.55) % (w + 80)) - 40;
           const y = wy + 26 + k * 30 + bob(k);
           if (y < h - 6) sailboat(g, x, y, 24 + k * 4, t.boat, k ? '#E07A5F' : '#2F6F8F', Math.sin(time * 1.6 + k) * 0.05);
         }
         break;
       case 'garden':
-        for (let k = 0; k < 3; k++) {
+        for (let k = 0; k < 3 && this.has('ducks'); k++) {
           const x = ((time * 5 + k * 26 + 40) % (w + 60)) - 30;
           duck(g, x, wy + 30 + (k % 2) * 5 + bob(k) * 0.5, k === 0 ? 1.15 : 0.8);
         }
         break;
       case 'market':
-        gondola(g, ((time * 9) % (w + 120)) - 60, wy + 28 + bob(0), t.boat, true, false);
+        if (this.has('gondola')) gondola(g, ((time * 9) % (w + 120)) - 60, wy + 28 + bob(0), t.boat, true, false);
         break;
       case 'night':
-        gondola(g, w - (((time * 7) % (w + 120)) - 60), wy + 30 + bob(0), t.boat, false, true);
+        if (this.has('gondola')) gondola(g, w - (((time * 7) % (w + 120)) - 60), wy + 30 + bob(0), t.boat, false, true);
         break;
     }
   }
