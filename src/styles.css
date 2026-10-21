@@ -95,14 +95,6 @@ button[disabled] {
   animation: fade-in 0.25s ease;
 }
 
-.screen.transparent {
-  pointer-events: none;
-}
-
-.screen.transparent > * {
-  pointer-events: auto;
-}
-
 .screen > * {
   flex-shrink: 0;
 }
@@ -221,71 +213,6 @@ button[disabled] {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 16px;
-}
-
-.district {
-  margin-top: 3vh;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.district .card {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px;
-  min-width: 0;
-}
-
-.district canvas {
-  position: static;
-  width: 76px;
-  height: 76px;
-  border-radius: 12px;
-  flex: none;
-}
-
-.district small svg {
-  width: 13px;
-  height: 13px;
-  vertical-align: -2px;
-}
-
-.district h2 {
-  margin: 0 0 2px;
-  font-size: 19px;
-}
-
-.district small {
-  color: var(--sub);
-  font-weight: 600;
-}
-
-.district .card.locked canvas {
-  filter: grayscale(1) opacity(0.4);
-}
-
-.big-btn {
-  margin-top: 16px;
-  height: 64px;
-  border-radius: 20px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
-}
-
-.big-btn svg {
-  width: 22px;
-  height: 22px;
 }
 
 .btn {
@@ -531,11 +458,6 @@ button[disabled] {
   font-variant-numeric: tabular-nums;
 }
 
-.res.shake {
-  animation: shake 0.35s;
-  color: var(--danger);
-}
-
 @keyframes shake {
   25% {
     transform: translateX(-4px);
@@ -561,11 +483,6 @@ button[disabled] {
 .tool.on {
   background: var(--accent);
   color: var(--accent-ink);
-}
-
-.tool .lbl {
-  font-size: 13px;
-  font-weight: 800;
 }
 
 .toast-wrap {
@@ -682,60 +599,6 @@ button[disabled] {
   gap: 10px;
 }
 
-.upgrades {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.upgrade {
-  background: var(--card);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
-  padding: 18px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.upgrade .ic {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: var(--bg);
-}
-
-.upgrade b {
-  font-size: 16px;
-}
-
-.upgrade small {
-  color: var(--sub);
-  font-size: 12.5px;
-  line-height: 1.3;
-}
-
-.big-score {
-  font-size: 64px;
-  font-weight: 800;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.badge {
-  display: inline-block;
-  margin: 8px 0 0;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--gold);
-  color: #2a1e05;
-  font-weight: 800;
-  font-size: 13px;
-}
-
 .earned {
   display: flex;
   justify-content: center;
@@ -783,65 +646,6 @@ button[disabled] {
   font-weight: 600;
 }
 
-.city-sheet {
-  margin-top: auto;
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding: 6px 2px 4px;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-
-.city-sheet::-webkit-scrollbar {
-  display: none;
-}
-
-.lm {
-  flex: none;
-  width: 148px;
-  scroll-snap-align: start;
-  background: var(--card);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  text-align: center;
-}
-
-.lm canvas {
-  position: static;
-  width: 96px;
-  height: 96px;
-}
-
-.lm b {
-  font-size: 14px;
-}
-
-.lm .rar {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.rar.common {
-  color: var(--sub);
-}
-.rar.rare {
-  color: #3f5e9a;
-}
-.rar.epic {
-  color: #8a4f8c;
-}
-.rar.legendary {
-  color: var(--gold);
-}
-
 .cost {
   display: flex;
   flex-wrap: wrap;
@@ -856,32 +660,6 @@ button[disabled] {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-}
-
-.cost .miss {
-  color: var(--danger);
-}
-
-.lm .btn {
-  height: 34px;
-  font-size: 13px;
-  width: 100%;
-}
-
-.lm small {
-  color: var(--sub);
-  font-size: 11.5px;
-  line-height: 1.3;
-}
-
-.coll-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 10px;
-}
-
-.coll-grid .lm {
-  width: auto;
 }
 
 .pal {
@@ -1097,80 +875,11 @@ button[disabled] {
   color: var(--ink);
 }
 
-.screen.night .lm {
-  color: #29282e;
-}
-
 .screen.night .icon-btn {
   color: #29282e;
 }
 
 /* ------------------------------------------------------------------ frescoes */
-
-.hud-fresco {
-  position: static;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  flex: none;
-  pointer-events: none;
-}
-
-.fresco-card {
-  margin-top: 12px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  text-align: left;
-}
-
-.fresco-card canvas {
-  position: static;
-  width: 64px;
-  height: 64px;
-  flex: none;
-}
-
-.fresco-card .txt {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.fresco-card small {
-  color: var(--sub);
-}
-
-.fresco-card .bar {
-  display: block;
-}
-
-.fresco-end {
-  margin: 14px auto 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.fresco-end canvas {
-  position: static;
-  width: 176px;
-  height: 176px;
-}
-
-.fresco-end small {
-  color: var(--sub);
-  font-size: 13px;
-}
-
-.fresco-end .badge {
-  margin: 0;
-}
 
 .gallery {
   display: grid;
@@ -1422,11 +1131,6 @@ button[disabled] {
 .sheet h2,
 .topbar h2,
 .level-card b,
-.district h2 {
-  font-family: var(--display);
-  font-weight: 600;
-  letter-spacing: 0.005em;
-}
 
 .topbar h2 small,
 .sheet p {

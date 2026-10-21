@@ -1,20 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { daysBetween } from '../src/core/rng';
-import { LANDMARKS } from '../src/meta/landmarks';
 import {
-  applyRun, build, canBuild, claimMission, doubleRun, freshSave, makeMissions, migrate, refreshDaily, touchStreak,
+  applyLevel, claimMission, doubleRun, freshSave, HINT_PACK, makeMissions, migrate, refreshDaily, touchStreak, tradeForHints,
 } from '../src/meta/save';
-
-const stats = (delivered: number[], extra: Partial<{ weeks: number; bridgesUsed: number; bestCombo: number }> = {}) => ({
-  score: delivered.reduce((a, b) => a + b, 0),
-  weeks: 3,
-  delivered,
-  bridgesUsed: 0,
-  beltsPlaced: 10,
-  bestCombo: 4,
-  time: 200,
-  ...extra,
-});
 
 describe('save & meta loop', () => {
   it('migrates partial / old saves without losing data', () => {
@@ -53,63 +41,36 @@ describe('save & meta loop', () => {
     expect(makeMissions('2026-05-05')).toHaveLength(3);
   });
 
-  it('applies run rewards, best score, missions and doubling', () => {
+  it('applies level rewards, missions and doubling', () => {
     const s = freshSave();
     refreshDaily(s, '2026-02-02');
-    s.missions.list = [{ id: 'm', kind: 'score', goal: 10, progress: 0, reward: 30, claimed: false }];
-    const r = applyRun(s, stats([8, 4, 0, 0, 0]), 'coast', false);
-    expect(r.total).toBe(12);
-    expect(r.newBest).toBe(true);
-    expect(s.best.coast).toBe(12);
-    expect(s.tesserae[0]).toBe(8);
+    s.missions.list = [{ id: 'm', kind: 'levels', goal: 1, progress: 0, reward: 30, claimed: false }];
+    const r = applyLevel(s, 0, [0, 0, 0, 0, 1, 1, 1, 1], false, false);
+    expect(r.total).toBe(4);
+    expect(s.tesserae[0]).toBe(2);
     expect(r.missionsDone).toHaveLength(1);
     doubleRun(s, r);
-    expect(s.tesserae[0]).toBe(16);
-    expect(s.lifetime).toBe(24);
+    expect(s.tesserae[0]).toBe(4);
+    expect(s.lifetime).toBe(8);
     expect(claimMission(s, 'm')).toBe(30);
     expect(claimMission(s, 'm')).toBe(0);
-    expect(s.lifetime).toBe(54);
+    expect(s.lifetime).toBe(38);
   });
 
-  it('builds landmarks only when revealed and affordable', () => {
+  it('drops the retired endless mode from old saves', () => {
+    const s = migrate({ best: { coast: 9 }, built: ['well'], missions: { day: 'd', list: [{ id: 'x', kind: 'score', goal: 1, progress: 0, reward: 1, claimed: false }] } });
+    expect('best' in s).toBe(false);
+    expect('built' in s).toBe(false);
+    expect(s.missions.list).toHaveLength(0);
+  });
+
+  it('trades tesserae for hints, from the largest piles first', () => {
     const s = freshSave();
-    const well = LANDMARKS.find((l) => l.id === 'well')!;
-    expect(canBuild(s, well)).toBe(false);
-    s.tesserae[0] = 25;
-    expect(build(s, well)).toBe(true);
-    expect(s.tesserae[0]).toBe(5);
-    expect(build(s, well)).toBe(false);
-    const arch = LANDMARKS.find((l) => l.premium)!;
-    expect(canBuild(s, arch)).toBe(false);
-    s.purchases.patron = true;
-    expect(canBuild(s, arch)).toBe(true);
-  });
-});
-
-describe('frescoes', () => {
-  it('lays matching tiles, completes, rewards and overflows into the next fresco', async () => {
-    const { layFresco, FRESCO_REWARD } = await import('../src/meta/save');
-    const { FRESCOES, frescoNeeds, frescoProgress } = await import('../src/meta/frescoes');
-    const s = freshSave();
-    const need = frescoNeeds(FRESCOES[0]);
-    const half = layFresco(s, need.map((n) => Math.floor(n / 2)));
-    expect(half.completed).toEqual([]);
-    expect(frescoProgress(FRESCOES[0], s.fresco.filled)).toBeGreaterThan(0.4);
-    const before = s.lifetime;
-    const step = layFresco(s, [500, 500, 0, 0, 0]);
-    expect(step.completed[0]).toBe(FRESCOES[0].id);
-    expect(s.lifetime - before).toBeGreaterThanOrEqual(FRESCO_REWARD);
-    expect(s.fresco.idx).toBeGreaterThanOrEqual(1);
-    expect(s.fresco.filled.some((n) => n > 0)).toBe(true);
-  });
-
-  it('every fresco is square and uses only known colours', async () => {
-    const { FRESCOES, frescoNeeds } = await import('../src/meta/frescoes');
-    for (const f of FRESCOES) {
-      expect(f.rows.every((r) => r.length === f.rows.length)).toBe(true);
-      expect(f.rows.join('')).toMatch(/^[rbgyp.]+$/);
-      expect(frescoNeeds(f).reduce((a, b) => a + b, 0)).toBeGreaterThan(50);
-    }
+    s.tesserae = [100, 40, 20, 0, 0];
+    expect(tradeForHints(s)).toBe(true);
+    expect(s.tesserae.reduce((a, b) => a + b, 0)).toBe(160 - HINT_PACK.cost);
+    expect(s.hints).toBe(3 + HINT_PACK.hints);
+    expect(tradeForHints(s)).toBe(false);
   });
 });
 

@@ -1,8 +1,9 @@
 # Canalia
 
 Jeu mobile (Android et iOS) minimaliste de puzzles de canaux : relie chaque fontaine à son atelier sans croiser les
-canaux et couvre toute la grille, alors les canaux se transforment en un dessin en mosaïque. Les niveaux font grandir
-une ville persistante. Un second mode, « Courant », est un jeu de gestion de canaux en temps réel.
+canaux et couvre toute la grille, alors les canaux se transforment en un dessin en mosaïque. Chaque chapitre est un
+lieu (jardin, port, marché, nuit, cité engloutie) avec sa mécanique, son ambiance sonore et son village, que les étoiles
+gagnées dans les niveaux restaurent petit à petit.
 
 Le design complet (mécaniques, rétention, monétisation, plan de lancement) est dans **[docs/GAME_DESIGN.md](docs/GAME_DESIGN.md)**.
 Tout ce qui fait une appli de jeu « premium », dans le jeu et autour (store, analytics, live ops, qualité), est dans
@@ -13,8 +14,9 @@ Tout ce qui fait une appli de jeu « premium », dans le jeu et autour (store, a
 ```bash
 npm install
 npm run dev        # jeu dans le navigateur : http://localhost:5173 (ouvrable depuis ton téléphone sur le même Wi-Fi)
-npm test           # tests : simulation, progression, unicité des 40 niveaux, équilibrage
+npm test           # tests : progression, village, mécaniques, unicité des 50 niveaux
 npm run levels     # régénère les niveaux à solution unique (src/puzzle/levels.json)
+npm run levels -- --mechanics   # ajoute les mécaniques de chapitre (ponts, terrasses, lanternes, courants)
 npm run build      # build de production dans dist/
 ```
 

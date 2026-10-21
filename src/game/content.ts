@@ -1,4 +1,4 @@
-/** Static game content: materials, visual palettes and districts (maps). */
+/** Static game content: materials (canal colours and their glyphs) and visual palettes. */
 
 export type Glyph = 'circle' | 'square' | 'triangle' | 'diamond' | 'plus';
 
@@ -16,6 +16,39 @@ export const MATERIALS: readonly Material[] = [
   { id: 3, key: 'saffron', color: '#E0A332', glyph: 'diamond' },
   { id: 4, key: 'plum', color: '#8A4F8C', glyph: 'plus' },
 ];
+
+/** Draws a material's glyph (shapes for colour-blind players). */
+export function drawGlyph(g: CanvasRenderingContext2D, glyph: Glyph, x: number, y: number, r: number) {
+  g.beginPath();
+  switch (glyph) {
+    case 'circle':
+      g.arc(x, y, r * 0.8, 0, Math.PI * 2);
+      break;
+    case 'square':
+      g.rect(x - r * 0.7, y - r * 0.7, r * 1.4, r * 1.4);
+      break;
+    case 'triangle':
+      g.moveTo(x, y - r * 0.9);
+      g.lineTo(x + r * 0.85, y + r * 0.65);
+      g.lineTo(x - r * 0.85, y + r * 0.65);
+      g.closePath();
+      break;
+    case 'diamond':
+      g.moveTo(x, y - r);
+      g.lineTo(x + r * 0.8, y);
+      g.lineTo(x, y + r);
+      g.lineTo(x - r * 0.8, y);
+      g.closePath();
+      break;
+    case 'plus': {
+      const a = r * 0.32;
+      g.rect(x - a, y - r * 0.9, a * 2, r * 1.8);
+      g.rect(x - r * 0.9, y - a, r * 1.8, a * 2);
+      break;
+    }
+  }
+  g.fill();
+}
 
 export interface Palette {
   id: string;
@@ -67,30 +100,4 @@ export const PALETTES: readonly Palette[] = [
 
 export function paletteById(id: string): Palette {
   return PALETTES.find((p) => p.id === id) ?? PALETTES[0];
-}
-
-export type TerrainStyle = 'coast' | 'peaks' | 'delta' | 'archipelago';
-
-export interface District {
-  id: string;
-  terrain: TerrainStyle;
-  /** Week at which each material becomes available (index = material id). */
-  colorWeeks: number[];
-  startBelts: number;
-  startBridges: number;
-  /** Lifetime tesserae needed to unlock. */
-  unlockAt: number;
-  /** Difficulty multiplier on demand. */
-  pace: number;
-}
-
-export const DISTRICTS: readonly District[] = [
-  { id: 'coast', terrain: 'coast', colorWeeks: [0, 1, 3, 6], startBelts: 16, startBridges: 1, unlockAt: 0, pace: 1 },
-  { id: 'peaks', terrain: 'peaks', colorWeeks: [0, 1, 2, 5, 9], startBelts: 18, startBridges: 0, unlockAt: 400, pace: 1.05 },
-  { id: 'delta', terrain: 'delta', colorWeeks: [0, 1, 2, 4, 8], startBelts: 16, startBridges: 4, unlockAt: 1200, pace: 1.1 },
-  { id: 'archipelago', terrain: 'archipelago', colorWeeks: [0, 1, 2, 4, 6], startBelts: 14, startBridges: 4, unlockAt: 3000, pace: 1.15 },
-];
-
-export function districtById(id: string): District {
-  return DISTRICTS.find((d) => d.id === id) ?? DISTRICTS[0];
 }

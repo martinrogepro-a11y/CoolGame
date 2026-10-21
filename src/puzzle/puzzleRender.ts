@@ -1,5 +1,4 @@
-import { MATERIALS, type Palette } from '../game/content';
-import { drawGlyph } from '../game/render';
+import { drawGlyph, MATERIALS, type Palette } from '../game/content';
 import { PUZZLE_COLORS, type PuzzleState } from './puzzle';
 import { boardStyle, boatColor, isUnderwater, Scene } from './scene';
 

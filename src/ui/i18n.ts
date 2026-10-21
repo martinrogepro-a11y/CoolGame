@@ -4,10 +4,8 @@ const en = {
   tagline: 'Link the canals. Reveal the mosaic.',
   play: 'Play',
   daily: 'Daily challenge',
-  dailyDone: 'Done today · best {n}',
   dailyNew: 'Same puzzle for everyone today',
-  streak: '{n}-day streak',
-  city: 'City',
+  
   collection: 'Collection',
   shop: 'Shop',
   settings: 'Settings',
@@ -15,77 +13,54 @@ const en = {
   claim: 'Claim',
   best: 'Best {n}',
   locked: 'Unlocks at {n} tesserae',
-  week: 'Week {n}',
-  belts: 'Canals',
-  bridges: 'Aqueducts',
-  erase: 'Erase',
-  paused: 'Paused',
-  resume: 'Resume',
-  quit: 'Quit run',
+  
+  
+  
   restart: 'Restart',
-  weekDone: 'Week {n} complete',
-  weekBonus: '+{n} canal sections delivered. Choose one:',
-  up_belts: 'Canals', up_belts_d: '+10 canal sections',
-  up_bridges: 'Aqueducts', up_bridges_d: '+2 aqueducts, over water or another canal',
-  up_overdrive: 'Current', up_overdrive_d: 'Canals flow 25% faster',
-  up_quarry: 'Lively springs', up_quarry_d: 'Fountains produce 20% faster',
-  up_patience: 'Patience', up_patience_d: 'Workshops wait 30% longer',
-  gameOver: 'A workshop gave up',
-  score: 'Tesserae delivered',
-  newBest: 'New best!',
+  
+  
+  
+  
+  
   earned: 'Added to your city',
-  continueAd: 'Second chance',
   doubleAd: 'Double tesserae',
   home: 'Home',
-  again: 'Play again',
-  cityEmpty: 'Deliver tesserae to grow your city.',
-  cityStats: '{h} houses · {l} landmarks',
-  build: 'Build',
+  
+  
   built: 'Built',
-  hidden: 'Blueprint revealed at {n} lifetime tesserae',
   palettes: 'Palettes',
-  landmarks: 'Landmarks',
   use: 'Use',
   inUse: 'In use',
   pal_paper: 'Paper', pal_night: 'Night', pal_sakura: 'Sakura', pal_blueprint: 'Blueprint', pal_dune: 'Dune',
-  palHow_night: 'Earn 200 tesserae', palHow_sakura: '7-day streak', palHow_blueprint: 'Patron pack', palHow_dune: 'Score 100 in Peaks',
+  palHow_night: 'Earn 200 tesserae', palHow_sakura: '7-day streak', palHow_blueprint: 'Patron pack', palHow_dune: 'Harbour album',
   noAds: 'Remove ads',
   noAds_d: 'No more interstitials. Bonus videos stay optional.',
   patron: 'Patron pack',
-  patron_d: 'No ads · ×1.5 tesserae forever · all palettes · Golden Arch · every district',
-  tilesS: 'Handful of tesserae', tilesS_d: '+400 tesserae for your city',
-  tilesL: 'Crate of tesserae', tilesL_d: '+1500 tesserae for your city',
+  patron_d: 'No ads · ×1.5 tesserae forever · all palettes',
+  tilesS: 'Handful of tesserae', tilesS_d: '+400 tesserae to trade for hints',
+  tilesL: 'Crate of tesserae', tilesL_d: '+1500 tesserae to trade for hints',
   restore: 'Restore purchases',
-  owned: 'Owned',
+  trade: '{n} hints', trade_d: 'Trade the tesserae you won in the levels',
+  tradeShort: 'You need {n} tesserae', tradeDone: '+{n} hints',
   sound: 'Sound',
   haptics: 'Haptics',
   colorblind: 'Shapes on tiles (colour-blind)',
   language: 'Language',
   privacy: 'Privacy & ads consent',
-  on: 'On', off: 'Off',
+  on: 'On', 
   gift: 'Streak gift: +{n} tesserae',
   collect: 'Collect',
   collectX2: 'Collect ×2',
-  unlockedDistrict: 'New district unlocked: {d}',
-  revealed: 'New blueprint: {l}',
-  tut1: 'Drag from the fountain to the workshop of the same colour to dig a canal.',
-  tut2: 'Workshops fill up with orders. Keep them supplied!',
-  tut3: 'Drag straight across a canal to build an aqueduct over it. Erase refunds canals.',
-  m_deliver_color: 'Deliver {n} {c} tesserae',
-  m_score: 'Score {n} in one run',
-  m_weeks: 'Reach week {n}',
-  m_bridges: 'Build {n} aqueducts',
-  m_runs: 'Play {n} runs',
-  m_combo: 'Chain a {n}× delivery combo',
-  d_coast: 'Ochre Coast', d_peaks: 'Slate Peaks', d_delta: 'Jade Delta', d_archipelago: 'Archipelago',
-  mat_clay: 'clay', mat_slate: 'slate', mat_jade: 'jade', mat_saffron: 'saffron', mat_plum: 'plum',
-  lm_well: 'Old Well', lm_windmill: 'Windmill', lm_bell_tower: 'Bell Tower', lm_greenhouse: 'Greenhouse',
-  lm_lighthouse: 'Lighthouse', lm_aqueduct: 'Aqueduct', lm_observatory: 'Observatory', lm_pagoda: 'Pagoda',
-  lm_clock_tower: 'Clock Tower', lm_amphitheatre: 'Amphitheatre', lm_ziggurat: 'Ziggurat', lm_golden_arch: 'Golden Arch',
-  r_common: 'Common', r_rare: 'Rare', r_epic: 'Epic', r_legendary: 'Legendary',
+  
+  
+  
+  
+  
+  
+  
+  
   adUnavailable: 'No video available right now. Try again in a moment.',
   thanks: 'Thank you for your support!',
-  newMat: 'New material: {m}',
   pic_tulip: "Tulip",
   pic_apple: "Apple",
   pic_snail: "Snail",
@@ -137,9 +112,7 @@ const en = {
   pic_balloon: "Balloon",
   pic_penguin: "Penguin",
   pz_level: 'Level {n}',
-  pz_next_up: 'Next picture',
-  pz_pairs: '{n} canals',
-  pz_levels: 'All levels',
+  
   pz_next: 'Next level',
   pz_hint: 'Hint',
   pz_perfect: 'Perfect',
@@ -152,7 +125,6 @@ const en = {
   pz_mech_deep: 'New: currents. Water flows with the arrow, from the fountain to the house.',
   pz_dailyDone: 'Done today. New puzzle tomorrow.',
   village: 'Village',
-  village_d: 'Restore it with your stars',
   v_restore: 'Restore',
   v_need: 'Win stars in the levels to restore it',
   v_locked: 'Reach this chapter to wake its village',
@@ -186,9 +158,7 @@ const en = {
   v_deep_coral: 'Grow the coral', v_deep_coral_d: 'Coral blooms among the ruins.',
   v_deep_seaweed: 'Grow the seaweed', v_deep_seaweed_d: 'Seaweed sways in the current.',
   v_deep_fish: 'Bring the fish back', v_deep_fish_d: 'Fish swim through the sunken city.',
-  endless: 'Current mode',
-  endless_d: 'Endless, real time',
-  endless_how: 'Workshops keep ordering: keep the canals flowing as long as you can. Every tile fills your fresco.',
+  
   m_levels: 'Solve {n} levels',
   m_perfect: 'Solve {n} levels perfectly',
   pz_hard: 'Hard',
@@ -220,18 +190,12 @@ const en = {
   music: 'Music',
   notifSetting: 'Daily reminders',
   ambienceSetting: 'Sounds of each place',
-  fr_sunset: 'Sunset',
-  fr_whale: 'Whale',
-  fr_fox: 'Fox',
-  fr_lighthouse: 'Lighthouse',
-  fr_koi: 'Koi',
+  
+  
   fresco: 'Fresco',
-  frescoes: 'Frescoes',
-  frescoDone: 'Fresco complete!',
-  frescoReward: '+{n} tesserae · next: {f}',
-  frescoLeft: '{n} tiles to go',
-  frescoAll: 'All frescoes complete. New ones arrive with updates.',
-  frescoLaid: '+{n} tiles laid in the fresco',
+  
+  
+  
 };
 
 type Dict = typeof en;
@@ -240,10 +204,8 @@ const fr: Dict = {
   tagline: 'Relie les canaux. Révèle la mosaïque.',
   play: 'Jouer',
   daily: 'Défi du jour',
-  dailyDone: "Fait aujourd'hui · record {n}",
   dailyNew: 'Le même puzzle pour tout le monde',
-  streak: 'Série de {n} jours',
-  city: 'Ville',
+  
   collection: 'Collection',
   shop: 'Boutique',
   settings: 'Réglages',
@@ -251,77 +213,54 @@ const fr: Dict = {
   claim: 'Récupérer',
   best: 'Record {n}',
   locked: 'Débloqué à {n} tesselles',
-  week: 'Semaine {n}',
-  belts: 'Canaux',
-  bridges: 'Aqueducs',
-  erase: 'Gomme',
-  paused: 'Pause',
-  resume: 'Reprendre',
-  quit: 'Abandonner',
+  
+  
+  
   restart: 'Recommencer',
-  weekDone: 'Semaine {n} terminée',
-  weekBonus: '+{n} sections de canal livrées. Choisis un bonus :',
-  up_belts: 'Canaux', up_belts_d: '+10 sections de canal',
-  up_bridges: 'Aqueducs', up_bridges_d: "+2 aqueducs, au-dessus de l'eau ou d'un canal",
-  up_overdrive: 'Courant', up_overdrive_d: 'Les canaux coulent 25 % plus vite',
-  up_quarry: 'Sources vives', up_quarry_d: 'Les fontaines produisent 20 % plus vite',
-  up_patience: 'Patience', up_patience_d: 'Les ateliers attendent 30 % plus longtemps',
-  gameOver: 'Un atelier a abandonné',
-  score: 'Tesselles livrées',
-  newBest: 'Nouveau record !',
+  
+  
+  
+  
+  
   earned: 'Ajoutées à ta ville',
-  continueAd: 'Seconde chance',
   doubleAd: 'Doubler les tesselles',
   home: 'Accueil',
-  again: 'Rejouer',
-  cityEmpty: 'Livre des tesselles pour faire grandir ta ville.',
-  cityStats: '{h} maisons · {l} monuments',
-  build: 'Construire',
+  
+  
   built: 'Construit',
-  hidden: 'Plan révélé à {n} tesselles cumulées',
   palettes: 'Palettes',
-  landmarks: 'Monuments',
   use: 'Utiliser',
   inUse: 'Active',
   pal_paper: 'Papier', pal_night: 'Nuit', pal_sakura: 'Sakura', pal_blueprint: 'Plan bleu', pal_dune: 'Dune',
-  palHow_night: 'Gagner 200 tesselles', palHow_sakura: 'Série de 7 jours', palHow_blueprint: 'Pack Mécène', palHow_dune: 'Score 100 aux Cimes',
+  palHow_night: 'Gagner 200 tesselles', palHow_sakura: 'Série de 7 jours', palHow_blueprint: 'Pack Mécène', palHow_dune: 'Album du Port',
   noAds: 'Retirer les pubs',
   noAds_d: 'Plus aucune pub imposée. Les vidéos bonus restent au choix.',
   patron: 'Pack Mécène',
-  patron_d: 'Sans pub · ×1,5 tesselles à vie · toutes les palettes · Arche dorée · tous les quartiers',
-  tilesS: 'Poignée de tesselles', tilesS_d: '+400 tesselles pour ta ville',
-  tilesL: 'Caisse de tesselles', tilesL_d: '+1500 tesselles pour ta ville',
+  patron_d: 'Sans pub · ×1,5 tesselles à vie · toutes les palettes',
+  tilesS: 'Poignée de tesselles', tilesS_d: '+400 tesselles à échanger contre des indices',
+  tilesL: 'Caisse de tesselles', tilesL_d: '+1500 tesselles à échanger contre des indices',
   restore: 'Restaurer les achats',
-  owned: 'Acquis',
+  trade: '{n} indices', trade_d: 'Échange les tesselles gagnées dans les niveaux',
+  tradeShort: 'Il te faut {n} tesselles', tradeDone: '+{n} indices',
   sound: 'Son',
   haptics: 'Vibrations',
   colorblind: 'Formes sur les tuiles (daltonisme)',
   language: 'Langue',
   privacy: 'Confidentialité & pubs',
-  on: 'Oui', off: 'Non',
+  on: 'Oui', 
   gift: 'Cadeau de série : +{n} tesselles',
   collect: 'Récupérer',
   collectX2: 'Récupérer ×2',
-  unlockedDistrict: 'Nouveau quartier : {d}',
-  revealed: 'Nouveau plan : {l}',
-  tut1: "Glisse de la fontaine jusqu'à l'atelier de la même couleur pour creuser un canal.",
-  tut2: 'Les ateliers accumulent des commandes. Garde-les approvisionnés !',
-  tut3: 'Glisse tout droit à travers un canal pour passer par-dessus avec un aqueduc. La gomme rembourse les canaux.',
-  m_deliver_color: 'Livrer {n} tesselles {c}',
-  m_score: 'Marquer {n} en une partie',
-  m_weeks: 'Atteindre la semaine {n}',
-  m_bridges: 'Construire {n} aqueducs',
-  m_runs: 'Jouer {n} parties',
-  m_combo: 'Enchaîner un combo de {n}',
-  d_coast: 'Côte Ocre', d_peaks: "Cimes d'Ardoise", d_delta: 'Delta de Jade', d_archipelago: 'Archipel',
-  mat_clay: 'argile', mat_slate: 'ardoise', mat_jade: 'jade', mat_saffron: 'safran', mat_plum: 'prune',
-  lm_well: 'Vieux puits', lm_windmill: 'Moulin', lm_bell_tower: 'Clocher', lm_greenhouse: 'Serre',
-  lm_lighthouse: 'Phare', lm_aqueduct: 'Aqueduc', lm_observatory: 'Observatoire', lm_pagoda: 'Pagode',
-  lm_clock_tower: "Tour de l'horloge", lm_amphitheatre: 'Amphithéâtre', lm_ziggurat: 'Ziggourat', lm_golden_arch: 'Arche dorée',
-  r_common: 'Commun', r_rare: 'Rare', r_epic: 'Épique', r_legendary: 'Légendaire',
+  
+  
+  
+  
+  
+  
+  
+  
   adUnavailable: 'Aucune vidéo disponible pour le moment. Réessaie dans un instant.',
   thanks: 'Merci pour ton soutien !',
-  newMat: 'Nouveau matériau : {m}',
   pic_tulip: "Tulipe",
   pic_apple: "Pomme",
   pic_snail: "Escargot",
@@ -373,9 +312,7 @@ const fr: Dict = {
   pic_balloon: "Montgolfière",
   pic_penguin: "Pingouin",
   pz_level: 'Niveau {n}',
-  pz_next_up: 'Prochain dessin',
-  pz_pairs: '{n} canaux',
-  pz_levels: 'Tous les niveaux',
+  
   pz_next: 'Niveau suivant',
   pz_hint: 'Indice',
   pz_perfect: 'Parfait',
@@ -388,7 +325,6 @@ const fr: Dict = {
   pz_mech_deep: "Nouveau : les courants. L'eau suit la flèche, de la fontaine vers la maison.",
   pz_dailyDone: 'Fait aujourd\'hui. Nouveau puzzle demain.',
   village: 'Village',
-  village_d: 'Restaure-le avec tes étoiles',
   v_restore: 'Restaurer',
   v_need: 'Gagne des étoiles dans les niveaux pour le restaurer',
   v_locked: 'Atteins ce chapitre pour réveiller son village',
@@ -422,9 +358,7 @@ const fr: Dict = {
   v_deep_coral: 'Faire repousser le corail', v_deep_coral_d: 'Le corail fleurit entre les ruines.',
   v_deep_seaweed: 'Faire pousser les algues', v_deep_seaweed_d: 'Les algues ondulent dans le courant.',
   v_deep_fish: 'Ramener les poissons', v_deep_fish_d: 'Les poissons nagent dans la cité.',
-  endless: 'Mode Courant',
-  endless_d: 'Sans fin, en temps réel',
-  endless_how: 'Les ateliers commandent sans arrêt : fais couler les canaux le plus longtemps possible. Chaque tuile remplit ta fresque.',
+  
   m_levels: 'Résoudre {n} niveaux',
   m_perfect: 'Résoudre {n} niveaux parfaitement',
   pz_hard: 'Difficile',
@@ -456,18 +390,12 @@ const fr: Dict = {
   music: 'Musique',
   notifSetting: 'Rappels quotidiens',
   ambienceSetting: 'Ambiance sonore des lieux',
-  fr_sunset: 'Soleil couchant',
-  fr_whale: 'Baleine',
-  fr_fox: 'Renard',
-  fr_lighthouse: 'Phare',
-  fr_koi: 'Koï',
+  
+  
   fresco: 'Fresque',
-  frescoes: 'Fresques',
-  frescoDone: 'Fresque terminée !',
-  frescoReward: '+{n} tesselles · suivante : {f}',
-  frescoLeft: 'Encore {n} tuiles',
-  frescoAll: 'Toutes les fresques sont finies. De nouvelles arrivent avec les mises à jour.',
-  frescoLaid: '+{n} tuiles posées dans la fresque',
+  
+  
+  
 };
 
 export type Key = keyof Dict;

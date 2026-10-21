@@ -68,6 +68,14 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
   - de petits bateaux (des poissons sous la mer) naviguent dans les canaux reliés ;
   - le décor du chapitre en cours sert aussi de fond à l'écran d'accueil ;
   - tout est procédural et mis en cache : aucun coût d'illustration.
+- ✅ **Une ambiance sonore par lieu** (`src/core/ambience.ts`), synthétisée comme la musique : brise, oiseaux et
+  fontaine au Jardin ; houle, mouettes et cloche au Port ; brouhaha, bruits d'étals et clocher au Marché ; grillons et
+  chouette la Nuit ; grondement, bulles et chant de baleine dans la Cité engloutie. Plus douce sur l'accueil,
+  désactivable dans les réglages.
+- ✅ **Le village à restaurer** (`src/meta/village.ts`) : les étoiles gagnées dans les niveaux réveillent le village de
+  chaque lieu, une étape visible à la fois (façades repeintes, fontaine, phare, étals, fenêtres allumées, corail…).
+  Le décor derrière les niveaux et l'accueil montre l'avancement. Un village complet donne des indices.
+- ✅ Les fontaines prennent le style du lieu (bassin moussu, tonneau, pierre aux carreaux bleus, bougies, amphore).
 - ⏳ (5) Un vrai pass d'illustrateur sur les dessins (pixel art plus fin en 10×10 et 12×12) et sur l'icône.
 
 ## 4. Les boucles de rétention
@@ -78,7 +86,7 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
 | La session | Niveau suivant en un tap, étoiles, coffre d'étoiles (15 ★ = indices, tesselles, parfois une palette) | ✅ |
 | Le jour | Défi du jour (même puzzle pour tous) + **partage façon Wordle** (mosaïque en emojis, temps, étoiles), 3 missions, série de jours avec cadeaux | ✅ |
 | La semaine | Chapitres-albums à compléter (récompense d'album : indices + palette) | ✅ |
-| Le mois | Ville et monuments, palettes, mode Courant, Rappels (les dessins avec de nouveaux tracés) | ✅ |
+| Le mois | **Restaurer le village** de chaque lieu avec les étoiles (façon Royal Match), palettes, Rappels (les dessins avec de nouveaux tracés) | ✅ |
 | Live ops | Événements saisonniers (album d'Halloween, de Noël…), pass de saison cosmétique | ⏳ (6) |
 | Social | Classement du défi du jour entre amis (Game Center / Play Games), « vies » partageables | ⏳ (7) |
 

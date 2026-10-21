@@ -1,19 +1,15 @@
 import { dayKey, daysBetween, hashString, Rng } from '../core/rng';
 import { storage } from '../core/storage';
-import { DISTRICTS } from '../game/content';
-import type { RunStats } from '../game/sim';
-import { FRESCOES, frescoNeeds } from './frescoes';
-import { LANDMARKS, type Landmark } from './landmarks';
 import type { VillageSave } from './village';
 
 const KEY = 'tessera.save.v1';
 
-export type MissionKind = 'deliver_color' | 'score' | 'weeks' | 'bridges' | 'runs' | 'combo' | 'levels' | 'perfect' | 'restore';
+export type MissionKind = 'levels' | 'perfect' | 'restore';
+const MISSION_KINDS: readonly MissionKind[] = ['levels', 'perfect', 'restore'];
 
 export interface Mission {
   id: string;
   kind: MissionKind;
-  color?: number;
   goal: number;
   progress: number;
   reward: number;
@@ -25,9 +21,6 @@ export interface SaveData {
   tesserae: number[];
   lifetime: number;
   runs: number;
-  best: Record<string, number>;
-  district: string;
-  built: string[];
   palettes: string[];
   palette: string;
   settings: { sound: boolean; music: boolean; haptics: boolean; lang: 'auto' | 'en' | 'fr'; colorblind: boolean; notifications: boolean; ambience: boolean; dev?: boolean };
@@ -40,9 +33,6 @@ export interface SaveData {
   firstDay: string;
   /** Pending gift shown on the home screen (e.g. streak milestone). */
   gift: number;
-  /** Current fresco and how many tiles of each material are already laid in it. */
-  fresco: { idx: number; filled: number[] };
-  frescoesDone: string[];
   /** Puzzle levels: index of the next level to play, and stars per level (1 done, 3 perfect). */
   puzzle: {
     next: number;
@@ -59,8 +49,6 @@ export interface SaveData {
   village: VillageSave;
 }
 
-export const FRESCO_REWARD = 100;
-
 export function freshSave(): SaveData {
   const today = dayKey();
   return {
@@ -68,9 +56,6 @@ export function freshSave(): SaveData {
     tesserae: [0, 0, 0, 0, 0],
     lifetime: 0,
     runs: 0,
-    best: {},
-    district: DISTRICTS[0].id,
-    built: [],
     palettes: ['paper'],
     palette: 'paper',
     settings: { sound: true, music: true, haptics: true, lang: 'auto', colorblind: false, notifications: false, ambience: true },
@@ -82,8 +67,6 @@ export function freshSave(): SaveData {
     tutorialDone: false,
     firstDay: today,
     gift: 0,
-    fresco: { idx: 0, filled: [0, 0, 0, 0, 0] },
-    frescoesDone: [],
     puzzle: { next: 0, stars: [], chest: 0, albums: [] },
     asked: { review: false, notifications: false },
     hints: 3,
@@ -96,6 +79,9 @@ export function migrate(raw: unknown): SaveData {
   const base = freshSave();
   if (!raw || typeof raw !== 'object') return base;
   const r = raw as Partial<SaveData>;
+  // Fields of the retired endless mode (districts, landmarks, frescoes) are dropped.
+  const old = r as Record<string, unknown>;
+  for (const k of ['best', 'district', 'built', 'fresco', 'frescoesDone']) delete old[k];
   return {
     ...base,
     ...r,
@@ -103,12 +89,9 @@ export function migrate(raw: unknown): SaveData {
     settings: { ...base.settings, ...(r.settings ?? {}) },
     streak: { ...base.streak, ...(r.streak ?? {}) },
     daily: { ...base.daily, ...(r.daily ?? {}) },
-    missions: { ...base.missions, ...(r.missions ?? {}) },
+    missions: { day: r.missions?.day ?? '', list: (r.missions?.list ?? []).filter((m) => MISSION_KINDS.includes(m.kind)) },
     purchases: { ...base.purchases, ...(r.purchases ?? {}) },
     ads: { ...base.ads, ...(r.ads ?? {}) },
-    best: { ...(r.best ?? {}) },
-    fresco: { idx: r.fresco?.idx ?? 0, filled: base.fresco.filled.map((_, i) => r.fresco?.filled?.[i] ?? 0) },
-    frescoesDone: [...(r.frescoesDone ?? [])],
     puzzle: {
       next: r.puzzle?.next ?? 0,
       stars: [...(r.puzzle?.stars ?? [])],
@@ -162,7 +145,6 @@ export function makeMissions(day: string): Mission[] {
     return {
       id: `${day}-${k}`,
       kind: t.kind,
-      color: t.kind === 'deliver_color' ? rng.int(0, 2) : undefined,
       goal,
       progress: 0,
       reward: t.reward + Math.round(goal / 5),
@@ -190,105 +172,6 @@ export function touchStreak(s: SaveData, today = dayKey()): boolean {
   else if (s.streak.count % 3 === 0) s.gift += 40;
   if (s.streak.count >= 7 && !s.palettes.includes('sakura')) s.palettes.push('sakura');
   return true;
-}
-
-export function dailySeed(day = dayKey()): number {
-  return hashString('daily' + day);
-}
-
-export function dailyDistrict(day = dayKey()): string {
-  return DISTRICTS[hashString('dd' + day) % DISTRICTS.length].id;
-}
-
-// ------------------------------------------------------------------ runs & economy
-
-export interface FrescoStep {
-  /** Fresco state before the run, for the reveal animation. */
-  before: { idx: number; filled: number[] };
-  laid: number;
-  completed: string[];
-}
-
-/**
- * Lays delivered tiles into the current fresco; overflow continues into the next one.
- * Frescoes only take tiles, they never cost tesserae.
- */
-export function layFresco(s: SaveData, delivered: number[]): FrescoStep {
-  const step: FrescoStep = { before: { idx: s.fresco.idx, filled: s.fresco.filled.slice() }, laid: 0, completed: [] };
-  const pool = delivered.slice();
-  while (s.fresco.idx < FRESCOES.length) {
-    const f = FRESCOES[s.fresco.idx];
-    const need = frescoNeeds(f);
-    for (let c = 0; c < need.length; c++) {
-      const take = Math.max(0, Math.min(pool[c] ?? 0, need[c] - s.fresco.filled[c]));
-      s.fresco.filled[c] += take;
-      pool[c] -= take;
-      step.laid += take;
-    }
-    if (!need.every((n, c) => s.fresco.filled[c] >= n)) break;
-    step.completed.push(f.id);
-    s.frescoesDone.push(f.id);
-    grantSpread(s, FRESCO_REWARD);
-    s.fresco = { idx: s.fresco.idx + 1, filled: [0, 0, 0, 0, 0] };
-  }
-  return step;
-}
-
-export interface RunResult {
-  fresco: FrescoStep;
-  earned: number[];
-  total: number;
-  newBest: boolean;
-  missionsDone: Mission[];
-  unlockedDistricts: string[];
-  revealed: Landmark[];
-}
-
-export function districtUnlocked(s: SaveData, id: string): boolean {
-  const d = DISTRICTS.find((x) => x.id === id);
-  return !!d && (s.lifetime >= d.unlockAt || s.purchases.patron);
-}
-
-/** Applies the end-of-run rewards. `multiplier` is 2 when the player watched the bonus ad. */
-export function applyRun(s: SaveData, stats: RunStats, district: string, daily: boolean): RunResult {
-  const before = s.lifetime;
-  const unlockedBefore = DISTRICTS.filter((d) => districtUnlocked(s, d.id)).map((d) => d.id);
-  const boost = s.purchases.patron ? 1.5 : 1;
-  const earned = stats.delivered.map((n) => Math.round(n * boost));
-  earned.forEach((n, i) => (s.tesserae[i] += n));
-  const total = earned.reduce((a, b) => a + b, 0);
-  s.lifetime += total;
-  s.runs++;
-  const key = daily ? 'daily' : district;
-  const newBest = stats.score > (s.best[key] ?? 0);
-  if (newBest) s.best[key] = stats.score;
-  if (daily) {
-    s.daily.played = true;
-    s.daily.best = Math.max(s.daily.best, stats.score);
-  }
-  touchStreak(s);
-
-  const done: Mission[] = [];
-  for (const m of s.missions.list) {
-    if (m.claimed || m.progress >= m.goal) continue;
-    switch (m.kind) {
-      case 'deliver_color': m.progress += stats.delivered[m.color ?? 0]; break;
-      case 'score': m.progress = Math.max(m.progress, stats.score); break;
-      case 'weeks': m.progress = Math.max(m.progress, stats.weeks); break;
-      case 'bridges': m.progress += stats.bridgesUsed; break;
-      case 'runs': m.progress += 1; break;
-      case 'combo': m.progress = Math.max(m.progress, stats.bestCombo); break;
-    }
-    m.progress = Math.min(m.progress, m.goal);
-    if (m.progress >= m.goal) done.push(m);
-  }
-
-  if (s.lifetime >= 200 && !s.palettes.includes('night')) s.palettes.push('night');
-  if ((s.best['peaks'] ?? 0) >= 100 && !s.palettes.includes('dune')) s.palettes.push('dune');
-  const unlockedDistricts = DISTRICTS.filter((d) => districtUnlocked(s, d.id) && !unlockedBefore.includes(d.id)).map((d) => d.id);
-  const revealed = LANDMARKS.filter((l) => !l.premium && l.revealAt > before && l.revealAt <= s.lifetime);
-  const fresco = layFresco(s, stats.delivered);
-  return { fresco, earned, total, newBest, missionsDone: done, unlockedDistricts, revealed };
 }
 
 export const CHEST_STARS = 15;
@@ -322,8 +205,6 @@ export interface LevelResult {
   total: number;
   firstClear: boolean;
   missionsDone: Mission[];
-  revealed: Landmark[];
-  unlockedDistricts: string[];
 }
 
 /**
@@ -331,8 +212,6 @@ export interface LevelResult {
  * coloured cell, +50 % when perfect, less on replays), stars, streak and missions.
  */
 export function applyLevel(s: SaveData, level: number, colors: number[], perfect: boolean, daily: boolean): LevelResult {
-  const before = s.lifetime;
-  const unlockedBefore = DISTRICTS.filter((d) => districtUnlocked(s, d.id)).map((d) => d.id);
   const firstClear = daily ? !s.daily.played : (s.puzzle.stars[level] ?? 0) === 0;
   let starsGained = 0;
   const count = [0, 0, 0, 0, 0];
@@ -363,15 +242,13 @@ export function applyLevel(s: SaveData, level: number, colors: number[], perfect
   const done: Mission[] = [];
   for (const m of s.missions.list) {
     if (m.claimed || m.progress >= m.goal) continue;
-    if (m.kind === 'levels' || m.kind === 'runs') m.progress++;
+    if (m.kind === 'levels') m.progress++;
     if (m.kind === 'perfect' && perfect) m.progress++;
     m.progress = Math.min(m.progress, m.goal);
     if (m.progress >= m.goal) done.push(m);
   }
   if (s.lifetime >= 200 && !s.palettes.includes('night')) s.palettes.push('night');
-  const unlockedDistricts = DISTRICTS.filter((d) => districtUnlocked(s, d.id) && !unlockedBefore.includes(d.id)).map((d) => d.id);
-  const revealed = LANDMARKS.filter((l) => !l.premium && l.revealAt > before && l.revealAt <= s.lifetime);
-  return { starsGained, earned, total, firstClear, missionsDone: done, revealed, unlockedDistricts };
+  return { starsGained, earned, total, firstClear, missionsDone: done };
 }
 
 /** Doubles the tesserae of a finished run (rewarded ad). */
@@ -401,25 +278,27 @@ export function grantSpread(s: SaveData, amount: number) {
   s.lifetime += amount;
 }
 
-export function canBuild(s: SaveData, l: Landmark): boolean {
-  if (s.built.includes(l.id)) return false;
-  if (l.premium) return s.purchases.patron;
-  if (s.lifetime < l.revealAt) return false;
-  return l.cost.every((c, i) => s.tesserae[i] >= c);
-}
-
-export function build(s: SaveData, l: Landmark): boolean {
-  if (!canBuild(s, l)) return false;
-  l.cost.forEach((c, i) => (s.tesserae[i] -= c));
-  s.built.push(l.id);
-  return true;
-}
-
 /** Grants a chapter album reward once all its pictures are solved. Returns false if already claimed. */
 export function claimAlbum(s: SaveData, id: string, reward: { hints: number; palette?: string }): boolean {
   if (s.puzzle.albums.includes(id)) return false;
   s.puzzle.albums.push(id);
   s.hints += reward.hints;
   if (reward.palette && !s.palettes.includes(reward.palette)) s.palettes.push(reward.palette);
+  return true;
+}
+
+/** Tesserae have one sink: trading them for hints (in the shop). */
+export const HINT_PACK = { cost: 150, hints: 3 };
+
+export function tradeForHints(s: SaveData): boolean {
+  const have = s.tesserae.reduce((a, b) => a + b, 0);
+  if (have < HINT_PACK.cost) return false;
+  // Take from the largest piles first, so the wallet stays balanced.
+  for (let k = 0; k < HINT_PACK.cost; k++) {
+    let max = 0;
+    for (let i = 1; i < s.tesserae.length; i++) if (s.tesserae[i] > s.tesserae[max]) max = i;
+    s.tesserae[max]--;
+  }
+  s.hints += HINT_PACK.hints;
   return true;
 }
