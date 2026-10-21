@@ -184,8 +184,8 @@ revenus tant que les KPI ne sont pas validés.
 - **v1.2** : nouvelle mécanique, le **Four** (deux matériaux qui entrent fusionnent en un composite demandé par des
   ateliers de rang 2). Deux nouveaux quartiers, plus de monuments.
 - **v1.3** : Season Pass, événements, traductions ES/DE/PT-BR/JA (le système i18n est prêt).
-- **Avant de publier** : vérifier la disponibilité du nom « Tessera » sur les stores et les marques déposées
-  (sinon : *Tessera: Mosaic Town*, *Tesselle*…).
+- **Avant de publier** : vérifier la disponibilité du nom « Canalia » sur les stores et les marques déposées
+  (sinon : *Canalia: Canal Puzzle*, *Tesselle*…).
 
 ## 8. Équilibrage
 

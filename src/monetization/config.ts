@@ -35,11 +35,11 @@ export const IAP = {
   entitlements: { noAds: 'no_ads', patron: 'patron' },
   /** Store product identifiers (create identical IDs in both stores). */
   products: {
-    noAds: 'tessera_no_ads',
-    patron: 'tessera_patron',
-    tesseraeS: 'tessera_tiles_small',
-    tesseraeL: 'tessera_tiles_large',
+    noAds: 'canalia_no_ads',
+    patron: 'canalia_patron',
+    tesseraeS: 'canalia_tiles_small',
+    tesseraeL: 'canalia_tiles_large',
   },
   /** Tesserae granted by consumable packs. */
-  packs: { tessera_tiles_small: 400, tessera_tiles_large: 1500 } as Record<string, number>,
+  packs: { canalia_tiles_small: 400, canalia_tiles_large: 1500 } as Record<string, number>,
 };

@@ -1,4 +1,4 @@
-package com.tessera.game;
+package com.canalia.game;
 
 import com.getcapacitor.BridgeActivity;
 

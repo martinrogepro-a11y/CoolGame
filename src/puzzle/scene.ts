@@ -1,7 +1,7 @@
 import { Rng } from '../core/rng';
 
 /**
- * Tessera's world: a Mediterranean canal village in mosaic. Low, human-scale houses in
+ * Canalia's world: a Mediterranean canal village in mosaic. Low, human-scale houses in
  * warm mixed colours (Townscaper's cosy rooftops, Venice's canals, Lisbon's azulejos),
  * built in small isometric volumes, each face shaded by the same light.
  *

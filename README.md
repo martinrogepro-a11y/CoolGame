@@ -1,4 +1,4 @@
-# Tessera
+# Canalia
 
 Jeu mobile (Android et iOS) minimaliste de puzzles de canaux : relie chaque fontaine à son atelier sans croiser les
 canaux et couvre toute la grille, alors les canaux se transforment en un dessin en mosaïque. Les niveaux font grandir
@@ -33,12 +33,12 @@ npm run ios        # build + sync + ouvre Xcode (nécessite un Mac)
 
 ## Avant de publier
 
-1. `capacitor.config.ts` : remplacer `appId` (`com.tessera.game`) par ton identifiant.
+1. `capacitor.config.ts` : remplacer `appId` (`com.canalia.game`) par ton identifiant.
 2. **AdMob** : créer l'app et les blocs d'annonces, puis remplacer les IDs de test dans
    `src/monetization/config.ts` (passer `testing: false`), `android/app/src/main/AndroidManifest.xml` et
    `ios/App/App/Info.plist` (`GADApplicationIdentifier`). Configurer le message RGPD (UMP) dans AdMob.
-3. **RevenueCat** : créer les produits `tessera_no_ads`, `tessera_patron`, `tessera_tiles_small` et
-   `tessera_tiles_large` dans les deux stores, les entitlements `no_ads` et `patron`, puis coller les clés publiques
+3. **RevenueCat** : créer les produits `canalia_no_ads`, `canalia_patron`, `canalia_tiles_small` et
+   `canalia_tiles_large` dans les deux stores, les entitlements `no_ads` et `patron`, puis coller les clés publiques
    dans `src/monetization/config.ts`.
 4. Une politique de confidentialité en ligne (obligatoire pour les pubs).
 5. Icônes et splash : modifier `assets/` puis `npx @capacitor/assets generate`.

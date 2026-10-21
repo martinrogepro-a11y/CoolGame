@@ -326,7 +326,7 @@ export class PuzzleMode {
     const ss = String(Math.round(this.elapsed % 60)).padStart(2, '0');
     const rows: string[] = [];
     for (let y = 0; y < n; y++) rows.push(st.level.colors.slice(y * n, y * n + n).map((c) => EMOJI[c] ?? '⬜').join(''));
-    return `Tessera · ${t('daily')} ${dayKey()}\n${perfect ? '★★★' : '★'} · ${mm}:${ss}\n${rows.join('\n')}\n#TesseraPuzzle`;
+    return `Canalia · ${t('daily')} ${dayKey()}\n${perfect ? '★★★' : '★'} · ${mm}:${ss}\n${rows.join('\n')}\n#Canalia`;
   }
 
   private showWin() {

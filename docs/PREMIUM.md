@@ -1,7 +1,7 @@
-# Tessera : le niveau « premium »
+# Canalia : le niveau « premium »
 
 Ce document liste ce qui distingue les meilleurs jeux mobiles (Two Dots, Royal Match, Townscaper, I Love Hue,
-Wordle, Alto's Odyssey) et ce que Tessera en fait. ✅ = fait dans le code, ⏳ = à faire (ordre de priorité indiqué).
+Wordle, Alto's Odyssey) et ce que Canalia en fait. ✅ = fait dans le code, ⏳ = à faire (ordre de priorité indiqué).
 
 ## 1. Le jeu lui-même : qualité des niveaux
 

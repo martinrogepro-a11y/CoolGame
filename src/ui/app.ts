@@ -838,7 +838,7 @@ export class App {
           <div class="spacer"></div>
           <button class="icon-btn" data-a="go" data-v="settings" aria-label="${t('settings')}">${icon.gear}</button>
         </div>
-        <div class="logo"><div class="tiles">${tiles}</div><h1>TESSERA</h1><p>${t('tagline')}</p></div>
+        <div class="logo"><div class="tiles">${tiles}</div><h1>CANALIA</h1><p>${t('tagline')}</p></div>
         ${this.levelCardHtml()}
         <div class="duo">
           <button class="card mini" data-a="pz-daily"><span class="ic gold">${icon.calendar}</span><b>${t('daily')}</b><small>${esc(daily)}</small></button>
@@ -1037,7 +1037,7 @@ export class App {
           <div class="setting"><span>${t('language')}</span><div class="seg">${seg}</div></div>
           <div class="setting"><span>${t('privacy')}</span><button class="btn" data-a="privacy">›</button></div>
         </div>
-        <div class="credits" data-a="dev-tap">${s.dev ? '🛠 Mode dev · ' : ''}Tessera v${__APP_VERSION__} · ${save.runs} runs · ${save.lifetime} tesserae</div>
+        <div class="credits" data-a="dev-tap">${s.dev ? '🛠 Mode dev · ' : ''}Canalia v${__APP_VERSION__} · ${save.runs} runs · ${save.lifetime} tesserae</div>
       </div>`;
   }
 }

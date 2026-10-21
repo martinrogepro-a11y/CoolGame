@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Tessera</string>
-    <string name="title_activity_main">Tessera</string>
-    <string name="package_name">com.tessera.game</string>
-    <string name="custom_url_scheme">com.tessera.game</string>
+    <string name="app_name">Canalia</string>
+    <string name="title_activity_main">Canalia</string>
+    <string name="package_name">com.canalia.game</string>
+    <string name="custom_url_scheme">com.canalia.game</string>
 </resources>

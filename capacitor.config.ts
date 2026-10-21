@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.tessera.game',
-  appName: 'Tessera',
+  appId: 'com.canalia.game',
+  appName: 'Canalia',
   webDir: 'dist',
   backgroundColor: '#F2ECE2',
   plugins: {

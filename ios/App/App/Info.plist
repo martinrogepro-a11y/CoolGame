@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Tessera</string>
+        <string>Canalia</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -66,7 +66,7 @@
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>This lets us show you fewer, more relevant ads. Tessera never sells your data.</string>
+	<string>This lets us show you fewer, more relevant ads. Canalia never sells your data.</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
