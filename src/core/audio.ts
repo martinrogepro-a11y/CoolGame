@@ -48,6 +48,12 @@ function ensure(): AudioContext | null {
   return ctx;
 }
 
+/** The shared audio graph (after a user gesture), for other generative layers such as ambiences. */
+export function audioCore(): { ctx: AudioContext; master: GainNode } | null {
+  const c = ensure();
+  return c && master ? { ctx: c, master } : null;
+}
+
 function noteHz(degree: number, octave = 0): number {
   const oct = Math.floor(degree / PENTA.length) + octave;
   const semi = PENTA[((degree % PENTA.length) + PENTA.length) % PENTA.length] + 12 * oct;

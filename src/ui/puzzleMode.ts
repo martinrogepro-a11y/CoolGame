@@ -1,4 +1,5 @@
 import { analytics } from '../core/analytics';
+import { ambience } from '../core/ambience';
 import { audio, music } from '../core/audio';
 import { haptics } from '../core/haptics';
 import { dayKey } from '../core/rng';
@@ -141,6 +142,10 @@ export class PuzzleMode {
     this.renderer.scene.theme = theme;
     this.renderer.scene.seed = (daily ? 999 : index) + 1;
     this.renderer.scene.scale = 1;
+    if (save.settings.ambience) {
+      ambience.play(theme);
+      ambience.setVolume(1);
+    }
     this.host.ui.classList.toggle('pz-dark', theme === 'night' || theme === 'deep');
     this.host.ui.innerHTML = this.hudHtml();
     this.hud = {};
@@ -174,6 +179,10 @@ export class PuzzleMode {
       this.renderer.scene.scale = 0.55;
       this.renderer.pal = this.host.pal();
       this.renderer.resize();
+    }
+    if (save.settings.ambience && save.settings.sound) {
+      ambience.play(chapter.id as ThemeId);
+      ambience.setVolume(0.55);
     }
     this.renderer.drawAmbient(dt, 0.42);
   }

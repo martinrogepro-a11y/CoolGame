@@ -1,3 +1,4 @@
+import { ambience } from '../core/ambience';
 import { audio } from '../core/audio';
 import { haptics } from '../core/haptics';
 import { hashString, Rng } from '../core/rng';
@@ -225,6 +226,8 @@ export class App {
   private go(screen: Screen) {
     this.screen = screen;
     if (screen !== 'puzzle') this.puzzle.stop();
+    // Each place has its soundscape, in levels and (softer) behind the home screen.
+    if (screen !== 'home' && screen !== 'puzzle' && screen !== 'levels') ambience.stop();
     this.board.style.display = screen === 'game' || screen === 'puzzle' || screen === 'home' ? 'block' : 'none';
     if (screen === 'home') requestAnimationFrame(() => this.puzzle.resizeAmbient());
     this.cityCanvas.style.display = screen === 'city' ? 'block' : 'none';
@@ -400,8 +403,9 @@ export class App {
         break;
       }
       case 'toggle': {
-        const k = v as 'sound' | 'music' | 'haptics' | 'colorblind' | 'notifications';
+        const k = v as 'sound' | 'music' | 'ambience' | 'haptics' | 'colorblind' | 'notifications';
         save.settings[k] = !save.settings[k];
+        if (k === 'ambience' && !save.settings.ambience) ambience.stop();
         if (k === 'notifications') {
           save.asked.notifications = true;
           if (save.settings.notifications) {
@@ -1019,7 +1023,7 @@ export class App {
 
   private settingsHtml(): string {
     const s = save.settings;
-    const tog = (k: 'sound' | 'music' | 'haptics' | 'colorblind' | 'notifications', label: Key) =>
+    const tog = (k: 'sound' | 'music' | 'ambience' | 'haptics' | 'colorblind' | 'notifications', label: Key) =>
       `<div class="setting"><span>${t(label)}</span><button class="toggle ${s[k] ? 'on' : ''}" data-a="toggle" data-v="${k}" aria-pressed="${s[k]}"></button></div>`;
     const seg = (['auto', 'en', 'fr'] as const).map((l) => `<button class="${s.lang === l ? 'on' : ''}" data-a="lang" data-v="${l}">${l === 'auto' ? 'Auto' : l.toUpperCase()}</button>`).join('');
     return `
@@ -1031,6 +1035,7 @@ export class App {
         <div class="card" style="padding:0 14px">
           ${tog('sound', 'sound')}
           ${tog('music', 'music')}
+          ${tog('ambience', 'ambienceSetting')}
           ${tog('haptics', 'haptics')}
           ${tog('notifications', 'notifSetting')}
           ${tog('colorblind', 'colorblind')}

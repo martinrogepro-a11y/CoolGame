@@ -29,7 +29,7 @@ export interface SaveData {
   built: string[];
   palettes: string[];
   palette: string;
-  settings: { sound: boolean; music: boolean; haptics: boolean; lang: 'auto' | 'en' | 'fr'; colorblind: boolean; notifications: boolean; dev?: boolean };
+  settings: { sound: boolean; music: boolean; haptics: boolean; lang: 'auto' | 'en' | 'fr'; colorblind: boolean; notifications: boolean; ambience: boolean; dev?: boolean };
   streak: { count: number; best: number; lastDay: string };
   daily: { day: string; played: boolean; best: number };
   missions: { day: string; list: Mission[] };
@@ -70,7 +70,7 @@ export function freshSave(): SaveData {
     built: [],
     palettes: ['paper'],
     palette: 'paper',
-    settings: { sound: true, music: true, haptics: true, lang: 'auto', colorblind: false, notifications: false },
+    settings: { sound: true, music: true, haptics: true, lang: 'auto', colorblind: false, notifications: false, ambience: true },
     streak: { count: 0, best: 0, lastDay: '' },
     daily: { day: '', played: false, best: 0 },
     missions: { day: '', list: [] },

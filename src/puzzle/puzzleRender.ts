@@ -637,31 +637,117 @@ export class PuzzleRenderer {
   /** A round stone basin filled with the canal's colour, rippling until it is linked. */
   private fountain(x: number, y: number, col: string, done: boolean, seed: number) {
     const g = this.g;
+    const kind = this.bs.kind;
+    const R = 0.38, r = 0.27;
     g.fillStyle = 'rgba(0,0,0,0.16)';
     g.beginPath();
-    g.arc(x + 0.02, y + 0.06, 0.38, 0, Math.PI * 2);
+    g.arc(x + 0.02, y + 0.06, R, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = this.bs.stone;
-    g.beginPath();
-    g.arc(x, y, 0.38, 0, Math.PI * 2);
-    g.fill();
-    g.strokeStyle = 'rgba(0,0,0,0.12)';
-    g.lineWidth = 0.02;
-    g.beginPath();
-    for (let k = 0; k < 8; k++) {
-      const a = (k / 8) * Math.PI * 2;
-      g.moveTo(x + Math.cos(a) * 0.29, y + Math.sin(a) * 0.29);
-      g.lineTo(x + Math.cos(a) * 0.38, y + Math.sin(a) * 0.38);
+    // The rim says where we are; the water inside is always the canal's colour.
+    const ring = (n: number, a: string, b: string) => {
+      for (let k = 0; k < n; k++) {
+        g.fillStyle = k % 2 ? b : a;
+        g.beginPath();
+        g.arc(x, y, R, (k / n) * Math.PI * 2, ((k + 1) / n) * Math.PI * 2);
+        g.arc(x, y, r, ((k + 1) / n) * Math.PI * 2, (k / n) * Math.PI * 2, true);
+        g.closePath();
+        g.fill();
+      }
+    };
+    switch (kind) {
+      case 'garden': {
+        // A mossy stone basin with flowers at its foot.
+        ring(10, this.bs.stone, shadeHex('#DDD2BC', -0.06));
+        const fl = ['#E9788A', '#F4C04E', '#FFFFFF'];
+        for (let k = 0; k < 3; k++) {
+          const a = 0.6 + k * 2.1;
+          g.fillStyle = '#7FB07A';
+          g.beginPath();
+          g.arc(x + Math.cos(a) * R, y + Math.sin(a) * R, 0.07, 0, Math.PI * 2);
+          g.fill();
+          g.fillStyle = fl[k];
+          g.beginPath();
+          g.arc(x + Math.cos(a) * R, y + Math.sin(a) * R, 0.035, 0, Math.PI * 2);
+          g.fill();
+        }
+        break;
+      }
+      case 'harbour': {
+        // A water barrel seen from above: staves and an iron hoop.
+        ring(14, '#B88A5C', '#A57A4E');
+        g.strokeStyle = '#5E5148';
+        g.lineWidth = 0.035;
+        g.beginPath();
+        g.arc(x, y, R - 0.02, 0, Math.PI * 2);
+        g.stroke();
+        break;
+      }
+      case 'market': {
+        // A cream stone rim inlaid with small blue tiles (unlike the striped parasols).
+        ring(1, '#F3E3CB', '#F3E3CB');
+        g.fillStyle = '#3E7C8C';
+        for (let k = 0; k < 10; k++) {
+          const a = (k / 10) * Math.PI * 2;
+          const cx = x + Math.cos(a) * 0.325, cy = y + Math.sin(a) * 0.325;
+          g.beginPath();
+          g.moveTo(cx, cy - 0.035);
+          g.lineTo(cx + 0.035, cy);
+          g.lineTo(cx, cy + 0.035);
+          g.lineTo(cx - 0.035, cy);
+          g.fill();
+        }
+        break;
+      }
+      case 'night': {
+        ring(10, this.bs.stone, shadeHex('#BDB7D6', -0.08));
+        // Four little candles on the rim.
+        for (let k = 0; k < 4; k++) {
+          const a = Math.PI / 4 + (k * Math.PI) / 2;
+          const cx = x + Math.cos(a) * (R - 0.05), cy = y + Math.sin(a) * (R - 0.05);
+          const fl = 0.7 + 0.3 * Math.sin(this.time * 9 + k * 2 + seed);
+          g.fillStyle = `rgba(255,214,130,${0.35 * fl})`;
+          g.beginPath();
+          g.arc(cx, cy, 0.1, 0, Math.PI * 2);
+          g.fill();
+          g.fillStyle = '#FFE9A8';
+          g.beginPath();
+          g.arc(cx, cy, 0.035, 0, Math.PI * 2);
+          g.fill();
+        }
+        break;
+      }
+      case 'deep':
+        // The mouth of a great terracotta amphora.
+        ring(1, '#C9825F', '#C9825F');
+        g.strokeStyle = '#A9643F';
+        g.lineWidth = 0.04;
+        g.beginPath();
+        g.arc(x, y, R - 0.03, 0, Math.PI * 2);
+        g.stroke();
+        break;
     }
-    g.stroke();
     g.fillStyle = col;
     g.beginPath();
-    g.arc(x, y, 0.28, 0, Math.PI * 2);
+    g.arc(x, y, r, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = 'rgba(255,255,255,0.25)';
+    g.fillStyle = 'rgba(255,255,255,0.22)';
     g.beginPath();
-    g.ellipse(x - 0.08, y - 0.1, 0.1, 0.05, -0.5, 0, Math.PI * 2);
+    g.ellipse(x - 0.08, y - 0.1, 0.09, 0.045, -0.5, 0, Math.PI * 2);
     g.fill();
+    // The spring: droplets leaping from the centre (bubbles rising in the sunken city).
+    const t0 = this.time * 1.3 + seed * 0.37;
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    for (let k = 0; k < 6; k++) {
+      const u = (t0 + k / 6) % 1;
+      const a = (k / 6) * Math.PI * 2 + seed;
+      const d = kind === 'deep' ? 0.04 : 0.05 + u * 0.16;
+      const yy = kind === 'deep' ? y - u * 0.22 : y + Math.sin(a) * d - Math.sin(u * Math.PI) * 0.06;
+      g.globalAlpha = (1 - u) * 0.9;
+      g.beginPath();
+      g.arc(x + Math.cos(a) * d, yy, kind === 'deep' ? 0.025 + u * 0.02 : 0.025, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.globalAlpha = 1;
     if (!done) {
       const t = (this.time * 0.7 + seed * 0.13) % 1;
       g.save();
@@ -669,7 +755,7 @@ export class PuzzleRenderer {
       g.lineWidth = 0.03;
       g.globalAlpha *= 1 - t;
       g.beginPath();
-      g.arc(x, y, 0.1 + t * 0.17, 0, Math.PI * 2);
+      g.arc(x, y, 0.1 + t * 0.15, 0, Math.PI * 2);
       g.stroke();
       g.restore();
     }
