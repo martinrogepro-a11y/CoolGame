@@ -102,7 +102,7 @@ export class PuzzleRenderer {
     this.scene.draw(g, this.cw, this.ch, this.dpr, { x: this.ox, y: this.oy, size: this.cell * n }, this.time);
     // The board is a piece of the place seen from above, cached until the layout changes.
     const pad = 0.5;
-    g.drawImage(this.boardBase(n), this.ox - pad * this.cell, this.oy - pad * this.cell, (n + pad * 2) * this.cell, (n + pad * 2) * this.cell);
+    g.drawImage(this.boardBase(st), this.ox - pad * this.cell, this.oy - pad * this.cell, (n + pad * 2) * this.cell, (n + pad * 2) * this.cell);
     g.save();
     g.translate(this.ox, this.oy);
     g.scale(this.cell, this.cell);
@@ -111,6 +111,7 @@ export class PuzzleRenderer {
     if (rv < 1) {
       g.globalAlpha = 1 - Math.min(1, rv * 1.6);
       this.drawCanals(st, dt);
+      this.drawFeatures(st);
       this.drawEndpoints(st);
       if (this.demo) this.drawDemo(st.n, this.demo);
       g.globalAlpha = 1;
@@ -135,10 +136,11 @@ export class PuzzleRenderer {
   private baseKey = '';
 
   /** Mosaic border, joints and textured cells of the place, drawn once per layout. */
-  private boardBase(n: number): HTMLCanvasElement {
+  private boardBase(st: PuzzleState): HTMLCanvasElement {
+    const n = st.n;
     const pad = 0.5;
     const px = Math.round((n + pad * 2) * this.cell * this.dpr);
-    const key = `${this.bs.kind}|${n}|${px}`;
+    const key = `${this.bs.kind}|${n}|${px}|${[...st.stalls].join()}|${[...st.currents.keys()].join()}`;
     if (this.baseCanvas && key === this.baseKey) return this.baseCanvas;
     this.baseKey = key;
     const c = (this.baseCanvas ??= document.createElement('canvas'));
@@ -181,6 +183,13 @@ export class PuzzleRenderer {
       g.stroke();
     }
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) this.cellTile(g, x, y, (x + y) % 2 === 1);
+    for (const cell of st.currents.keys()) {
+      g.fillStyle = 'rgba(47,119,120,0.22)';
+      g.beginPath();
+      g.roundRect((cell % n) + 0.04, Math.floor(cell / n) + 0.04, 0.92, 0.92, 0.14);
+      g.fill();
+    }
+    for (const cell of st.stalls) terrace(g, (cell % n) + 0.5, Math.floor(cell / n) + 0.5, this.bs.tess[0]);
     return c;
   }
 
@@ -412,6 +421,116 @@ export class PuzzleRenderer {
     }
   }
 
+  /** Bridges (with the crossing canal redrawn on top), lanterns and currents. */
+  private drawFeatures(st: PuzzleState) {
+    const g = this.g;
+    const n = st.n;
+    if (st.bridges.size) {
+      const lanes = st.bridgeLanes();
+      for (const b of st.bridges) {
+        const x = b % n, y = Math.floor(b / n);
+        // An aqueduct: a stone deck carrying the horizontal canal over the vertical one.
+        g.fillStyle = 'rgba(0,0,0,0.22)';
+        g.fillRect(x - 0.02, y + 0.76, 1.04, 0.08);
+        g.fillStyle = this.bs.stone;
+        g.fillRect(x - 0.02, y + 0.2, 1.04, 0.58);
+        g.fillStyle = 'rgba(0,0,0,0.16)';
+        g.fillRect(x - 0.02, y + 0.2, 1.04, 0.07);
+        g.fillRect(x - 0.02, y + 0.71, 1.04, 0.07);
+        g.strokeStyle = 'rgba(0,0,0,0.12)';
+        g.lineWidth = 0.02;
+        g.beginPath();
+        for (let k = 1; k < 4; k++) {
+          g.moveTo(x + k / 4, y + 0.27);
+          g.lineTo(x + k / 4, y + 0.71);
+        }
+        g.stroke();
+        const k = lanes.get(b)!.h;
+        if (k >= 0) {
+          const path = st.paths[k];
+          const col = colorOf(st.pathColor(k));
+          const wet = (this.flow.get(path[0] * 1000 + path[path.length - 1]) ?? 0) > 0;
+          g.lineCap = 'butt';
+          g.strokeStyle = col;
+          g.globalAlpha = wet ? 1 : 0.45;
+          g.lineWidth = wet ? 0.36 : 0.3;
+          g.beginPath();
+          g.moveTo(x, y + 0.5);
+          g.lineTo(x + 1, y + 0.5);
+          g.stroke();
+          g.globalAlpha = 1;
+          g.lineCap = 'round';
+        }
+      }
+    }
+    for (const [cell, pair] of st.lanterns) {
+      const x = (cell % n) + 0.5, y = Math.floor(cell / n) + 0.5;
+      const hue = st.level.pairs[pair].hue;
+      const col = colorOf(hue);
+      const k = st.owner[cell];
+      const lit = k >= 0 && st.pathColor(k) === hue;
+      if (lit) {
+        const glow = g.createRadialGradient(x, y, 0.05, x, y, 0.75);
+        glow.addColorStop(0, 'rgba(255,226,150,0.65)');
+        glow.addColorStop(1, 'rgba(255,226,150,0)');
+        g.fillStyle = glow;
+        g.fillRect(x - 0.75, y - 0.75, 1.5, 1.5);
+      }
+      // A little hanging lantern: dark frame, glass in the canal's colour.
+      g.fillStyle = 'rgba(0,0,0,0.2)';
+      g.beginPath();
+      g.ellipse(x + 0.02, y + 0.24, 0.14, 0.05, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#2A2440';
+      g.beginPath();
+      g.moveTo(x, y - 0.3);
+      g.lineTo(x + 0.17, y - 0.12);
+      g.lineTo(x + 0.13, y + 0.2);
+      g.lineTo(x - 0.13, y + 0.2);
+      g.lineTo(x - 0.17, y - 0.12);
+      g.closePath();
+      g.fill();
+      g.fillStyle = lit ? '#FFE9A8' : col;
+      g.beginPath();
+      g.moveTo(x, y - 0.2);
+      g.lineTo(x + 0.11, y - 0.09);
+      g.lineTo(x + 0.08, y + 0.14);
+      g.lineTo(x - 0.08, y + 0.14);
+      g.lineTo(x - 0.11, y - 0.09);
+      g.closePath();
+      g.fill();
+      if (lit) {
+        g.strokeStyle = col;
+        g.lineWidth = 0.04;
+        g.stroke();
+      }
+    }
+    for (const [cell, dir] of st.currents) {
+      const x = (cell % n) + 0.5, y = Math.floor(cell / n) + 0.5;
+      const ang = dir === 1 ? 0 : dir === -1 ? Math.PI : dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+      g.save();
+      g.translate(x, y);
+      g.rotate(ang);
+      // Two chevrons, swaying gently with the current.
+      const t = Math.sin(this.time * 2.4) * 0.05;
+      g.lineCap = 'round';
+      g.lineJoin = 'round';
+      for (const u of [-0.1 + t, 0.12 + t]) {
+        g.beginPath();
+        g.moveTo(u - 0.11, -0.15);
+        g.lineTo(u + 0.04, 0);
+        g.lineTo(u - 0.11, 0.15);
+        g.strokeStyle = 'rgba(16,52,63,0.55)';
+        g.lineWidth = 0.13;
+        g.stroke();
+        g.strokeStyle = 'rgba(255,255,255,0.95)';
+        g.lineWidth = 0.065;
+        g.stroke();
+      }
+      g.restore();
+    }
+  }
+
   /** A gondola seen from above (a little fish in the sunken city), heading `ang`. */
   private drawBoat(x: number, y: number, ang: number, accent: string) {
     const g = this.g;
@@ -572,7 +691,8 @@ export class PuzzleRenderer {
     }
     g.fillStyle = 'rgba(0,0,0,0.18)';
     g.beginPath();
-    g.roundRect(x - h + 0.03, y - h + 0.07, h * 2, h * 2, 0.08);
+    if (kind === 'deep') g.ellipse(x + 0.03, y + 0.3, 0.3, 0.08, 0, 0, Math.PI * 2);
+    else g.roundRect(x - h + 0.03, y - h + 0.07, h * 2, h * 2, 0.08);
     g.fill();
     switch (kind) {
       case 'market': {
@@ -724,4 +844,27 @@ function shadeHex(hex: string, k: number): string {
   const v = parseInt(hex.slice(1), 16);
   const f = (c: number) => Math.round(k >= 0 ? c + (255 - c) * k : c * (1 + k));
   return `rgb(${f((v >> 16) & 255)},${f((v >> 8) & 255)},${f(v & 255)})`;
+}
+
+/** A café terrace seen from above: a round parasol over a little table and chairs. */
+function terrace(g: CanvasRenderingContext2D, x: number, y: number, accent: string) {
+  g.fillStyle = 'rgba(0,0,0,0.16)';
+  g.beginPath();
+  g.arc(x + 0.04, y + 0.07, 0.36, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#9C8574';
+  for (const [dx, dy] of [[-0.33, 0], [0.33, 0], [0, -0.33], [0, 0.33]]) g.fillRect(x + dx - 0.06, y + dy - 0.06, 0.12, 0.12);
+  const k = 8;
+  for (let i = 0; i < k; i++) {
+    g.fillStyle = i % 2 ? '#FBF4E8' : accent;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.arc(x, y, 0.32, (i / k) * Math.PI * 2, ((i + 1) / k) * Math.PI * 2);
+    g.closePath();
+    g.fill();
+  }
+  g.fillStyle = 'rgba(255,255,255,0.8)';
+  g.beginPath();
+  g.arc(x, y, 0.04, 0, Math.PI * 2);
+  g.fill();
 }

@@ -15,7 +15,7 @@ describe('journey levels', () => {
   it('every journey level has exactly one solution and is playable', () => {
     for (let i = 0; i < LEVEL_COUNT; i++) {
       const lv = levelAt(i);
-      const r = solve(lv.n, lv.pairs, 2, 3_000_000);
+      const r = solve(lv.n, lv.pairs, 2, 3_000_000, lv.features);
       expect(r.aborted, lv.id).toBe(false);
       expect(r.count, lv.id).toBe(1);
       const st = new PuzzleState(lv);
@@ -33,7 +33,7 @@ describe('journey levels', () => {
     for (const day of ['2026-10-19', '2026-10-20', '2026-12-25']) {
       const lv = dailyLevel(day);
       expect(lv.n).toBeGreaterThanOrEqual(7);
-      expect(solve(lv.n, lv.pairs, 2, 3_000_000).count).toBe(1);
+      expect(solve(lv.n, lv.pairs, 2, 3_000_000, lv.features).count).toBe(1);
     }
   });
 });

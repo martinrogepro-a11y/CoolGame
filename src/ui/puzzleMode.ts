@@ -135,8 +135,9 @@ export class PuzzleMode {
     this.renderer.title = t(`pic_${lv.id}` as Key);
     this.renderer.demo = !daily && index === 0 ? lv.solution[0] : null;
     // Each chapter has its own mood around the board; the daily puzzle rotates through them.
-    const themes: ThemeId[] = ['garden', 'harbour', 'market', 'night', 'deep'];
-    const theme: ThemeId = daily ? themes[new Date().getDate() % themes.length] : (chapterOf(index).chapter.id as ThemeId);
+    // The daily puzzle takes the place (and the mechanic) of its picture's chapter.
+    const home = daily ? CHAPTERS.find((c) => c.pictures.includes(lv.id)) : chapterOf(index).chapter;
+    const theme = (home?.id ?? 'garden') as ThemeId;
     this.renderer.scene.theme = theme;
     this.renderer.scene.seed = (daily ? 999 : index) + 1;
     this.renderer.scene.scale = 1;
@@ -160,6 +161,7 @@ export class PuzzleMode {
       if (li === 0) this.showChapterCard(ci, chapter.id, encore);
       if (index === 0) this.showTip(t('pz_tut1'));
       else if (index === 1) this.showTip(t('pz_tut2'));
+      else if (li === 0 && ci > 0 && lv.features) this.showTip(t(`pz_mech_${chapter.id}` as Key));
     }
   }
 

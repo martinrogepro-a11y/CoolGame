@@ -13,8 +13,18 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
 - ✅ **Difficulté mesurée** : la taille de recherche du solveur sert de note de difficulté, avec un plafond par
   chapitre (doux au Jardin, exigeant la Nuit). Les niveaux durs sont signalés « Difficile », comme Royal Match.
 - ✅ **Un dessin caché par niveau** : la récompense visuelle que les clones n'ont pas.
-- ⏳ (2) **Nouvelles mécaniques par chapitre**, comme Two Dots : ponts (croisement autorisé sur une case), murets,
-  écluses à traverser, canaux qui débordent. Chaque mécanique = 10 niveaux de fraîcheur.
+- ✅ **Une mécanique par lieu**, comme Two Dots, chacune née du décor et introduite par un conseil au premier
+  niveau du chapitre :
+  - Port : **les ponts**. Deux canaux s'y croisent, l'un sur un aqueduc au-dessus de l'autre, tout droit ; les
+    deux voies doivent servir ;
+  - Marché : **les terrasses de café**. Cases occupées par un parasol, que les canaux contournent ;
+  - Nuit : **les lanternes**. Seul le canal de leur couleur peut y passer, et il doit les allumer ;
+  - Cité engloutie : **les courants**. Le canal traverse la case dans le sens de la flèche, de la fontaine vers
+    la maison.
+
+  Le générateur ne les pose pas en décoration : pour les lanternes et les courants, il fusionne deux canaux (le
+  niveau a alors plusieurs solutions) puis ajoute le moins de repères possible pour retrouver une solution
+  unique. On a donc besoin d'eux pour raisonner. Le solveur connaît chaque mécanique et revérifie l'unicité.
 - ⏳ (3) **Pipeline de contenu** : 40 dessins aujourd'hui. Viser 200 au lancement (20 chapitres). Une image =
   une grille de texte, et le générateur fait le reste.
 

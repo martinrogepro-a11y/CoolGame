@@ -23,9 +23,25 @@ export const PUZZLE_COLORS = [
   '#78B4DC', '#7A2E3A', '#B39BD9', '#5C5F66',
 ];
 
+/**
+ * Chapter mechanics, each born from its place:
+ * - bridges (harbour): a horizontal and a vertical canal cross there, one over the other;
+ *   both lanes must be used;
+ * - stalls (market terraces): occupied cells that canals go around;
+ * - lanterns (night): only the canal of their colour (pair index) may pass, and must;
+ * - currents (sunken city): the canal flows through in the arrow's direction (dir = cell step).
+ */
+export interface Features {
+  bridges?: number[];
+  stalls?: number[];
+  lanterns?: { cell: number; pair: number }[];
+  currents?: { cell: number; dir: number }[];
+}
+
 export interface Level {
   id: string;
   n: number;
+  features?: Features;
   /** The real picture (revealed on completion). */
   colors: number[];
   pairs: Pair[];
@@ -320,6 +336,10 @@ export class PuzzleState {
   paths: number[][] = [];
   owner: Int16Array;
   moves = 0;
+  readonly bridges: Set<number>;
+  readonly stalls: Set<number>;
+  readonly lanterns: Map<number, number>;
+  readonly currents: Map<number, number>;
   private active = -1;
   private lastStart = -1;
   private snapshot: number[][] = [];
@@ -336,6 +356,11 @@ export class PuzzleState {
       this.endpointAt_[p.b] = this.endpoints.length;
       this.endpoints.push({ cell: p.b, pair: k, hue: p.hue, kind: 'workshop' });
     });
+    const f = level.features ?? {};
+    this.bridges = new Set(f.bridges ?? []);
+    this.stalls = new Set(f.stalls ?? []);
+    this.lanterns = new Map((f.lanterns ?? []).map((l) => [l.cell, l.pair]));
+    this.currents = new Map((f.currents ?? []).map((c) => [c.cell, c.dir]));
     this.owner = new Int16Array(this.n * this.n).fill(-1);
   }
 
@@ -365,9 +390,36 @@ export class PuzzleState {
     return this.paths.filter((_, k) => this.isConnected(k)).length;
   }
 
+  /** Axis a canal takes over bridge cell `b` at position j of its path: 'h', 'v' or '' if unknown yet. */
+  axisAt(path: number[], j: number): 'h' | 'v' | '' {
+    const o = path[j - 1] ?? path[j + 1];
+    if (o === undefined) return '';
+    return Math.abs(o - path[j]) === 1 ? 'h' : 'v';
+  }
+
+  /** Lanes in use on each bridge. */
+  bridgeLanes(): Map<number, { h: number; v: number }> {
+    const res = new Map<number, { h: number; v: number }>();
+    for (const b of this.bridges) res.set(b, { h: -1, v: -1 });
+    this.paths.forEach((p, k) =>
+      p.forEach((c, j) => {
+        const l = res.get(c);
+        const ax = l && this.axisAt(p, j);
+        if (l && ax) l[ax] = k;
+      }),
+    );
+    return res;
+  }
+
   filledCount(): number {
     let n = 0;
-    for (let i = 0; i < this.owner.length; i++) if (this.owner[i] >= 0 || this.endpointAt_[i] >= 0) n++;
+    const lanes = this.bridgeLanes();
+    for (let i = 0; i < this.owner.length; i++) {
+      if (this.bridges.has(i)) {
+        const l = lanes.get(i)!;
+        if (l.h >= 0 && l.v >= 0) n++;
+      } else if (this.owner[i] >= 0 || this.endpointAt_[i] >= 0 || this.stalls.has(i)) n++;
+    }
     return n;
   }
 
@@ -387,6 +439,11 @@ export class PuzzleState {
 
   private adjacent(a: number, b: number): boolean {
     return neighbors(a, this.n).includes(b);
+  }
+
+  /** Drawing direction sign of canal k: +1 when drawn from its fountain, -1 from its workshop. */
+  private flowSign(k: number): number {
+    return this.endpointAt(this.paths[k][0])?.kind === 'workshop' ? -1 : 1;
   }
 
   /** Starts drawing from cell i: an endpoint (restarts its canal) or any cell of a canal (cuts it there). */
@@ -419,10 +476,22 @@ export class PuzzleState {
       return true;
     }
     if (this.isConnected(k)) return false;
+    if (this.stalls.has(i)) return false;
+    const d = i - head;
+    // Over a bridge a canal goes straight on; through a current it follows the arrow.
+    if (this.bridges.has(head) && path.length > 1 && head - path[path.length - 2] !== d) return false;
+    if (this.bridges.has(i) && (path.length === 0 || this.edgeCell(i, d))) return false;
+    const sign = this.flowSign(k);
+    const cur = this.currents.get(head);
+    if (cur !== undefined && cur * sign !== d) return false;
+    const ci = this.currents.get(i);
+    if (ci !== undefined && ci * sign !== d) return false;
+    const pair = this.endpointAt(path[0])!.pair;
+    const lt = this.lanterns.get(i);
+    if (lt !== undefined && lt !== pair) return false;
     const ep = this.endpointAt(i);
     if (ep) {
-      const start = this.endpointAt(path[0])!;
-      if (ep.pair !== start.pair) return false;
+      if (ep.pair !== pair) return false;
       if (this.paths.some((p, j) => j !== k && p.includes(i))) return false;
     }
     path.push(i);
@@ -430,13 +499,34 @@ export class PuzzleState {
     return true;
   }
 
+  /** True if crossing bridge b in direction d would leave the grid. */
+  private edgeCell(b: number, d: number): boolean {
+    const n = this.n;
+    const m = b + d;
+    return m < 0 || m >= n * n || ((d === 1 || d === -1) && Math.floor(m / n) !== Math.floor(b / n));
+  }
+
+  /** First index of `other` that clashes with `path` (same cell; on a bridge, same lane), or -1. */
+  private clash(path: number[], other: number[]): number {
+    const pos = new Map(path.map((c, j) => [c, j]));
+    for (let j = 0; j < other.length; j++) {
+      const c = other[j];
+      const pj = pos.get(c);
+      if (pj === undefined) continue;
+      if (!this.bridges.has(c)) return j;
+      const a = this.axisAt(path, pj), b = this.axisAt(other, j);
+      if (!a || !b || a === b) return j;
+    }
+    return -1;
+  }
+
   /** Other canals are their state at stroke start, cut where the active canal now passes. */
   private restoreOthers() {
-    const used = new Set(this.paths[this.active]);
+    const mine = this.paths[this.active];
     this.paths = this.paths.map((p, k) => {
       if (k === this.active) return p;
       const snap = this.snapshot[k] ?? p;
-      const cut = snap.findIndex((c) => used.has(c));
+      const cut = this.clash(mine, snap);
       return cut < 0 ? snap.slice() : snap.slice(0, cut);
     });
     this.rebuildOwner();
@@ -462,11 +552,10 @@ export class PuzzleState {
     const k = this.level.solution.findIndex((sol) => !placed(sol));
     if (k < 0) return -1;
     const sol = this.level.solution[k];
-    const used = new Set(sol);
     this.paths = this.paths
-      .filter((p) => !used.has(p[0]))
+      .filter((p) => p[0] !== sol[0] && p[0] !== sol[sol.length - 1])
       .map((p) => {
-        const cut = p.findIndex((c) => used.has(c));
+        const cut = this.clash(sol, p);
         return cut < 0 ? p : p.slice(0, cut);
       })
       .filter((p) => p.length > 1);

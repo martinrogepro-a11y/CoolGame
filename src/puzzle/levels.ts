@@ -2,10 +2,10 @@ import { dayKey, daysBetween, hashString } from '../core/rng';
 import { chapterOf, CHAPTERS } from './chapters';
 import BUILT from './levels.json';
 import { pictureById, pictureColors } from './pictures';
-import { assignHues, generateLevel, type Level, puzzleColors } from './puzzle';
+import { assignHues, type Features, generateLevel, type Level, puzzleColors } from './puzzle';
 
 /** Hand-checked layouts (unique solution, graded difficulty) produced by `npm run levels`. */
-const built = BUILT as Record<string, { paths: number[][]; nodes: number } | undefined>;
+const built = BUILT as Record<string, { paths: number[][]; nodes: number; f?: Features } | undefined>;
 const cache = new Map<string, Level>();
 
 function fromBuilt(id: string, mirror: boolean): Level | null {
@@ -18,7 +18,16 @@ function fromBuilt(id: string, mirror: boolean): Level | null {
   const colors = base.map((_, i) => base[flip(i)]);
   const paths = b.paths.map((p) => p.map(flip));
   const pairs = assignHues(paths, puzzleColors(colors, n));
-  return { id, n, colors, pairs, solution: paths };
+  const f = b.f ?? {};
+  // Mirroring flips horizontal currents.
+  const dir = (d: number) => (mirror && (d === 1 || d === -1) ? -d : d);
+  const features: Features = {
+    bridges: f.bridges?.map(flip),
+    stalls: f.stalls?.map(flip),
+    lanterns: f.lanterns?.map((l) => ({ cell: flip(l.cell), pair: l.pair })),
+    currents: f.currents?.map((c) => ({ cell: flip(c.cell), dir: dir(c.dir) })),
+  };
+  return { id, n, colors, pairs, solution: paths, features };
 }
 
 /** Level `index` of the journey. After the last chapter, "encore" rounds reuse pictures with new layouts. */
