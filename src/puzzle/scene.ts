@@ -28,9 +28,7 @@ interface Theme {
   /** Water, surface then depth. */
   water: [string, string];
   quay: string;
-  /** Board: paving stone (slab), marble cells, title ink, mosaic border tesserae. */
-  slab: string;
-  cell: string;
+  /** Title ink and the mosaic border's tesserae. */
   ink: string;
   tess: string[];
   night: boolean;
@@ -46,7 +44,7 @@ const THEMES: Record<ThemeId, Theme> = {
     shutters: ['#6E9E7A', '#5F8FB0', '#9A7BB5'],
     greens: ['#5E9466', '#7FB07A', '#A9CC8C'],
     ground: '#E7DCC5', water: ['#8FCBBF', '#5FA59D'], quay: '#CDBEA2',
-    slab: '#D8CAB0', cell: '#FBF7EF', ink: '#2F3B33', tess: ['#6FA88A', '#E6A67E', '#F3E2B8', '#87B9C9'],
+    ink: '#2F3B33', tess: ['#6FA88A', '#E6A67E', '#F3E2B8', '#87B9C9'],
     night: false, underwater: false, boat: '#FFF8EE',
   },
   harbour: {
@@ -56,7 +54,7 @@ const THEMES: Record<ThemeId, Theme> = {
     shutters: ['#2F6F8F', '#3E8E7E', '#D86F55'],
     greens: ['#5F9670', '#86B583', '#A9CC8C'],
     ground: '#E5DCCB', water: ['#56B3C8', '#2A7F9E'], quay: '#C8BAA4',
-    slab: '#D5C8B4', cell: '#FBF9F5', ink: '#24393C', tess: ['#2F6F8F', '#FBF6EE', '#E07A5F', '#7CC3D2'],
+    ink: '#24393C', tess: ['#2F6F8F', '#FBF6EE', '#E07A5F', '#7CC3D2'],
     night: false, underwater: false, boat: '#FFF8EE',
   },
   market: {
@@ -66,7 +64,7 @@ const THEMES: Record<ThemeId, Theme> = {
     shutters: ['#3E7C8C', '#6F8F4E', '#7A5A9E'],
     greens: ['#5E8F5A', '#7FA86A', '#A8C47E'],
     ground: '#E9D3B2', water: ['#7BBAB3', '#4D908C'], quay: '#CFAE86',
-    slab: '#DABE98', cell: '#FDF6EE', ink: '#4A2A28', tess: ['#C4553F', '#F2B23C', '#3E7C8C', '#F6E7C9'],
+    ink: '#4A2A28', tess: ['#C4553F', '#F2B23C', '#3E7C8C', '#F6E7C9'],
     night: false, underwater: false, boat: '#2E2A2E',
   },
   night: {
@@ -76,7 +74,7 @@ const THEMES: Record<ThemeId, Theme> = {
     shutters: ['#2B2852', '#3C3466'],
     greens: ['#2F4A5A', '#3D5C68', '#4E6E72'],
     ground: '#4E4977', water: ['#33407A', '#1A2150'], quay: '#423E6C',
-    slab: '#5E5882', cell: '#F4F1FA', ink: '#2E2344', tess: ['#F2C46B', '#7E6FB0', '#E58FA0', '#4D5C9A'],
+    ink: '#2E2344', tess: ['#F2C46B', '#7E6FB0', '#E58FA0', '#4D5C9A'],
     night: true, underwater: false, boat: '#26223F',
   },
   deep: {
@@ -86,7 +84,7 @@ const THEMES: Record<ThemeId, Theme> = {
     shutters: ['#2D6670'],
     greens: ['#3E9A7E', '#5DB48F', '#2E7F6E'],
     ground: '#6FA195', water: ['#0F4A60', '#072638'], quay: '#4B8682',
-    slab: '#3F8586', cell: '#EEF7F4', ink: '#10343F', tess: ['#E9C77B', '#3FA39B', '#9FD8CC', '#2D6F7A'],
+    ink: '#10343F', tess: ['#E9C77B', '#3FA39B', '#9FD8CC', '#2D6F7A'],
     night: false, underwater: true, boat: '#F2D99E',
   },
 };
@@ -99,10 +97,38 @@ export function isUnderwater(theme: ThemeId): boolean {
   return THEMES[theme].underwater;
 }
 
-/** Colours the board uses so it reads as the mosaic of the village square. */
-export function boardStyle(theme: ThemeId): { cell: string; slab: string; ink: string; titleOnDark: boolean; tess: string[] } {
-  const t = THEMES[theme];
-  return { cell: t.cell, slab: t.slab, ink: t.ink, titleOnDark: t.night || t.underwater, tess: t.tess };
+/**
+ * The board seen from above, as a piece of the place itself (like Mini Motorways' map):
+ * grass beds in the garden, a wooden pier over the sea at the harbour, glazed tiles on the
+ * market square, cobbles at night, pale sand in the sunken city. Cells stay light and
+ * calm so the canals always read first.
+ */
+const BOARD: Record<ThemeId, { grout: string; cell: string; cell2: string; bank: string; stone: string }> = {
+  garden: { grout: '#CDB998', cell: '#E4EFD0', cell2: '#DCE9C5', bank: '#B49C78', stone: '#DDD2BC' },
+  harbour: { grout: '#6FB8C9', cell: '#F0E3CC', cell2: '#E9D9BE', bank: '#A88B67', stone: '#D3C8B6' },
+  market: { grout: '#D6B48C', cell: '#FAEBD8', cell2: '#F4DDC5', bank: '#C49F77', stone: '#E6D6BF' },
+  night: { grout: '#4E4977', cell: '#E4E0EF', cell2: '#DAD5E8', bank: '#7C76A6', stone: '#BDB7D6' },
+  deep: { grout: '#2F7778', cell: '#E2F0EA', cell2: '#D7EAE2', bank: '#4F938F', stone: '#C3DED5' },
+};
+
+export interface BoardStyle {
+  kind: ThemeId;
+  /** Joints between cells (gravel, sea, mortar…). */
+  slab: string;
+  cell: string;
+  cell2: string;
+  /** Stone edging of the canals, and of the fountains. */
+  bank: string;
+  stone: string;
+  ink: string;
+  titleOnDark: boolean;
+  tess: string[];
+}
+
+/** Colours and materials the board uses so it reads as part of the place. */
+export function boardStyle(theme: ThemeId): BoardStyle {
+  const t = THEMES[theme], b = BOARD[theme];
+  return { kind: theme, slab: b.grout, cell: b.cell, cell2: b.cell2, bank: b.bank, stone: b.stone, ink: t.ink, titleOnDark: t.night || t.underwater, tess: t.tess };
 }
 
 type Pt = [number, number];

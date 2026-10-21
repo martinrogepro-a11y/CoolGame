@@ -100,41 +100,12 @@ export class PuzzleRenderer {
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.bs = boardStyle(this.scene.theme);
     this.scene.draw(g, this.cw, this.ch, this.dpr, { x: this.ox, y: this.oy, size: this.cell * n }, this.time);
+    // The board is a piece of the place seen from above, cached until the layout changes.
+    const pad = 0.5;
+    g.drawImage(this.boardBase(n), this.ox - pad * this.cell, this.oy - pad * this.cell, (n + pad * 2) * this.cell, (n + pad * 2) * this.cell);
     g.save();
     g.translate(this.ox, this.oy);
     g.scale(this.cell, this.cell);
-
-    // Board: a mosaic inlaid in the square, a band of coloured tesserae around a stone slab.
-    const bw = 0.34;
-    g.fillStyle = 'rgba(0,0,0,0.1)';
-    g.fillRect(-bw, -bw + 0.08, n + bw * 2, n + bw * 2);
-    g.fillStyle = this.bs.slab;
-    g.fillRect(-bw, -bw, n + bw * 2, n + bw * 2);
-    const per = 3;
-    const ts = 1 / per;
-    const tess = this.bs.tess;
-    for (let k = 0; k < n * per + 2; k++) {
-      const u = -bw + 0.03 + k * ts * ((n + bw * 2 - 0.06) / (n + 2 / per));
-      const s = ts * 0.78;
-      const col = tess[k % tess.length];
-      g.fillStyle = col;
-      g.fillRect(u, -bw + 0.04, s, s);
-      g.fillRect(u, n + bw - 0.04 - s, s, s);
-      g.fillStyle = tess[(k + 2) % tess.length];
-      g.fillRect(-bw + 0.04, u, s, s);
-      g.fillRect(n + bw - 0.04 - s, u, s, s);
-    }
-    g.fillStyle = this.bs.slab;
-    g.beginPath();
-    g.roundRect(-0.12, -0.12, n + 0.24, n + 0.24, 0.3);
-    g.fill();
-    for (let y = 0; y < n; y++)
-      for (let x = 0; x < n; x++) {
-        g.fillStyle = this.bs.cell;
-        g.beginPath();
-        g.roundRect(x + 0.04, y + 0.04, 0.92, 0.92, 0.16);
-        g.fill();
-      }
 
     const rv = this.reveal;
     if (rv < 1) {
@@ -158,6 +129,165 @@ export class PuzzleRenderer {
       g.fillText(this.title, this.cw / 2, this.oy - 14 + (1 - g.globalAlpha) * 8);
       g.restore();
     }
+  }
+
+  private baseCanvas: HTMLCanvasElement | null = null;
+  private baseKey = '';
+
+  /** Mosaic border, joints and textured cells of the place, drawn once per layout. */
+  private boardBase(n: number): HTMLCanvasElement {
+    const pad = 0.5;
+    const px = Math.round((n + pad * 2) * this.cell * this.dpr);
+    const key = `${this.bs.kind}|${n}|${px}`;
+    if (this.baseCanvas && key === this.baseKey) return this.baseCanvas;
+    this.baseKey = key;
+    const c = (this.baseCanvas ??= document.createElement('canvas'));
+    c.width = c.height = px;
+    const g = c.getContext('2d')!;
+    const u = px / (n + pad * 2);
+    g.setTransform(u, 0, 0, u, pad * u, pad * u);
+    g.clearRect(-pad, -pad, n + pad * 2, n + pad * 2);
+    const bs = this.bs;
+    // Border: a band of coloured tesserae around the joints.
+    const bw = 0.34;
+    g.fillStyle = 'rgba(0,0,0,0.12)';
+    g.fillRect(-bw, -bw + 0.08, n + bw * 2, n + bw * 2);
+    g.fillStyle = bs.slab;
+    g.fillRect(-bw, -bw, n + bw * 2, n + bw * 2);
+    const per = 3;
+    const step = (n + bw * 2 - 0.06) / (n * per + 2);
+    const s = step * 0.78;
+    for (let k = 0; k < n * per + 2; k++) {
+      const p = -bw + 0.03 + k * step;
+      g.fillStyle = bs.tess[k % bs.tess.length];
+      g.fillRect(p, -bw + 0.04, s, s);
+      g.fillRect(p, n + bw - 0.04 - s, s, s);
+      g.fillStyle = bs.tess[(k + 2) % bs.tess.length];
+      g.fillRect(-bw + 0.04, p, s, s);
+      g.fillRect(n + bw - 0.04 - s, p, s, s);
+    }
+    g.fillStyle = bs.slab;
+    g.fillRect(-0.12, -0.12, n + 0.24, n + 0.24);
+    if (bs.kind === 'harbour') {
+      // Sea glinting between the planks of the pier.
+      g.strokeStyle = 'rgba(255,255,255,0.35)';
+      g.lineWidth = 0.025;
+      g.beginPath();
+      for (let k = 0; k < n * 2; k++) {
+        const y = hash(k * 7 + n) * n, x = hash(k * 13 + 1) * n;
+        g.moveTo(x, y);
+        g.lineTo(x + 0.25, y);
+      }
+      g.stroke();
+    }
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) this.cellTile(g, x, y, (x + y) % 2 === 1);
+    return c;
+  }
+
+  /** One cell, in the material of the place. */
+  private cellTile(g: CanvasRenderingContext2D, x: number, y: number, alt: boolean) {
+    const bs = this.bs;
+    const r = (k: number) => hash(x * 131 + y * 71 + k * 17);
+    const x0 = x + 0.04, y0 = y + 0.04, w = 0.92;
+    g.fillStyle = alt ? bs.cell2 : bs.cell;
+    g.beginPath();
+    g.roundRect(x0, y0, w, w, bs.kind === 'harbour' ? 0.05 : 0.14);
+    g.fill();
+    g.save();
+    g.clip();
+    switch (bs.kind) {
+      case 'garden': {
+        // A lawn: tufts of grass and the odd flower.
+        g.strokeStyle = 'rgba(95,148,102,0.35)';
+        g.lineWidth = 0.025;
+        g.beginPath();
+        for (let k = 0; k < 4; k++) {
+          const tx = x0 + 0.12 + r(k) * 0.68, ty = y0 + 0.18 + r(k + 9) * 0.65;
+          g.moveTo(tx - 0.04, ty);
+          g.lineTo(tx - 0.06, ty - 0.07);
+          g.moveTo(tx, ty);
+          g.lineTo(tx, ty - 0.09);
+          g.moveTo(tx + 0.04, ty);
+          g.lineTo(tx + 0.06, ty - 0.07);
+        }
+        g.stroke();
+        if (r(20) < 0.3) {
+          g.fillStyle = ['#E9788A', '#F4C04E', '#FFFFFF', '#B78BD6'][Math.floor(r(21) * 4)];
+          g.beginPath();
+          g.arc(x0 + 0.2 + r(22) * 0.55, y0 + 0.2 + r(23) * 0.55, 0.035, 0, Math.PI * 2);
+          g.fill();
+        }
+        break;
+      }
+      case 'harbour': {
+        // Weathered planks with nails.
+        g.strokeStyle = 'rgba(120,90,55,0.3)';
+        g.lineWidth = 0.02;
+        g.beginPath();
+        for (let k = 1; k < 3; k++) {
+          g.moveTo(x0, y0 + (w * k) / 3);
+          g.lineTo(x0 + w, y0 + (w * k) / 3);
+        }
+        const j = 0.25 + r(1) * 0.5;
+        g.moveTo(x0 + w * j, y0);
+        g.lineTo(x0 + w * j, y0 + w / 3);
+        g.stroke();
+        g.fillStyle = 'rgba(110,85,60,0.35)';
+        for (let k = 0; k < 3; k++) {
+          g.fillRect(x0 + 0.06, y0 + (w * (k + 0.5)) / 3 - 0.015, 0.03, 0.03);
+          g.fillRect(x0 + w - 0.09, y0 + (w * (k + 0.5)) / 3 - 0.015, 0.03, 0.03);
+        }
+        break;
+      }
+      case 'market': {
+        // Glazed tiles with a faint azulejo star.
+        g.strokeStyle = alt ? 'rgba(196,85,63,0.16)' : 'rgba(62,124,140,0.16)';
+        g.lineWidth = 0.035;
+        const cx = x0 + w / 2, cy = y0 + w / 2;
+        g.beginPath();
+        g.moveTo(cx, cy - 0.22);
+        g.lineTo(cx + 0.22, cy);
+        g.lineTo(cx, cy + 0.22);
+        g.lineTo(cx - 0.22, cy);
+        g.closePath();
+        for (const [dx, dy] of [[0, 0], [w, 0], [0, w], [w, w]]) {
+          g.moveTo(x0 + dx + 0.12, y0 + dy);
+          g.arc(x0 + dx, y0 + dy, 0.12, 0, Math.PI * 2);
+        }
+        g.stroke();
+        break;
+      }
+      case 'night': {
+        // Four worn cobbles.
+        g.fillStyle = 'rgba(80,70,130,0.08)';
+        for (const [dx, dy] of [[0, 0], [0.5, 0], [0, 0.5], [0.5, 0.5]]) {
+          g.beginPath();
+          g.roundRect(x0 + dx * w + 0.04, y0 + dy * w + 0.04, w / 2 - 0.08, w / 2 - 0.08, 0.1);
+          g.fill();
+        }
+        break;
+      }
+      case 'deep': {
+        // Sand ripples and a pebble.
+        g.strokeStyle = 'rgba(47,119,120,0.14)';
+        g.lineWidth = 0.025;
+        g.beginPath();
+        for (let k = 0; k < 3; k++) {
+          const yy = y0 + 0.22 + k * 0.25 + r(k) * 0.04;
+          g.moveTo(x0, yy);
+          g.quadraticCurveTo(x0 + w / 2, yy - 0.08, x0 + w, yy);
+        }
+        g.stroke();
+        if (r(30) < 0.35) {
+          g.fillStyle = 'rgba(47,119,120,0.22)';
+          g.beginPath();
+          g.ellipse(x0 + 0.2 + r(31) * 0.5, y0 + 0.25 + r(32) * 0.5, 0.05, 0.035, 0, 0, Math.PI * 2);
+          g.fill();
+        }
+        break;
+      }
+    }
+    g.restore();
   }
 
   private center(i: number, n: number): [number, number] {
@@ -195,7 +325,7 @@ export class PuzzleRenderer {
     st.paths.forEach((path) => {
       if (path.length < 2) return;
       trace(path);
-      g.strokeStyle = this.bs.slab;
+      g.strokeStyle = this.bs.bank;
       g.lineWidth = 0.58;
       g.stroke();
     });
@@ -356,6 +486,11 @@ export class PuzzleRenderer {
     g.restore();
   }
 
+  /**
+   * Endpoints are things of the place, seen from above: every canal leaves a fountain
+   * (round) and feeds a building of the place (square): a cottage, a boathouse, a market
+   * stall, a lit house, a giant shell. Colour always comes first, shape second.
+   */
   private drawEndpoints(st: PuzzleState) {
     const g = this.g;
     const n = st.n;
@@ -371,52 +506,156 @@ export class PuzzleRenderer {
       const col = colorOf(e.hue);
       const done = connected.has(e.cell);
       const glyph = e.hue < 5 ? MATERIALS[e.hue].glyph : 'circle';
-      g.fillStyle = 'rgba(0,0,0,0.14)';
-      if (e.kind === 'fountain') {
-        g.beginPath();
-        g.arc(x + 0.02, y + 0.05, 0.36, 0, Math.PI * 2);
-        g.fill();
-        g.fillStyle = this.bs.slab;
-        g.beginPath();
-        g.arc(x, y, 0.36, 0, Math.PI * 2);
-        g.fill();
-        g.fillStyle = col;
-        g.beginPath();
-        g.arc(x, y, 0.27, 0, Math.PI * 2);
-        g.fill();
-        if (!done) {
-          const t = (this.time * 0.7 + e.cell * 0.13) % 1;
-          g.save();
-          g.strokeStyle = 'rgba(255,255,255,0.6)';
-          g.lineWidth = 0.03;
-          g.globalAlpha *= 1 - t;
-          g.beginPath();
-          g.arc(x, y, 0.1 + t * 0.17, 0, Math.PI * 2);
-          g.stroke();
-          g.restore();
+      if (e.kind === 'fountain') this.fountain(x, y, col, done, e.cell);
+      else this.building(x, y, col, done);
+      if (this.colorblind || e.kind === 'fountain') {
+        g.fillStyle = 'rgba(255,255,255,0.95)';
+        drawGlyph(g, glyph, x, y + (e.kind === 'fountain' ? 0 : 0.04), 0.09);
+      }
+    }
+  }
+
+  /** A round stone basin filled with the canal's colour, rippling until it is linked. */
+  private fountain(x: number, y: number, col: string, done: boolean, seed: number) {
+    const g = this.g;
+    g.fillStyle = 'rgba(0,0,0,0.16)';
+    g.beginPath();
+    g.arc(x + 0.02, y + 0.06, 0.38, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = this.bs.stone;
+    g.beginPath();
+    g.arc(x, y, 0.38, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = 'rgba(0,0,0,0.12)';
+    g.lineWidth = 0.02;
+    g.beginPath();
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      g.moveTo(x + Math.cos(a) * 0.29, y + Math.sin(a) * 0.29);
+      g.lineTo(x + Math.cos(a) * 0.38, y + Math.sin(a) * 0.38);
+    }
+    g.stroke();
+    g.fillStyle = col;
+    g.beginPath();
+    g.arc(x, y, 0.28, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.25)';
+    g.beginPath();
+    g.ellipse(x - 0.08, y - 0.1, 0.1, 0.05, -0.5, 0, Math.PI * 2);
+    g.fill();
+    if (!done) {
+      const t = (this.time * 0.7 + seed * 0.13) % 1;
+      g.save();
+      g.strokeStyle = 'rgba(255,255,255,0.6)';
+      g.lineWidth = 0.03;
+      g.globalAlpha *= 1 - t;
+      g.beginPath();
+      g.arc(x, y, 0.1 + t * 0.17, 0, Math.PI * 2);
+      g.stroke();
+      g.restore();
+    }
+  }
+
+  /** The building a canal feeds, in the style of the place. */
+  private building(x: number, y: number, col: string, done: boolean) {
+    const g = this.g;
+    const h = 0.33;
+    const kind = this.bs.kind;
+    // Night: warm light pooling around the houses (stronger once water arrives).
+    if (kind === 'night') {
+      const r = done ? 0.75 : 0.55;
+      const glow = g.createRadialGradient(x, y, 0.1, x, y, r);
+      glow.addColorStop(0, `rgba(255,214,130,${done ? 0.5 : 0.3})`);
+      glow.addColorStop(1, 'rgba(255,214,130,0)');
+      g.fillStyle = glow;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    g.fillStyle = 'rgba(0,0,0,0.18)';
+    g.beginPath();
+    g.roundRect(x - h + 0.03, y - h + 0.07, h * 2, h * 2, 0.08);
+    g.fill();
+    switch (kind) {
+      case 'market': {
+        // A stall's striped awning, with a scalloped front edge.
+        const st = 5;
+        for (let k = 0; k < st; k++) {
+          g.fillStyle = k % 2 ? '#FBF1E1' : col;
+          g.fillRect(x - h + (k * h * 2) / st, y - h, (h * 2) / st + 0.005, h * 1.75);
         }
-      } else {
-        g.beginPath();
-        g.roundRect(x - 0.33 + 0.02, y - 0.33 + 0.05, 0.66, 0.66, 0.14);
-        g.fill();
-        g.fillStyle = this.bs.cell;
-        g.strokeStyle = col;
-        g.lineWidth = 0.09;
-        g.beginPath();
-        g.roundRect(x - 0.33, y - 0.33, 0.66, 0.66, 0.14);
-        g.fill();
-        g.stroke();
-        if (done) {
-          g.fillStyle = col;
+        for (let k = 0; k < st; k++) {
+          g.fillStyle = k % 2 ? '#EADFCB' : shadeHex(col, -0.15);
           g.beginPath();
-          g.roundRect(x - 0.16, y - 0.16, 0.32, 0.32, 0.06);
+          g.arc(x - h + ((k + 0.5) * h * 2) / st, y + h * 0.75, h / st, 0, Math.PI);
           g.fill();
         }
+        break;
       }
-      if (this.colorblind || e.kind === 'fountain') {
-        g.fillStyle = e.kind === 'fountain' ? 'rgba(255,255,255,0.95)' : col;
-        if (e.kind === 'fountain' || !done) drawGlyph(g, glyph, x, y, 0.09);
+      case 'deep': {
+        // A scallop shell: ribs fanning out from the hinge.
+        g.fillStyle = col;
+        g.beginPath();
+        g.moveTo(x, y + h);
+        g.arc(x, y + h * 0.1, h * 1.05, Math.PI * 1.08, Math.PI * 1.92);
+        g.closePath();
+        g.fill();
+        g.strokeStyle = 'rgba(255,255,255,0.45)';
+        g.lineWidth = 0.025;
+        g.beginPath();
+        for (let k = 1; k < 6; k++) {
+          const a = Math.PI * (1.08 + (0.84 * k) / 6);
+          g.moveTo(x, y + h);
+          g.lineTo(x + Math.cos(a) * h * 1.05, y + h * 0.1 + Math.sin(a) * h * 1.05);
+        }
+        g.stroke();
+        g.fillStyle = shadeHex(col, -0.2);
+        g.fillRect(x - 0.08, y + h - 0.08, 0.16, 0.1);
+        break;
       }
+      default: {
+        // A house roof from above: two slopes meeting at the ridge, tile rows, a chimney.
+        g.fillStyle = shadeHex(col, 0.12);
+        g.beginPath();
+        g.roundRect(x - h, y - h, h * 2, h, [0.08, 0.08, 0, 0]);
+        g.fill();
+        g.fillStyle = shadeHex(col, -0.12);
+        g.beginPath();
+        g.roundRect(x - h, y, h * 2, h, [0, 0, 0.08, 0.08]);
+        g.fill();
+        g.strokeStyle = 'rgba(0,0,0,0.12)';
+        g.lineWidth = 0.02;
+        g.beginPath();
+        for (const dy of [-0.2, -0.1, 0.1, 0.2]) {
+          g.moveTo(x - h + 0.04, y + dy);
+          g.lineTo(x + h - 0.04, y + dy);
+        }
+        g.stroke();
+        g.fillStyle = 'rgba(255,255,255,0.4)';
+        g.fillRect(x - h, y - 0.012, h * 2, 0.024);
+        g.fillStyle = kind === 'night' ? '#3A3468' : '#9C8574';
+        g.fillRect(x + h * 0.4, y - h * 0.75, 0.09, 0.09);
+        if (kind === 'harbour') {
+          // The little pier the boathouse opens onto.
+          g.fillStyle = '#B79572';
+          g.fillRect(x - 0.08, y + h, 0.16, 0.12);
+        }
+      }
+    }
+    if (done) {
+      // Water has arrived: a small sparkle above the building.
+      const t = (this.time * 1.5) % 2;
+      const a = Math.max(0, 1 - Math.abs(t - 0.5) * 2);
+      g.fillStyle = `rgba(255,255,255,${0.35 + 0.6 * a})`;
+      g.beginPath();
+      const sx = x - h * 0.55, sy = y - h * 0.55, r = 0.09;
+      g.moveTo(sx, sy - r);
+      g.lineTo(sx + r * 0.3, sy - r * 0.3);
+      g.lineTo(sx + r, sy);
+      g.lineTo(sx + r * 0.3, sy + r * 0.3);
+      g.lineTo(sx, sy + r);
+      g.lineTo(sx - r * 0.3, sy + r * 0.3);
+      g.lineTo(sx - r, sy);
+      g.lineTo(sx - r * 0.3, sy - r * 0.3);
+      g.fill();
     }
   }
 
@@ -478,4 +717,11 @@ export function drawPictureThumb(canvas: HTMLCanvasElement, colors: number[], n:
     g.fillStyle = solved ? (c < 5 ? MATERIALS[c].color : pal.dark ? '#3a3f52' : '#EFE7DA') : c < 5 ? (pal.dark ? '#4a5068' : '#d9cfbf') : pal.card;
     g.fillRect(x * cell + cell * 0.08, y * cell + cell * 0.08, cell * 0.84, cell * 0.84);
   }
+}
+
+/** Lightens (k > 0) or darkens (k < 0) a #rrggbb colour. */
+function shadeHex(hex: string, k: number): string {
+  const v = parseInt(hex.slice(1), 16);
+  const f = (c: number) => Math.round(k >= 0 ? c + (255 - c) * k : c * (1 + k));
+  return `rgb(${f((v >> 16) & 255)},${f((v >> 8) & 255)},${f(v & 255)})`;
 }

@@ -41,8 +41,13 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
   copier Monument Valley : pas de tours géantes ni de grand soleil, des maisons basses à hauteur d'homme.
   - des palettes chaudes et variées par lieu, chaque volume ombré par la même lumière, toits de tuiles à pignon,
     volets, jardinières, cheminées ;
-  - **le plateau est la place du village** : une mosaïque incrustée dans les pavés, bordée de tesselles aux
-    couleurs du lieu, avec un quai et de l'eau devant ;
+  - **le plateau est un morceau du lieu vu du dessus**, comme la carte de Mini Motorways : pelouse au Jardin,
+    ponton de bois au-dessus de la mer au Port, carreaux vernissés au Marché, pavés la Nuit, sable dans la Cité
+    engloutie. Bordé de tesselles, avec un quai et de l'eau devant. Les cases restent claires et calmes : les
+    canaux se lisent toujours en premier ;
+  - **les points à relier sont des objets du lieu** : chaque canal part d'une fontaine (ronde) et alimente un
+    bâtiment (carré) : un cottage, une cabane de pêcheur sur son ponton, un étal à store rayé, une maison
+    éclairée, un coquillage géant. La couleur reste le repère principal, la forme le second ;
   - **chaque lieu se reconnaît au premier coup d'œil** :
     - Jardin : cottages, serre, cyprès, parterres fleuris, fontaine, étang avec nénuphars et canards ;
     - Port : phare rayé et son faisceau, maisons de pêcheurs colorées, caisses et tonneaux, mer et voiliers ;

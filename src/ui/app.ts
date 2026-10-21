@@ -111,7 +111,7 @@ export class App {
         return { src: at(s.sources[0]), site: at(s.sites[0]), sites: s.sites.map(at), sources: s.sources.map(at), score: s.stats.score, state: s.state };
       };
       w.__sim = () => this.sim;
-      w.__pz = (i: number) => this.action('pz-play', String(i));
+      w.__pzPlay = (i: number) => this.action('pz-play', String(i));
     }
   }
 
