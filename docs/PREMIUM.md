@@ -75,6 +75,10 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
 - ✅ **Le village à restaurer** (`src/meta/village.ts`) : les étoiles gagnées dans les niveaux réveillent le village de
   chaque lieu, une étape visible à la fois (façades repeintes, fontaine, phare, étals, fenêtres allumées, corail…).
   Le décor derrière les niveaux et l'accueil montre l'avancement. Un village complet donne des indices.
+- ✅ **Lumière et matière** : le village se reflète dans l'eau en tremblant (le geste signature d'une ville de
+  canaux), les maisons projettent leur ombre sur les pavés, une lumière douce propre à chaque lieu (soleil chaud,
+  lune froide, lumière filtrée sous la mer), un léger vignettage et un grain de papier imprimé, comme Alto, Florence
+  ou Gris. Les cases du plateau et les tesselles de la bordure sont en relief.
 - ✅ Les fontaines prennent le style du lieu (bassin moussu, tonneau, pierre aux carreaux bleus, bougies, amphore).
 - ⏳ (5) Un vrai pass d'illustrateur sur les dessins (pixel art plus fin en 10×10 et 12×12) et sur l'icône.
 

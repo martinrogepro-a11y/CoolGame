@@ -89,6 +89,15 @@ const THEMES: Record<ThemeId, Theme> = {
   },
 };
 
+/** Light of each place: where it comes from (fraction of the screen), its tint and strength. */
+const LIGHT: Record<ThemeId, { x: number; y: number; rgb: string; a: number; vignette: number }> = {
+  garden: { x: 0.8, y: 0.02, rgb: '255,214,160', a: 0.55, vignette: 0.08 },
+  harbour: { x: 0.85, y: 0.0, rgb: '255,222,176', a: 0.5, vignette: 0.08 },
+  market: { x: 0.75, y: 0.05, rgb: '255,186,120', a: 0.6, vignette: 0.1 },
+  night: { x: 0.26, y: 0.12, rgb: '150,160,255', a: 0.45, vignette: 0.22 },
+  deep: { x: 0.5, y: -0.1, rgb: '170,255,240', a: 0.45, vignette: 0.25 },
+};
+
 export function boatColor(theme: ThemeId): string {
   return THEMES[theme].boat;
 }
@@ -157,7 +166,7 @@ function mix(a: string, b: string, k: number): string {
   return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * k)).join(',')})`;
 }
 
-function poly(g: CanvasRenderingContext2D, pts: Pt[], fill: string) {
+function poly(g: CanvasRenderingContext2D, pts: Pt[], fill: string | CanvasGradient) {
   g.beginPath();
   g.moveTo(pts[0][0], pts[0][1]);
   for (let k = 1; k < pts.length; k++) g.lineTo(pts[k][0], pts[k][1]);
@@ -264,6 +273,10 @@ export class Scene {
   private flies: { x: number; y: number; ph: number }[] = [];
   /** Top of the water, in front of the quay. */
   private waterY = 0;
+  /** The buildings alone (for their reflection in the water), and the line they stand on. */
+  private bld: HTMLCanvasElement | null = null;
+  private groundY = 0;
+  private grain: CanvasPattern | null = null;
   private skyY = 0;
 
   draw(g: CanvasRenderingContext2D, w: number, h: number, dpr: number, board: { x: number; y: number; size: number }, time: number) {
@@ -284,6 +297,49 @@ export class Scene {
     if (this.far) g.drawImage(this.far, 0, 0, w, h);
     if (this.near) g.drawImage(this.near, 0, 0, w, h);
     this.drawLife(g, t, w, h, time);
+    this.drawLight(g, w, h);
+  }
+
+  /**
+   * The light of the place, like Alto's skies: a soft-light wash from the sun (or moon),
+   * a gentle vignette, and a fine paper grain so the flat colours feel printed, not digital.
+   */
+  private drawLight(g: CanvasRenderingContext2D, w: number, h: number) {
+    const L = LIGHT[this.theme];
+    g.save();
+    g.globalCompositeOperation = 'soft-light';
+    const lx = w * L.x, ly = h * L.y, r = Math.max(w, h) * 1.1;
+    const wash = g.createRadialGradient(lx, ly, 0, lx, ly, r);
+    wash.addColorStop(0, `rgba(${L.rgb},${L.a})`);
+    wash.addColorStop(1, `rgba(${L.rgb},0)`);
+    g.fillStyle = wash;
+    g.fillRect(0, 0, w, h);
+    g.globalCompositeOperation = 'source-over';
+    const vig = g.createRadialGradient(w / 2, h * 0.45, Math.min(w, h) * 0.45, w / 2, h * 0.45, Math.max(w, h) * 0.85);
+    vig.addColorStop(0, 'rgba(20,16,30,0)');
+    vig.addColorStop(1, `rgba(20,16,30,${L.vignette})`);
+    g.fillStyle = vig;
+    g.fillRect(0, 0, w, h);
+    if (!this.grain) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 160;
+      const cg = c.getContext('2d')!;
+      const img = cg.createImageData(160, 160);
+      for (let i = 0; i < img.data.length; i += 4) {
+        const v = Math.random() < 0.5 ? 0 : 255;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+        img.data[i + 3] = Math.random() * 38;
+      }
+      cg.putImageData(img, 0, 0);
+      this.grain = g.createPattern(c, 'repeat');
+    }
+    if (this.grain) {
+      g.globalCompositeOperation = 'overlay';
+      g.globalAlpha = 0.5;
+      g.fillStyle = this.grain;
+      g.fillRect(0, 0, w, h);
+    }
+    g.restore();
   }
 
   // ---------------------------------------------------------------- static layers
@@ -320,13 +376,18 @@ export class Scene {
     const near = mk();
     const g = near.g;
     this.paving(g, t, w, ground - 16, quayY);
+    // The place is drawn on its own layer, kept for its reflection in the water.
+    const bld = mk();
     switch (this.theme) {
-      case 'garden': this.garden(g, P); break;
-      case 'harbour': this.harbour(g, P); break;
-      case 'market': this.market(g, P); break;
-      case 'night': this.village(g, P); break;
-      case 'deep': this.ruins(g, P); break;
+      case 'garden': this.garden(bld.g, P); break;
+      case 'harbour': this.harbour(bld.g, P); break;
+      case 'market': this.market(bld.g, P); break;
+      case 'night': this.village(bld.g, P); break;
+      case 'deep': this.ruins(bld.g, P); break;
     }
+    g.drawImage(bld.c, 0, 0, w, h);
+    this.bld = bld.c;
+    this.groundY = ground;
     this.quayAndWater(g, t, w, h, quayY);
     this.near = near.c;
 
@@ -586,7 +647,20 @@ export class Scene {
     const wall = faded ? mix(rng.pick(t.walls), '#D6D0C6', 0.6) : rng.pick(t.walls);
     const shutter = faded ? mix(rng.pick(t.shutters), '#A9A49C', 0.6) : rng.pick(t.shutters);
     const lights = this.has('lights');
+    // Cast shadow on the paving (the sun is high on the right), then the house.
+    const sl = h * 0.5;
+    poly(g, [[x - l * COS, by - l * SIN], [x, by], [x - sl, by + sl * 0.16], [x - l * COS - sl, by - l * SIN + sl * 0.16]], t.night ? 'rgba(10,8,30,0.18)' : 'rgba(60,40,20,0.1)');
     const p = box(g, x, by, l, r, h, wall, false);
+    // Contact shading where the walls meet the ground.
+    const ao = (f: Face) => {
+      const a = f(0, 0), b = f(1, 0), c = f(1, 0.16), d = f(0, 0.16);
+      const grad = g.createLinearGradient(0, a[1], 0, d[1]);
+      grad.addColorStop(0, 'rgba(30,20,10,0.16)');
+      grad.addColorStop(1, 'rgba(30,20,10,0)');
+      poly(g, [a, b, c, d], grad);
+    };
+    ao(onLeft(p));
+    ao(onRight(p));
     const L = onLeft(p), R = onRight(p);
     const floors = Math.max(1, Math.round(h / 22));
     const dark = t.night ? '#2B2747' : 'rgba(45,55,66,0.62)';
@@ -1001,6 +1075,7 @@ export class Scene {
   private drawWater(g: CanvasRenderingContext2D, t: Theme, w: number, h: number, time: number) {
     const wy = this.waterY;
     if (wy >= h - 4) return;
+    if (!t.underwater) this.drawReflection(g, t, w, h, wy, time);
     // Night: the lit windows shimmer on the water.
     if (t.night) {
       for (const x of this.lit) {
@@ -1051,6 +1126,34 @@ export class Scene {
     }
   }
 
+  /**
+   * The village mirrored in the water, squashed and trembling in thin strips, fading with
+   * depth and tinted by the water: the signature look of a canal town.
+   */
+  private drawReflection(g: CanvasRenderingContext2D, t: Theme, w: number, h: number, wy: number, time: number) {
+    const src = this.bld;
+    if (!src) return;
+    const dpr = src.width / w;
+    const k = 0.55;
+    const depth = Math.min(h - wy - 2, 90 * this.scale * k + 10);
+    const sh = 2;
+    g.save();
+    for (let d = 0; d < depth; d += sh) {
+      const fade = 1 - d / depth;
+      const sy = this.groundY - (d + sh) / k;
+      const off = Math.sin(time * 1.6 + d * 0.35) * (0.6 + (d / depth) * 2.2);
+      g.globalAlpha = (t.night ? 0.45 : 0.3) * fade;
+      g.drawImage(src, 0, sy * dpr, src.width, (sh / k) * dpr, off, wy + 3 + d, w, sh);
+    }
+    g.restore();
+    // Tint the reflection with the water so it sits below the surface.
+    const tint = g.createLinearGradient(0, wy, 0, wy + depth);
+    tint.addColorStop(0, `${t.water[0]}55`);
+    tint.addColorStop(1, `${t.water[0]}00`);
+    g.fillStyle = tint;
+    g.fillRect(0, wy, w, depth);
+  }
+
   /** The lighthouse beam sweeping slowly over the harbour. */
   private drawBeam(g: CanvasRenderingContext2D, [x, y]: Pt, time: number) {
     const phase = Math.sin(time * 0.9);
@@ -1078,15 +1181,18 @@ export class Scene {
     sun.addColorStop(1, 'rgba(255,240,210,0)');
     g.fillStyle = sun;
     g.fillRect(sx - 90, sy - 90, 180, 180);
-    g.fillStyle = 'rgba(255,255,255,0.75)';
     for (let k = 0; k < 3; k++) {
       const x = ((time * (3 + k) + k * 170) % (w + 160)) - 80;
       const y = this.skyY * (0.22 + k * 0.17);
-      g.beginPath();
-      g.ellipse(x, y, 28, 7, 0, 0, Math.PI * 2);
-      g.arc(x - 9, y - 4, 9, 0, Math.PI * 2);
-      g.arc(x + 6, y - 6, 11, 0, Math.PI * 2);
-      g.fill();
+      // A soft shaded underside, then the sunlit puff.
+      for (const [dy, col] of [[2.5, 'rgba(200,190,200,0.35)'], [0, 'rgba(255,255,255,0.85)']] as [number, string][]) {
+        g.fillStyle = col;
+        g.beginPath();
+        g.ellipse(x, y + dy, 28, 7, 0, 0, Math.PI * 2);
+        g.arc(x - 9, y - 4 + dy, 9, 0, Math.PI * 2);
+        g.arc(x + 6, y - 6 + dy, 11, 0, Math.PI * 2);
+        g.fill();
+      }
     }
   }
 

@@ -166,6 +166,12 @@ export class PuzzleRenderer {
       g.fillStyle = bs.tess[(k + 2) % bs.tess.length];
       g.fillRect(-bw + 0.04, p, s, s);
       g.fillRect(n + bw - 0.04 - s, p, s, s);
+      // Each tessera catches a little light on its top edge.
+      g.fillStyle = 'rgba(255,255,255,0.3)';
+      g.fillRect(p, -bw + 0.04, s, 0.03);
+      g.fillRect(p, n + bw - 0.04 - s, s, 0.03);
+      g.fillRect(-bw + 0.04, p, s, 0.03);
+      g.fillRect(n + bw - 0.04 - s, p, s, 0.03);
     }
     g.fillStyle = bs.slab;
     g.fillRect(-0.12, -0.12, n + 0.24, n + 0.24);
@@ -203,6 +209,11 @@ export class PuzzleRenderer {
     g.fill();
     g.save();
     g.clip();
+    // A raised tile: light catches its top edge, its bottom edge sits in shade.
+    g.fillStyle = 'rgba(255,255,255,0.45)';
+    g.fillRect(x0, y0, w, 0.04);
+    g.fillStyle = 'rgba(40,30,20,0.07)';
+    g.fillRect(x0, y0 + w - 0.06, w, 0.06);
     switch (bs.kind) {
       case 'garden': {
         // A lawn: tufts of grass and the odd flower.
