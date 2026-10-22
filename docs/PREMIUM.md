@@ -84,6 +84,12 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
   sable ridé), les maisons forment un îlot (une rangée accolée, une seconde dans les creux), et les objets suivent le
   trottoir : pots de fleurs aux portes, bancs, réverbères, bittes d'amarrage, étals. Détails : linge tendu entre les
   maisons, bougainvilliers, fumée des cheminées.
+- ✅ **Un rythme de rue, pas une rangée de clones** (à la Townscaper) : des ruelles qui s'enfoncent entre les maisons,
+  une placette par lieu (puits, filets de pêche, fontaine, réverbère et banc) et un monument par lieu, jamais au
+  centre ni sous les boutons (chapelle et son clocheton, maison du capitaine du port et son drapeau, campanile du
+  marché une fois restauré, église à coupole la nuit). Les toits varient (deux sens de pignon, toits en croupe,
+  toits-terrasses avec pergola, plantes ou citerne), les façades aussi (balcons en fer forgé, stores rayés au-dessus
+  des portes, arcades au rez-de-chaussée du marché, portes cintrées).
 - ✅ **Des canaux en pierre** : chaque canal est un chenal creusé, bordé de pierre (lèvre éclairée, ombre portée), au
   fond sec teinté de sa couleur ; l'eau arrive toujours depuis la fontaine, avec reflet, rides et éclats de soleil.
   Les maisons d'arrivée sont de petites maisons-jouets vues de dessus, façade et porte comprises.

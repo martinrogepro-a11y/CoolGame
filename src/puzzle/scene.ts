@@ -249,6 +249,31 @@ function cylinder(g: CanvasRenderingContext2D, x: number, by: number, r: number,
   g.fill();
 }
 
+type RoofStyle = 'gable' | 'gableX' | 'hip' | 'flat';
+
+/** How often each roof shape appears in each place (they add up to 1). */
+const ROOFS: Record<ThemeId, Partial<Record<RoofStyle, number>>> = {
+  garden: { gable: 0.55, gableX: 0.3, hip: 0.15 },
+  harbour: { gable: 0.4, gableX: 0.35, flat: 0.25 },
+  market: { gable: 0.3, gableX: 0.25, flat: 0.35, hip: 0.1 },
+  night: { gable: 0.45, gableX: 0.3, flat: 0.25 },
+  deep: { gable: 1 },
+};
+
+/** An arched opening on a face (door, arcade). */
+function arch(g: CanvasRenderingContext2D, f: Face, u0: number, u1: number, v0: number, v1: number, col: string) {
+  const a = f(u0, v0), b = f(u1, v0), c = f(u1, v1), d = f(u0, v1);
+  const top = f((u0 + u1) / 2, v1 + (v1 - v0) * 0.28);
+  g.beginPath();
+  g.moveTo(a[0], a[1]);
+  g.lineTo(b[0], b[1]);
+  g.lineTo(c[0], c[1]);
+  g.quadraticCurveTo(top[0], top[1], d[0], d[1]);
+  g.closePath();
+  g.fillStyle = col;
+  g.fill();
+}
+
 /** Side of a building lot on the isometric grid. */
 const LOT = 17;
 
@@ -256,6 +281,8 @@ interface Lot {
   x: number;
   by: number;
   k: number;
+  /** Highest a landmark on this lot may rise (keeps it below the top bar). */
+  cap?: number;
 }
 
 /** A house as built: its box, its gable peak (for garlands) and its door (for pots). */
@@ -283,6 +310,13 @@ function pot(g: CanvasRenderingContext2D, x: number, by: number, rng: Rng, green
     g.fillRect(x - 1.5, by - 10, 1.6, 1.6);
     g.fillRect(x + 1, by - 8, 1.6, 1.6);
   }
+}
+
+/** A small pennant flying from a pole. */
+function flag(g: CanvasRenderingContext2D, x: number, y: number, col: string) {
+  g.fillStyle = '#4E4A46';
+  g.fillRect(x - 0.5, y - 14, 1, 14);
+  poly(g, [[x + 0.5, y - 14], [x + 9, y - 11.5], [x + 0.5, y - 9]], col);
 }
 
 /** A wooden bench on the sidewalk. */
@@ -493,15 +527,6 @@ export class Scene {
         }
         x += bw + rng.range(-4, 6);
       }
-      if (this.theme === 'market') {
-        // The bell tower of the market square.
-        const bx = w * rng.range(0.2, 0.8);
-        if (this.has('belltower')) {
-        g.fillStyle = shade(t.sky[1], -0.16);
-        g.fillRect(bx, base - 70 * P.scale, 16, 70 * P.scale);
-        poly(g, [[bx - 2, base - 70 * P.scale], [bx + 8, base - 86 * P.scale], [bx + 18, base - 70 * P.scale]], g.fillStyle as string);
-        }
-      }
     }
     g.globalAlpha = 1;
   }
@@ -658,28 +683,82 @@ export class Scene {
     return front.map((l) => l.x + LOT * COS);
   }
 
+  /**
+   * The rhythm of the street, so it never reads as a row of identical houses: a lane or
+   * two running back between the houses, one small square with its well, fountain or
+   * tree, and one landmark rising above the roofs (a chapel, a bell tower, a dome).
+   */
+  private plan(P: Place, front: Lot[], rng: Rng): { lanes: Set<number>; square: number; landmark: number } {
+    const ks = front.map((l) => l.k).filter((k) => k >= 1 && k < front.length - 3);
+    const square = ks[Math.floor(ks.length * rng.range(0.3, 0.7))] ?? 2;
+    const lanes = new Set<number>();
+    for (const k of ks) if (Math.abs(k - square) > 2 && rng.next() < 0.14) lanes.add(k);
+    // The landmark stands off-centre and away from the edges, clear of the level's title and buttons.
+    const xOf = (k: number) => (front.find((l) => l.k === k)?.x ?? 0) + LOT * COS;
+    const clear = (k: number) => {
+      const u = xOf(k) / P.w;
+      return (u > 0.12 && u < 0.32) || (u > 0.68 && u < 0.88);
+    };
+    const away = ks.filter((k) => Math.abs(k - square) > 2 && !lanes.has(k) && !lanes.has(k + 1) && clear(k));
+    const landmark = away[Math.floor(away.length * rng.next())] ?? -99;
+    return { lanes, square, landmark };
+  }
+
+  /** Back lots, front lots and the square, drawn in order; `house` builds an ordinary lot. */
+  private street(P: Place, opts: {
+    house: (l: Lot, front: boolean) => Built | null;
+    landmark: (l: Lot) => void;
+    square: (x: number, y: number) => void;
+  }): { front: Lot[]; built: Built[]; plan: { lanes: Set<number>; square: number; landmark: number } } {
+    const { back, front } = this.lots(P);
+    const plan = this.plan(P, front, P.rng);
+    for (const l of back) {
+      if (plan.lanes.has(l.k)) continue;
+      if (l.k === plan.landmark) opts.landmark({ ...l, cap: Math.max(40, l.by - 110) });
+      else opts.house(l, false);
+    }
+    const built: Built[] = [];
+    for (const l of front) {
+      if (plan.lanes.has(l.k)) continue;
+      if (l.k === plan.square) {
+        opts.square(l.x, l.by - LOT * SIN);
+        continue;
+      }
+      const b = opts.house(l, true);
+      if (b) built.push(b);
+    }
+    return { front, built, plan };
+  }
+
   private garden(g: CanvasRenderingContext2D, P: Place) {
     const { rng, ground, scale, w } = P;
-    const { back, front } = this.lots(P);
-    for (const l of back) this.house(g, P, l.x, l.by, rng.range(42, 58) * scale);
-    const gh = 2 + rng.int(0, Math.max(1, front.length - 4));
-    const houses: Built[] = [];
-    front.forEach((l, k) => {
-      if (k === gh) this.gate('greenhouse', g, (gg) => this.greenhouse(gg, P, l.x, l.by));
-      else if (k % 3 === 1) {
-        // A little garden lot: a round tree and a cypress.
-        const r = rng.range(12, 15);
-        this.gate('trees', g, (gg) => {
-          this.tree(gg, P, l.x - 4, l.by - LOT * SIN - 2, r);
-          this.cypress(gg, P, l.x + 9, l.by - 2, 30 * scale + 6);
-        });
-      } else houses.push(this.house(g, P, l.x, l.by, rng.range(28, 40) * scale));
+    let gh = -1;
+    const { front, built } = this.street(P, {
+      house: (l, isFront) => {
+        if (!isFront) return this.house(g, P, l.x, l.by, rng.range(42, 58) * scale);
+        if (gh < 0 && l.k >= 2) {
+          gh = l.k;
+          this.gate('greenhouse', g, (gg) => this.greenhouse(gg, P, l.x, l.by));
+          return null;
+        }
+        if (l.k % 3 === 1) {
+          // A little garden lot: a round tree and a cypress.
+          const r = rng.range(12, 15);
+          this.gate('trees', g, (gg) => {
+            this.tree(gg, P, l.x - 4, l.by - LOT * SIN - 2, r);
+            this.cypress(gg, P, l.x + 9, l.by - 2, 30 * scale + 6);
+          });
+          return null;
+        }
+        return this.house(g, P, l.x, l.by, rng.range(28, 40) * scale);
+      },
+      landmark: (l) => this.chapel(g, P, l.x, l.by, Math.min(66 * scale + 10, (l.cap ?? 999) - 26)),
+      square: (x, y) => this.well(g, P, x, y),
     });
-    // Along the sidewalk: flower beds in front of the notches, pots by the doors, a bench.
     this.notches(front).forEach((x, k) => {
       if (k % 2 === 0) this.gate('flowers', g, (gg) => this.flowerBed(gg, P, x, ground + 12));
     });
-    for (const hb of houses) if (rng.next() < 0.5) this.gate('flowers', g, (gg) => pot(gg, hb.door[0] + 5, ground + 6, P.rng, P.t.greens));
+    for (const hb of built) if (rng.next() < 0.5) this.gate('flowers', g, (gg) => pot(gg, hb.door[0] + 5, ground + 6, P.rng, P.t.greens));
     const fx = w * (rng.next() < 0.5 ? 0.38 : 0.62);
     this.gate('fountain', g, (gg) => this.fountain(gg, P, fx, ground + 14, 13));
     bench(g, fx + 30, ground + 17);
@@ -687,17 +766,26 @@ export class Scene {
 
   private harbour(g: CanvasRenderingContext2D, P: Place) {
     const { rng, ground, scale, w } = P;
-    const { back, front } = this.lots(P);
     // Tall, narrow fishermen's houses; the lighthouse closes the quay at one end.
-    for (const l of back) this.house(g, P, l.x, l.by, rng.range(48, 64) * scale);
-    const lh = rng.next() < 0.5 ? 2 : front.length - 4;
-    const houses: Built[] = [];
-    front.forEach((l, k) => {
-      if (k === lh) this.gate('lighthouse', g, (gg) => this.lighthouse(gg, P, l.x, l.by - 2, 86 * scale));
-      else houses.push(this.house(g, P, l.x, l.by, rng.range(34, 46) * scale));
+    let n = 0;
+    const lhAt = rng.next() < 0.5 ? 2 : 11;
+    const { front, built } = this.street(P, {
+      house: (l, isFront) => {
+        if (!isFront) return this.house(g, P, l.x, l.by, rng.range(48, 64) * scale);
+        if (n++ === lhAt) {
+          this.gate('lighthouse', g, (gg) => this.lighthouse(gg, P, l.x, l.by - 2, 86 * scale));
+          return null;
+        }
+        return this.house(g, P, l.x, l.by, rng.range(34, 46) * scale);
+      },
+      // The harbour master's house: taller, a flat roof and a flag.
+      landmark: (l) => {
+        const b = this.house(g, P, l.x, l.by, Math.min(76 * scale + 8, (l.cap ?? 999) - 14), 'flat');
+        flag(g, b.peak[0], b.peak[1] + 6, '#2F6F8F');
+      },
+      square: (x, y) => this.nets(g, x, y),
     });
-    this.laundry(g, houses, rng);
-    // Crates and barrels by the notches, mooring bollards along the edge of the quay.
+    this.laundry(g, built, rng);
     this.notches(front).forEach((x, k) => {
       if (k % 3 === 1) {
         const third = rng.next() < 0.6;
@@ -714,12 +802,18 @@ export class Scene {
 
   private market(g: CanvasRenderingContext2D, P: Place) {
     const { rng, ground, scale } = P;
-    const { back, front } = this.lots(P);
-    for (const l of back) this.house(g, P, l.x, l.by, rng.range(48, 62) * scale);
-    const houses = front.map((l) => this.house(g, P, l.x, l.by, rng.range(34, 46) * scale));
-    this.gate('garlands', g, () => this.stringLights(houses.map((hb) => hb.peak), 3));
-    this.laundry(g, houses.filter((_, k) => k % 2 === 0), rng);
-    // Striped stalls in front of every other notch, crates of fruit between them.
+    const { front, built } = this.street(P, {
+      house: (l, isFront) => this.house(g, P, l.x, l.by, (isFront ? rng.range(34, 46) : rng.range(48, 62)) * scale),
+      // The bell tower of the market square, once it is restored.
+      landmark: (l) => {
+        const h = Math.min(118 * scale + 10, l.cap ?? 999);
+        if (this.has('belltower')) this.campanile(g, P, l.x, l.by, h);
+        else this.house(g, P, l.x, l.by, 56 * scale);
+      },
+      square: (x, y) => this.fountain(g, P, x, y + 4, 11),
+    });
+    this.gate('garlands', g, () => this.stringLights(built.map((hb) => hb.peak), 3));
+    this.laundry(g, built.filter((_, k) => k % 2 === 0), rng);
     const stripes: [string, string][] = [['#C4553F', '#FBF1E1'], ['#3E7C8C', '#FBF1E1'], ['#F2B23C', '#FBF1E1'], ['#6F8F4E', '#F6E7C9']];
     this.notches(front).forEach((x, k) => {
       if (k % 2 === 0) this.gate('stalls', g, (gg) => this.stall(gg, x - 8, ground + 14, 18, 9, stripes[(k / 2 + this.seed) % stripes.length]));
@@ -731,16 +825,20 @@ export class Scene {
         });
       }
     });
-    for (const hb of houses) if (rng.next() < 0.35) this.gate('paint', g, (gg) => pot(gg, hb.door[0] + 5, ground + 6, P.rng, P.t.greens));
+    for (const hb of built) if (rng.next() < 0.35) this.gate('paint', g, (gg) => pot(gg, hb.door[0] + 5, ground + 6, P.rng, P.t.greens));
   }
 
   private village(g: CanvasRenderingContext2D, P: Place) {
     const { rng, ground, scale } = P;
-    const { back, front } = this.lots(P);
-    for (const l of back) this.house(g, P, l.x, l.by, rng.range(48, 64) * scale);
-    const houses = front.map((l) => this.house(g, P, l.x, l.by, rng.range(32, 44) * scale));
-    this.gate('garlands', g, () => this.stringLights(houses.map((hb) => hb.peak), 4));
-    // A street lamp at every other notch, a bench between them.
+    const { front, built } = this.street(P, {
+      house: (l, isFront) => this.house(g, P, l.x, l.by, (isFront ? rng.range(32, 44) : rng.range(48, 64)) * scale),
+      landmark: (l) => this.domeChurch(g, l.x, l.by, Math.min(58 * scale + 8, (l.cap ?? 999) - 30)),
+      square: (x, y) => {
+        this.gate('lamps', g, (gg) => this.lamp(gg, x, y + 4, 24));
+        bench(g, x + 12, y + 6);
+      },
+    });
+    this.gate('garlands', g, () => this.stringLights(built.map((hb) => hb.peak), 4));
     this.notches(front).forEach((x, k) => {
       if (k % 2 === 0) this.gate('lamps', g, (gg) => this.lamp(gg, x, ground + 16, 26));
       else if (k % 4 === 1) bench(g, x, ground + 15);
@@ -770,6 +868,158 @@ export class Scene {
     });
   }
 
+  /** The garden's chapel: whitewashed, a rose window, an arched door and a bell in its gable. */
+  private chapel(g: CanvasRenderingContext2D, P: Place, x: number, by: number, h: number) {
+    const wall = this.has('paint') ? '#F6EFE2' : '#DCD6CC';
+    const p = box(g, x, by, LOT, LOT, h, wall, false);
+    const L = onLeft(p), R = onRight(p);
+    arch(g, L, 0.38, 0.62, 0, 0.3, '#7A5A48');
+    const c = L(0.5, 0.62);
+    g.fillStyle = '#5F8FB0';
+    g.beginPath();
+    g.ellipse(c[0], c[1], 3.4, 4.2, 0, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#F6EFE2';
+    g.lineWidth = 0.8;
+    g.beginPath();
+    g.moveTo(c[0] - 3.4, c[1]);
+    g.lineTo(c[0] + 3.4, c[1]);
+    g.moveTo(c[0], c[1] - 4.2);
+    g.lineTo(c[0], c[1] + 4.2);
+    g.stroke();
+    for (const u of [0.3, 0.7]) arch(g, R, u - 0.08, u + 0.08, 0.45, 0.72, 'rgba(40,50,60,0.5)');
+    const peak = this.roof(g, P, p, '#C8664E', LOT * 0.8, wall, 'gable');
+    // The bell cote standing on the gable.
+    const bx = peak[0], bb = peak[1] + 2;
+    poly(g, [[bx - 4, bb], [bx + 4, bb], [bx + 4, bb - 10], [bx, bb - 14], [bx - 4, bb - 10]], wall);
+    arch(g, (u, v) => [bx - 2.4 + u * 4.8, bb - 2 - v * 6], 0, 1, 0, 1, '#4A3E36');
+    g.fillStyle = '#E0A332';
+    g.beginPath();
+    g.arc(bx, bb - 5, 1.6, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  /** The market's bell tower: brick, a clock, open arches for the bells, a pyramid roof. */
+  private campanile(g: CanvasRenderingContext2D, P: Place, x: number, by: number, h: number) {
+    const s = LOT * 0.78;
+    const brick = '#E3A57E';
+    const p = box(g, x, by, s, s, h, brick, false);
+    const L = onLeft(p), R = onRight(p);
+    // Brick courses and a stone band under the belfry.
+    g.strokeStyle = 'rgba(120,60,40,0.18)';
+    g.lineWidth = 0.6;
+    g.beginPath();
+    for (let v = 0.06; v < 0.78; v += 0.06)
+      for (const f of [L, R]) {
+        const a = f(0, v), b = f(1, v);
+        g.moveTo(a[0], a[1]);
+        g.lineTo(b[0], b[1]);
+      }
+    g.stroke();
+    quadOn(g, L, 0, 1, 0.78, 0.81, '#F2DCC0');
+    quadOn(g, R, 0, 1, 0.78, 0.81, shade('#F2DCC0', -0.2));
+    for (const f of [L, R]) arch(g, f, 0.25, 0.75, 0.83, 0.95, 'rgba(50,30,25,0.75)');
+    const c = L(0.5, 0.62);
+    g.fillStyle = '#FBF4E8';
+    g.beginPath();
+    g.ellipse(c[0], c[1], 3.6, 4, 0, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#3A2E2A';
+    g.lineWidth = 0.7;
+    g.beginPath();
+    g.moveTo(c[0], c[1]);
+    g.lineTo(c[0], c[1] - 2.6);
+    g.moveTo(c[0], c[1]);
+    g.lineTo(c[0] + 1.8, c[1] + 0.8);
+    g.stroke();
+    this.roof(g, P, p, '#C4553F', s * 1.3, brick, 'hip');
+  }
+
+  /** The night village's church: a block crowned by a drum and a dome with a lantern. */
+  private domeChurch(g: CanvasRenderingContext2D, x: number, by: number, h: number) {
+    const wall = '#8A7CAB';
+    const p = box(g, x, by, LOT, LOT, h, wall, false);
+    const L = onLeft(p), R = onRight(p);
+    const lit = this.has('lights');
+    for (const u of [0.3, 0.7]) arch(g, L, u - 0.1, u + 0.1, 0.35, 0.7, lit ? GLOW : '#2B2747');
+    arch(g, R, 0.4, 0.6, 0.35, 0.7, lit ? shade(GLOW, -0.1) : '#2B2747');
+    if (lit && !this.mute) this.lit.push(L(0.3, 0.35)[0], L(0.7, 0.35)[0]);
+    poly(g, [p.Lt, p.Ft, p.Rt, p.Bt], shade(wall, 0.15));
+    const c: Pt = [(p.Lt[0] + p.Rt[0]) / 2, (p.Lt[1] + p.Rt[1]) / 2];
+    cylinder(g, c[0], c[1] + 3, 9, 8, shade(wall, 0.05));
+    const top = c[1] - 5;
+    const grad = g.createLinearGradient(c[0] - 9, 0, c[0] + 9, 0);
+    grad.addColorStop(0, '#6F6AA8');
+    grad.addColorStop(1, '#3B3468');
+    g.fillStyle = grad;
+    g.beginPath();
+    g.ellipse(c[0], top, 9, 10, 0, Math.PI, 0);
+    g.fill();
+    g.fillStyle = lit ? GLOW : '#8A7CAB';
+    g.fillRect(c[0] - 1.5, top - 14, 3, 4);
+    g.fillStyle = '#3B3468';
+    g.fillRect(c[0] - 0.5, top - 18, 1, 4);
+  }
+
+  /** A stone well with a little tiled roof, on the garden's square. */
+  private well(g: CanvasRenderingContext2D, P: Place, x: number, y: number) {
+    g.fillStyle = 'rgba(0,0,0,0.12)';
+    g.beginPath();
+    g.ellipse(x + 2, y + 3, 11, 4, 0, 0, Math.PI * 2);
+    g.fill();
+    cylinder(g, x, y + 2, 7, 6, '#CFC3AE');
+    g.fillStyle = P.t.water[1];
+    g.beginPath();
+    g.ellipse(x, y - 4, 5, 2, 0, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#7A5E48';
+    g.lineWidth = 1.2;
+    g.beginPath();
+    g.moveTo(x - 6, y - 4);
+    g.lineTo(x - 6, y - 16);
+    g.moveTo(x + 6, y - 4);
+    g.lineTo(x + 6, y - 16);
+    g.stroke();
+    poly(g, [[x - 9, y - 15], [x, y - 22], [x + 9, y - 15], [x, y - 13]], '#C8664E');
+    g.fillStyle = '#8C6E58';
+    g.fillRect(x - 0.5, y - 14, 1, 7);
+  }
+
+  /** Fishing nets drying on their poles, on the harbour's little square. */
+  private nets(g: CanvasRenderingContext2D, x: number, y: number) {
+    g.strokeStyle = '#7A5E48';
+    g.lineWidth = 1.2;
+    g.beginPath();
+    g.moveTo(x - 9, y + 4);
+    g.lineTo(x - 9, y - 14);
+    g.moveTo(x + 9, y);
+    g.lineTo(x + 9, y - 18);
+    g.stroke();
+    g.fillStyle = 'rgba(70,110,120,0.35)';
+    poly(g, [[x - 9, y - 13], [x + 9, y - 17], [x + 8, y - 4], [x - 8, y + 1]], 'rgba(70,110,120,0.3)');
+    g.strokeStyle = 'rgba(50,80,90,0.5)';
+    g.lineWidth = 0.5;
+    g.beginPath();
+    for (let k = 1; k < 5; k++) {
+      g.moveTo(x - 9 + k * 3.6, y - 13 - k * 0.8);
+      g.lineTo(x - 8 + k * 3.2, y + 1 - k);
+      g.moveTo(x - 9, y - 13 + k * 3);
+      g.lineTo(x + 9, y - 17 + k * 3);
+    }
+    g.stroke();
+    // A float or two and a coil of rope at the foot.
+    g.fillStyle = '#E07A5F';
+    g.beginPath();
+    g.arc(x - 3, y - 9, 1.4, 0, Math.PI * 2);
+    g.arc(x + 4, y - 11, 1.4, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#B9935F';
+    g.lineWidth = 1;
+    g.beginPath();
+    g.ellipse(x + 2, y + 5, 4, 1.6, 0, 0, Math.PI * 2);
+    g.stroke();
+  }
+
   /** Washing hung between neighbouring houses: the most Mediterranean of details. */
   private laundry(g: CanvasRenderingContext2D, houses: Built[], rng: Rng) {
     const cloth = ['#FBF6EE', '#E07A5F', '#78B4DC', '#F2C46B', '#E9A6B8', '#8FB98B'];
@@ -797,9 +1047,13 @@ export class Scene {
   // ---------------------------------------------------------------- props
 
   /** A house with a gabled tile roof, shuttered windows and a door, on a square lot. */
-  private house(g: CanvasRenderingContext2D, P: Place, x: number, by: number, h: number): Built {
+  private house(g: CanvasRenderingContext2D, P: Place, x: number, by: number, h: number, style?: RoofStyle): Built {
     const { rng, t } = P;
     const l = LOT, r = LOT;
+    const roll = rng.next();
+    const weights = ROOFS[this.theme];
+    let acc = 0;
+    const roofStyle = style ?? (Object.keys(weights) as RoofStyle[]).find((k) => (acc += weights[k]!) >= roll) ?? 'gable';
     // Until the village is repainted, the walls and shutters stay faded.
     const faded = !t.night && !t.underwater && !this.has('paint');
     const wall = faded ? mix(rng.pick(t.walls), '#D6D0C6', 0.6) : rng.pick(t.walls);
@@ -825,6 +1079,12 @@ export class Scene {
     for (let f = 0; f < floors; f++) {
       const v0 = (f + 0.3) / floors, v1 = v0 + 0.42 / floors;
       const us = f === 0 ? [0.25] : [0.5];
+      const arcade = f === 0 && this.theme === 'market' && floors > 1;
+      if (arcade) {
+        // Market houses open onto the square through arches.
+        for (const u of [0.25, 0.75]) arch(g, L, u - 0.17, u + 0.17, 0, 0.75 / floors, 'rgba(50,35,30,0.55)');
+        continue;
+      }
       for (const u of us) {
         const lit = t.night && rng.next() < 0.6 && lights;
         quadOn(g, L, u - 0.07, u + 0.07, v0, v1, lit ? GLOW : dark);
@@ -832,6 +1092,22 @@ export class Scene {
         if (!t.night) {
           quadOn(g, L, u - 0.13, u - 0.07, v0, v1, shutter);
           quadOn(g, L, u + 0.07, u + 0.13, v0, v1, shutter);
+        }
+        if (f >= 1 && rng.next() < 0.22) {
+          // A little balcony: a stone ledge and an iron railing.
+          quadOn(g, L, u - 0.2, u + 0.2, v0 - 0.03 / floors, v0 + 0.01 / floors, shade(wall, -0.25));
+          g.strokeStyle = t.night ? 'rgba(20,18,40,0.8)' : 'rgba(50,45,50,0.75)';
+          g.lineWidth = 0.7;
+          g.beginPath();
+          for (let k = 0; k <= 4; k++) {
+            const a = L(u - 0.2 + k * 0.1, v0), b = L(u - 0.2 + k * 0.1, v0 + 0.16 / floors);
+            g.moveTo(a[0], a[1]);
+            g.lineTo(b[0], b[1]);
+          }
+          const c0 = L(u - 0.2, v0 + 0.16 / floors), c1 = L(u + 0.2, v0 + 0.16 / floors);
+          g.moveTo(c0[0], c0[1]);
+          g.lineTo(c1[0], c1[1]);
+          g.stroke();
         }
         if (f === 1 && !t.night && rng.next() < 0.45) {
           // Flower box under the window (in the garden, once the flowers are back).
@@ -850,9 +1126,16 @@ export class Scene {
         if (lit && !this.mute) this.lit.push(R(0.5, v0)[0]);
       }
     }
-    // Door, with a little stone step.
-    quadOn(g, L, 0.55, 0.75, 0, 0.62 / floors, shade(shutter, -0.15));
-    quadOn(g, L, 0.52, 0.78, 0, 0.05 / floors, shade(t.ground, -0.1));
+    // Door, with a little stone step, and a striped awning over it in the market and the harbour.
+    if (this.theme !== 'market' || floors < 2) {
+      arch(g, L, 0.55, 0.75, 0, 0.62 / floors, shade(shutter, -0.15));
+      quadOn(g, L, 0.52, 0.78, 0, 0.05 / floors, shade(t.ground, -0.1));
+    }
+    if ((this.theme === 'market' || this.theme === 'harbour') && rng.next() < 0.5) {
+      const c = rng.pick(['#C4553F', '#3E7C8C', '#F2B23C', '#6F8F4E']);
+      const v = 0.7 / floors;
+      for (let k = 0; k < 4; k++) quadOn(g, L, 0.5 + k * 0.08, 0.58 + k * 0.08, v, v + 0.08 / floors, k % 2 ? '#FBF1E1' : faded ? mix(c, '#D6D0C6', 0.6) : c);
+    }
     // Bougainvillea climbing the front corner of some houses.
     if (!t.night && !t.underwater) {
       const climb = rng.next() < 0.3;
@@ -878,41 +1161,114 @@ export class Scene {
       g.fillStyle = glow;
       g.fillRect(d[0] - 14, d[1] - 14, 28, 28);
     }
-    const peak = this.roof(g, P, p, rng.pick(t.roofs), Math.min(l, r) * 0.75, wall);
+    const peak = this.roof(g, P, p, rng.pick(t.roofs), Math.min(l, r) * 0.75, wall, roofStyle);
     return { p, peak, door: L(0.65, 0) };
   }
 
-  /** A gabled roof whose ridge runs along the left face; the gable end faces right. */
-  private roof(g: CanvasRenderingContext2D, P: Place, p: Box, col: string, rh: number, wall: string): Pt {
-    const eave = 2;
-    const Lt: Pt = [p.Lt[0] - eave, p.Lt[1] + 1], Ft: Pt = [p.Ft[0], p.Ft[1] + eave];
-    const rF: Pt = [(p.Ft[0] + p.Rt[0]) / 2, (p.Ft[1] + p.Rt[1]) / 2 - rh];
-    const rB: Pt = [(p.Lt[0] + p.Bt[0]) / 2, (p.Lt[1] + p.Bt[1]) / 2 - rh];
-    const wallR = shade(wall, -0.2);
-    poly(g, [rB, rF, p.Rt, p.Bt], shade(col, -0.3));
-    // Gable end (wall), then the front roof slope with rows of tiles.
-    poly(g, [p.Ft, p.Rt, rF], wallR);
-    poly(g, [Lt, Ft, rF, rB], col);
-    g.strokeStyle = shade(col, -0.18);
-    g.lineWidth = 1;
-    g.beginPath();
-    for (let k = 1; k < 4; k++) {
-      const a = lerp(Lt, rB, k / 4), b = lerp(Ft, rF, k / 4);
+  /**
+   * A roof, in one of the shapes that make a Mediterranean skyline: a gable either way, a
+   * hipped roof, or a flat roof terrace with its parapet, plants or pergola. Returns its
+   * highest point (for garlands).
+   */
+  private roof(g: CanvasRenderingContext2D, P: Place, p: Box, col: string, rh: number, wall: string, style: RoofStyle = 'gable'): Pt {
+    const mid = (a: Pt, b: Pt): Pt => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const up = (a: Pt, d: number): Pt => [a[0], a[1] - d];
+    const tiles = (a0: Pt, a1: Pt, b0: Pt, b1: Pt, c: string) => {
+      g.strokeStyle = c;
+      g.lineWidth = 1;
+      g.beginPath();
+      for (let k = 1; k < 4; k++) {
+        const a = lerp(a0, a1, k / 4), b = lerp(b0, b1, k / 4);
+        g.moveTo(a[0], a[1]);
+        g.lineTo(b[0], b[1]);
+      }
+      g.stroke();
+    };
+    const ridge = (a: Pt, b: Pt) => {
+      g.strokeStyle = shade(col, 0.25);
+      g.lineWidth = 1;
+      g.beginPath();
       g.moveTo(a[0], a[1]);
       g.lineTo(b[0], b[1]);
+      g.stroke();
+    };
+    let peak: Pt;
+    let chimneyAt: Pt;
+    switch (style) {
+      case 'flat': {
+        // A roof terrace: tiled floor, a parapet, and something growing or drying on it.
+        poly(g, [p.Lt, p.Ft, p.Rt, p.Bt], shade('#D9A884', P.t.night ? -0.45 : 0));
+        const inset = (q: Pt, k: number): Pt => lerp(q, mid(p.Lt, p.Rt), k);
+        poly(g, [inset(p.Lt, 0.12), inset(p.Ft, 0.12), inset(p.Rt, 0.12), inset(p.Bt, 0.12)], shade('#C98F6B', P.t.night ? -0.45 : 0));
+        for (const [a, b] of [[p.Lt, p.Ft], [p.Ft, p.Rt]] as [Pt, Pt][]) poly(g, [a, b, up(b, 2.5), up(a, 2.5)], shade(wall, 0.12));
+        const c = mid(p.Lt, p.Rt);
+        const deco = P.rng.next();
+        if (deco < 0.4) {
+          // A pergola with a vine.
+          g.strokeStyle = '#8C6E58';
+          g.lineWidth = 1;
+          g.beginPath();
+          for (const q of [p.Lt, p.Ft, p.Rt]) {
+            const r = inset(q, 0.3);
+            g.moveTo(r[0], r[1]);
+            g.lineTo(r[0], r[1] - 9);
+          }
+          g.stroke();
+          poly(g, [up(inset(p.Lt, 0.3), 9), up(inset(p.Ft, 0.3), 9), up(inset(p.Rt, 0.3), 9), up(inset(p.Bt, 0.3), 9)], P.t.night ? 'rgba(60,90,80,0.8)' : 'rgba(110,160,100,0.85)');
+        } else if (deco < 0.75) {
+          pot(g, c[0] - 4, c[1] + 2, P.rng, P.t.greens);
+          pot(g, c[0] + 5, c[1] + 1, P.rng, P.t.greens);
+        } else cylinder(g, c[0] + 2, c[1] + 1, 3.5, 6, '#D7D2CA');
+        peak = up(c, 10);
+        chimneyAt = c;
+        break;
+      }
+      case 'hip': {
+        const apex = up(mid(p.Lt, p.Rt), rh * 0.9);
+        poly(g, [p.Lt, p.Bt, apex], shade(col, -0.3));
+        poly(g, [p.Bt, p.Rt, apex], shade(col, -0.35));
+        poly(g, [p.Lt, p.Ft, apex], col);
+        poly(g, [p.Ft, p.Rt, apex], shade(col, -0.15));
+        tiles(p.Lt, apex, p.Ft, apex, shade(col, -0.16));
+        ridge(p.Ft, apex);
+        peak = apex;
+        chimneyAt = lerp(apex, p.Rt, 0.4);
+        break;
+      }
+      case 'gableX': {
+        // Ridge along the right face: the gable end looks left.
+        const eave = 2;
+        const Ft: Pt = [p.Ft[0], p.Ft[1] + eave], Rt: Pt = [p.Rt[0] + eave, p.Rt[1] + 1];
+        const rL = up(mid(p.Lt, p.Ft), rh), rR = up(mid(p.Bt, p.Rt), rh);
+        poly(g, [p.Lt, p.Bt, rR, rL], shade(col, -0.3));
+        poly(g, [p.Lt, p.Ft, rL], wall);
+        poly(g, [Ft, Rt, rR, rL], shade(col, -0.1));
+        tiles(Ft, rL, Rt, rR, shade(col, -0.26));
+        ridge(rL, rR);
+        peak = rL;
+        chimneyAt = lerp(rL, rR, 0.4);
+        break;
+      }
+      default: {
+        // Ridge along the left face: the gable end looks right.
+        const eave = 2;
+        const Lt: Pt = [p.Lt[0] - eave, p.Lt[1] + 1], Ft: Pt = [p.Ft[0], p.Ft[1] + eave];
+        const rF = up(mid(p.Ft, p.Rt), rh), rB = up(mid(p.Lt, p.Bt), rh);
+        poly(g, [rB, rF, p.Rt, p.Bt], shade(col, -0.3));
+        poly(g, [p.Ft, p.Rt, rF], shade(wall, -0.2));
+        poly(g, [Lt, Ft, rF, rB], col);
+        tiles(Lt, rB, Ft, rF, shade(col, -0.18));
+        ridge(rB, rF);
+        peak = rF;
+        chimneyAt = lerp(rB, rF, 0.3);
+      }
     }
-    g.stroke();
-    g.strokeStyle = shade(col, 0.25);
-    g.beginPath();
-    g.moveTo(rB[0], rB[1]);
-    g.lineTo(rF[0], rF[1]);
-    g.stroke();
-    if (P.rng.next() < 0.45) {
-      const c = lerp(rB, rF, 0.3);
+    if (style !== 'flat' && P.rng.next() < 0.45) {
+      const c = chimneyAt;
       box(g, c[0], c[1] + 6, 3, 3, 9, shade(P.t.walls[1 % P.t.walls.length], -0.1));
       if (!this.mute && !P.t.underwater) this.smokes.push([c[0], c[1] - 4]);
     }
-    return rF;
+    return peak;
   }
 
   private tree(g: CanvasRenderingContext2D, P: Place, x: number, by: number, r: number) {
