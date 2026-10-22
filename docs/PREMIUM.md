@@ -79,6 +79,14 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
   canaux), les maisons projettent leur ombre sur les pavés, une lumière douce propre à chaque lieu (soleil chaud,
   lune froide, lumière filtrée sous la mer), un léger vignettage et un grain de papier imprimé, comme Alto, Florence
   ou Gris. Les cases du plateau et les tesselles de la bordure sont en relief.
+- ✅ **Un village cohérent, posé au sol** : le sol est un vrai dallage isométrique (losanges sur les mêmes axes que
+  les maisons, matière propre à chaque lieu : dalles moussues, granit du port, tomettes du marché, pavés de nuit,
+  sable ridé), les maisons forment un îlot (une rangée accolée, une seconde dans les creux), et les objets suivent le
+  trottoir : pots de fleurs aux portes, bancs, réverbères, bittes d'amarrage, étals. Détails : linge tendu entre les
+  maisons, bougainvilliers, fumée des cheminées.
+- ✅ **Des canaux en pierre** : chaque canal est un chenal creusé, bordé de pierre (lèvre éclairée, ombre portée), au
+  fond sec teinté de sa couleur ; l'eau arrive toujours depuis la fontaine, avec reflet, rides et éclats de soleil.
+  Les maisons d'arrivée sont de petites maisons-jouets vues de dessus, façade et porte comprises.
 - ✅ Les fontaines prennent le style du lieu (bassin moussu, tonneau, pierre aux carreaux bleus, bougies, amphore).
 - ⏳ (5) Un vrai pass d'illustrateur sur les dessins (pixel art plus fin en 10×10 et 12×12) et sur l'icône.
 

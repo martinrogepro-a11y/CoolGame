@@ -340,55 +340,77 @@ export class PuzzleRenderer {
     });
     for (const key of [...this.flow.keys()]) if (!live.has(key)) this.flow.delete(key);
 
-    // Banks first, so separate canals never look joined.
+    // A canal is a channel dug in the square: a stone edging catching the light on its
+    // upper lip and casting a shadow below, a sunken bed, then water that rushes in from
+    // the fountain. Edgings first, so separate canals never look joined.
+    const stroke = (path: number[], col: string, width: number, dy = 0) => {
+      g.save();
+      g.translate(0, dy);
+      trace(path);
+      g.strokeStyle = col;
+      g.lineWidth = width;
+      g.stroke();
+      g.restore();
+    };
+    const bank = this.bs.bank;
+    const bed = shadeHex(this.bs.cell, -0.16);
     st.paths.forEach((path) => {
       if (path.length < 2) return;
-      trace(path);
-      g.strokeStyle = this.bs.bank;
-      g.lineWidth = 0.58;
-      g.stroke();
+      stroke(path, 'rgba(30,20,10,0.22)', 0.66, 0.05);
+      stroke(path, shadeHex(bank, 0.28), 0.62, -0.025);
+      stroke(path, bank, 0.6);
     });
     st.paths.forEach((path, k) => {
       if (path.length < 2) return;
       const col = colorOf(st.pathColor(k));
       const flow = this.flow.get(path[0] * 1000 + path[path.length - 1]) ?? 0;
-      trace(path);
-      // Dry bed with a coloured guide line.
-      g.save();
-      g.globalAlpha *= 0.3;
-      g.strokeStyle = col;
-      g.lineWidth = 0.4;
-      g.stroke();
-      g.restore();
-      g.strokeStyle = col;
-      g.lineWidth = 0.1;
-      g.stroke();
+      // The sunken bed: shadowed under its upper edge, with the canal's colour as a guide.
+      stroke(path, shadeHex(bed, -0.12), 0.42, -0.02);
+      stroke(path, bed, 0.4, 0.01);
+      stroke(path, col, 0.12);
       if (flow > 0) {
-        const len = path.length - 1;
+        // Water always flows from the fountain, whichever end the canal was drawn from.
+        const water = st.endpointAt(path[0])?.kind === 'workshop' ? path.slice().reverse() : path;
+        const len = water.length - 1;
         g.setLineDash([len * flow + 0.001, len + 1]);
         g.lineDashOffset = 0;
-        g.strokeStyle = col;
-        g.lineWidth = 0.42;
-        g.stroke();
+        stroke(water, col, 0.4);
+        // Light on the surface: a paler band along the upper bank.
+        g.save();
+        g.globalAlpha *= 0.45;
+        stroke(water, shadeHex(col, 0.45), 0.1, -0.08);
+        g.restore();
         g.setLineDash([]);
         if (flow < 1) {
           // Foamy water front.
           const pos = flow * len;
           const i0 = Math.floor(pos);
           const f = pos - i0;
-          const [ax, ay] = this.center(path[i0], n);
-          const [bx, by] = this.center(path[Math.min(len, i0 + 1)], n);
-          g.fillStyle = 'rgba(255,255,255,0.75)';
+          const [ax, ay] = this.center(water[i0], n);
+          const [bx, by] = this.center(water[Math.min(len, i0 + 1)], n);
+          g.fillStyle = 'rgba(255,255,255,0.8)';
           g.beginPath();
-          g.arc(ax + (bx - ax) * f, ay + (by - ay) * f, 0.13, 0, Math.PI * 2);
+          g.arc(ax + (bx - ax) * f, ay + (by - ay) * f, 0.14, 0, Math.PI * 2);
           g.fill();
         } else {
-          g.strokeStyle = 'rgba(255,255,255,0.32)';
-          g.lineWidth = 0.06;
-          g.setLineDash([0.1, 0.4]);
+          // Ripples drifting downstream, and a few glints of sun.
+          g.save();
+          g.setLineDash([0.08, 0.42]);
           g.lineDashOffset = -this.time * 1.1;
-          g.stroke();
-          g.setLineDash([]);
+          stroke(water, 'rgba(255,255,255,0.4)', 0.05, 0.06);
+          g.lineDashOffset = -this.time * 0.8 - 0.21;
+          stroke(water, 'rgba(255,255,255,0.25)', 0.04, -0.05);
+          g.restore();
+          const gl = (this.time * 0.35 + k * 0.29) % 1;
+          if (gl < 0.25) {
+            const at = water[Math.floor((k * 7 + Math.floor(this.time * 0.35)) % water.length)];
+            const [gx, gy] = this.center(at, n);
+            const a = Math.sin((gl / 0.25) * Math.PI);
+            g.fillStyle = `rgba(255,255,255,${0.8 * a})`;
+            g.beginPath();
+            g.arc(gx + 0.08, gy - 0.05, 0.04 + 0.03 * a, 0, Math.PI * 2);
+            g.fill();
+          }
         }
       }
       if (st.drawingPath === k) {
@@ -828,31 +850,49 @@ export class PuzzleRenderer {
         break;
       }
       default: {
-        // A house roof from above: two slopes meeting at the ridge, tile rows, a chimney.
-        g.fillStyle = shadeHex(col, 0.12);
+        // A little house seen from above and slightly in front, like a toy on the board:
+        // its front wall (door, lit window at night), then the tiled roof over it.
+        const wall = kind === 'night' ? '#8E86B5' : '#F3E8D6';
+        const top = y - h - 0.06, ridge = top + h * 0.95, eaves = y + h * 0.62;
+        g.fillStyle = wall;
+        g.fillRect(x - h + 0.03, eaves - 0.02, h * 2 - 0.06, 0.28);
+        g.fillStyle = 'rgba(0,0,0,0.12)';
+        g.fillRect(x - h + 0.03, eaves - 0.02, h * 2 - 0.06, 0.05);
+        g.fillStyle = shadeHex(col, -0.35);
         g.beginPath();
-        g.roundRect(x - h, y - h, h * 2, h, [0.08, 0.08, 0, 0]);
+        g.roundRect(x - 0.06, eaves + 0.08, 0.12, 0.18, [0.06, 0.06, 0, 0]);
         g.fill();
-        g.fillStyle = shadeHex(col, -0.12);
+        g.fillStyle = kind === 'night' ? (done ? '#FFE3A1' : '#C9B97A') : 'rgba(60,70,80,0.55)';
+        g.fillRect(x + 0.12, eaves + 0.08, 0.09, 0.08);
+        g.fillRect(x - 0.21, eaves + 0.08, 0.09, 0.08);
+        // Roof: the far slope in light, the near slope in shade, tile rows, the ridge.
+        g.fillStyle = shadeHex(col, 0.14);
         g.beginPath();
-        g.roundRect(x - h, y, h * 2, h, [0, 0, 0.08, 0.08]);
+        g.roundRect(x - h - 0.02, top, h * 2 + 0.04, ridge - top, [0.08, 0.08, 0, 0]);
         g.fill();
-        g.strokeStyle = 'rgba(0,0,0,0.12)';
+        g.fillStyle = shadeHex(col, -0.1);
+        g.beginPath();
+        g.roundRect(x - h - 0.02, ridge, h * 2 + 0.04, eaves - ridge, [0, 0, 0.05, 0.05]);
+        g.fill();
+        g.strokeStyle = 'rgba(0,0,0,0.13)';
         g.lineWidth = 0.02;
         g.beginPath();
-        for (const dy of [-0.2, -0.1, 0.1, 0.2]) {
-          g.moveTo(x - h + 0.04, y + dy);
-          g.lineTo(x + h - 0.04, y + dy);
+        for (const u of [0.33, 0.66]) {
+          g.moveTo(x - h + 0.02, top + (ridge - top) * u);
+          g.lineTo(x + h - 0.02, top + (ridge - top) * u);
+          g.moveTo(x - h + 0.02, ridge + (eaves - ridge) * u);
+          g.lineTo(x + h - 0.02, ridge + (eaves - ridge) * u);
         }
         g.stroke();
-        g.fillStyle = 'rgba(255,255,255,0.4)';
-        g.fillRect(x - h, y - 0.012, h * 2, 0.024);
+        g.fillStyle = 'rgba(255,255,255,0.45)';
+        g.fillRect(x - h - 0.02, ridge - 0.015, h * 2 + 0.04, 0.03);
+        // Chimney.
         g.fillStyle = kind === 'night' ? '#3A3468' : '#9C8574';
-        g.fillRect(x + h * 0.4, y - h * 0.75, 0.09, 0.09);
+        g.fillRect(x + h * 0.45, top + 0.02, 0.09, 0.12);
         if (kind === 'harbour') {
           // The little pier the boathouse opens onto.
           g.fillStyle = '#B79572';
-          g.fillRect(x - 0.08, y + h, 0.16, 0.12);
+          g.fillRect(x - 0.08, eaves + 0.26, 0.16, 0.1);
         }
       }
     }

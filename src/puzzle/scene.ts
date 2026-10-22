@@ -89,6 +89,15 @@ const THEMES: Record<ThemeId, Theme> = {
   },
 };
 
+/** Ground of each place: stone size (half-width), colours, gaps between stones. */
+const PAVING: Record<ThemeId, { kind: 'stone' | 'sand'; size: number; stone: string; alt?: string; joint: string; inset: number; vary: number; moss?: string }> = {
+  garden: { kind: 'stone', size: 11, stone: '#E3D7BF', joint: '#C3C09C', inset: 0.9, vary: 0.06, moss: '#9DBB86' },
+  harbour: { kind: 'stone', size: 14, stone: '#DCD3C4', joint: '#B5AA97', inset: 0.93, vary: 0.05 },
+  market: { kind: 'stone', size: 8, stone: '#E9B994', alt: '#F2DCC0', joint: '#C99A76', inset: 0.9, vary: 0.05 },
+  night: { kind: 'stone', size: 7, stone: '#5D5888', joint: '#3E3A66', inset: 0.84, vary: 0.08 },
+  deep: { kind: 'sand', size: 10, stone: '#7FAE9F', joint: '#6B998B', inset: 1, vary: 0 },
+};
+
 /** Light of each place: where it comes from (fraction of the screen), its tint and strength. */
 const LIGHT: Record<ThemeId, { x: number; y: number; rgb: string; a: number; vignette: number }> = {
   garden: { x: 0.8, y: 0.02, rgb: '255,214,160', a: 0.55, vignette: 0.08 },
@@ -240,6 +249,52 @@ function cylinder(g: CanvasRenderingContext2D, x: number, by: number, r: number,
   g.fill();
 }
 
+/** Side of a building lot on the isometric grid. */
+const LOT = 17;
+
+interface Lot {
+  x: number;
+  by: number;
+  k: number;
+}
+
+/** A house as built: its box, its gable peak (for garlands) and its door (for pots). */
+interface Built {
+  p: Box;
+  peak: Pt;
+  door: Pt;
+}
+
+/** A terracotta pot with a round shrub, sometimes in flower. */
+function pot(g: CanvasRenderingContext2D, x: number, by: number, rng: Rng, greens: string[]) {
+  g.fillStyle = 'rgba(0,0,0,0.12)';
+  g.beginPath();
+  g.ellipse(x + 1, by, 4, 1.4, 0, 0, Math.PI * 2);
+  g.fill();
+  poly(g, [[x - 3, by - 5], [x + 3, by - 5], [x + 2.2, by], [x - 2.2, by]], '#C9724F');
+  g.fillStyle = '#A85B3D';
+  g.fillRect(x - 3, by - 5, 6, 1.2);
+  g.fillStyle = rng.pick(greens);
+  g.beginPath();
+  g.arc(x, by - 8, 3.6, 0, Math.PI * 2);
+  g.fill();
+  if (rng.next() < 0.5) {
+    g.fillStyle = rng.pick(FLOWERS);
+    g.fillRect(x - 1.5, by - 10, 1.6, 1.6);
+    g.fillRect(x + 1, by - 8, 1.6, 1.6);
+  }
+}
+
+/** A wooden bench on the sidewalk. */
+function bench(g: CanvasRenderingContext2D, x: number, by: number) {
+  g.fillStyle = 'rgba(0,0,0,0.12)';
+  g.beginPath();
+  g.ellipse(x, by + 1, 8, 2, 0, 0, Math.PI * 2);
+  g.fill();
+  box(g, x, by - 2, 8, 2.5, 1.5, '#A87A52');
+  box(g, x - 1.2, by - 4.5, 8, 0.8, 4, '#946A47');
+}
+
 interface Place {
   rng: Rng;
   t: Theme;
@@ -263,6 +318,8 @@ export class Scene {
   private near: HTMLCanvasElement | null = null;
   private key = '';
   private fountains: Pt[] = [];
+  /** Chimney tops, for their wisps of smoke. */
+  private smokes: Pt[] = [];
   private lamps: Pt[] = [];
   private bulbs: { x: number; y: number; c: string }[] = [];
   private weeds: { x: number; y: number; h: number; c: string }[] = [];
@@ -362,8 +419,10 @@ export class Scene {
     this.bubbles = [];
     this.fish = [];
     this.flies = [];
+    this.smokes = [];
     const menu = board.size === 0;
-    const ground = menu ? board.y : board.y - 20;
+    // In levels the houses stand back from the board, leaving a sidewalk for the props.
+    const ground = menu ? board.y : board.y - 42;
     const quayY = menu ? ground + Math.min(80, (h - ground) * 0.42) : board.y + board.size + 30;
     this.skyY = ground - 16;
     this.waterY = quayY + 9;
@@ -375,7 +434,7 @@ export class Scene {
 
     const near = mk();
     const g = near.g;
-    this.paving(g, t, w, ground - 16, quayY);
+    this.paving(g, t, w, ground - 20, quayY);
     // The place is drawn on its own layer, kept for its reflection in the water.
     const bld = mk();
     switch (this.theme) {
@@ -447,23 +506,70 @@ export class Scene {
     g.globalAlpha = 1;
   }
 
-  /** The village square: warm flagstones in staggered rows. */
+  /**
+   * The village square, lying flat: stones laid on the same isometric axes as the houses
+   * (diamonds, not bricks), each one a shade apart and lit on its upper edges, in the
+   * material of the place. Further back, a little haze, so the ground recedes.
+   */
   private paving(g: CanvasRenderingContext2D, t: Theme, w: number, top: number, bottom: number) {
-    g.fillStyle = t.ground;
-    g.fillRect(0, top, w, bottom - top);
-    g.strokeStyle = shade(t.ground, -0.08);
-    g.lineWidth = 1;
+    const m = PAVING[this.theme];
+    const rng = new Rng(this.seed * 53 + 7);
+    g.save();
     g.beginPath();
-    const rh = 8;
-    for (let y = top + rh, row = 0; y < bottom; y += rh, row++) {
-      g.moveTo(0, y);
-      g.lineTo(w, y);
-      for (let x = (row % 2) * 9; x < w; x += 18) {
-        g.moveTo(x, y - rh);
-        g.lineTo(x, y);
+    g.rect(0, top, w, bottom - top);
+    g.clip();
+    g.fillStyle = m.joint;
+    g.fillRect(0, top, w, bottom - top);
+    const hw = m.size, hh = hw * (SIN / COS);
+    if (m.kind === 'sand') {
+      g.fillStyle = m.stone;
+      g.fillRect(0, top, w, bottom - top);
+      // Ripples along one isometric axis, and a few pebbles and shells.
+      g.strokeStyle = shade(m.stone, -0.07);
+      g.lineWidth = 1;
+      g.beginPath();
+      for (let y = top - w * 0.6; y < bottom; y += 7) {
+        g.moveTo(0, y);
+        for (let x = 0; x <= w; x += 12) g.lineTo(x, y + x * (SIN / COS) + Math.sin(x * 0.15 + y) * 1.2);
+      }
+      g.stroke();
+      for (let k = 0; k < 40; k++) {
+        g.fillStyle = rng.next() < 0.7 ? shade(m.stone, -0.18) : '#F1D9C9';
+        g.beginPath();
+        g.ellipse(rng.next() * w, top + rng.next() * (bottom - top), 1.5 + rng.next() * 2, 1 + rng.next(), 0, 0, Math.PI * 2);
+        g.fill();
+      }
+    } else {
+      for (let row = 0, y = top - hh; y < bottom + hh; row++, y += hh) {
+        for (let x = (row % 2) * hw - hw; x < w + hw; x += hw * 2) {
+          const k = m.inset;
+          const base = m.alt && (Math.round(x / hw) + row) % 4 === 0 ? m.alt : m.stone;
+          const col = shade(base, rng.range(-m.vary, m.vary * 0.6));
+          poly(g, [[x, y - hh * k], [x + hw * k, y], [x, y + hh * k], [x - hw * k, y]], col);
+          // Light on the two upper edges: the stone lies flat and catches the sun.
+          g.strokeStyle = shade(col, 0.18);
+          g.lineWidth = 0.8;
+          g.beginPath();
+          g.moveTo(x - hw * k, y);
+          g.lineTo(x, y - hh * k);
+          g.lineTo(x + hw * k, y);
+          g.stroke();
+          if (m.moss && rng.next() < 0.12) {
+            g.fillStyle = m.moss;
+            g.beginPath();
+            g.ellipse(x + hw * 0.8, y + rng.range(-1, 1), 2.5, 1.2, 0, 0, Math.PI * 2);
+            g.fill();
+          }
+        }
       }
     }
-    g.stroke();
+    // Atmospheric depth: the far side of the square fades a little into the air.
+    const haze = g.createLinearGradient(0, top, 0, top + 70);
+    haze.addColorStop(0, `${t.sky[1]}66`);
+    haze.addColorStop(1, `${t.sky[1]}00`);
+    g.fillStyle = haze;
+    g.fillRect(0, top, w, 70);
+    g.restore();
   }
 
   /** The quay wall in front of the square, then the canal, pond or sea (the abyss under the sea). */
@@ -530,126 +636,178 @@ export class Scene {
     this.mute = prev;
   }
 
-  /** Positions across the width, with a little jitter, for a row of `n` items. */
-  private slots(P: Place, n: number): number[] {
-    return Array.from({ length: n }, (_, k) => ((k + 0.5) / n) * P.w + P.rng.range(-8, 8));
+  /**
+   * Building lots: two rows of square footprints on the isometric grid, like a real
+   * village block. Front-row houses touch corner to corner; the back row sits in the
+   * notches between them, so the street reads as one continuous, coherent place.
+   */
+  private lots(P: Place): { back: Lot[]; front: Lot[] } {
+    const dx = 2 * LOT * COS;
+    const n = Math.ceil(P.w / dx) + 2;
+    const x0 = P.rng.range(-dx / 2, 0);
+    const back: Lot[] = [], front: Lot[] = [];
+    for (let k = -1; k < n; k++) {
+      back.push({ x: x0 + k * dx + LOT * COS, by: P.ground - LOT * SIN, k });
+      front.push({ x: x0 + k * dx, by: P.ground, k });
+    }
+    return { back, front };
+  }
+
+  /** Sidewalk spots between the front-row houses (in front of each notch). */
+  private notches(front: Lot[]): number[] {
+    return front.map((l) => l.x + LOT * COS);
   }
 
   private garden(g: CanvasRenderingContext2D, P: Place) {
-    const { rng, ground, scale } = P;
-    const back = this.slots(P, Math.ceil(P.w / 75));
-    back.forEach((x, k) => {
-      if (k % 2) {
-        const r = rng.range(13, 18);
-        this.gate('trees', g, (gg) => this.tree(gg, P, x, ground - 12, r));
-      } else this.house(g, P, x, ground - 12, rng.range(36, 54) * scale);
+    const { rng, ground, scale, w } = P;
+    const { back, front } = this.lots(P);
+    for (const l of back) this.house(g, P, l.x, l.by, rng.range(42, 58) * scale);
+    const gh = 2 + rng.int(0, Math.max(1, front.length - 4));
+    const houses: Built[] = [];
+    front.forEach((l, k) => {
+      if (k === gh) this.gate('greenhouse', g, (gg) => this.greenhouse(gg, P, l.x, l.by));
+      else if (k % 3 === 1) {
+        // A little garden lot: a round tree and a cypress.
+        const r = rng.range(12, 15);
+        this.gate('trees', g, (gg) => {
+          this.tree(gg, P, l.x - 4, l.by - LOT * SIN - 2, r);
+          this.cypress(gg, P, l.x + 9, l.by - 2, 30 * scale + 6);
+        });
+      } else houses.push(this.house(g, P, l.x, l.by, rng.range(28, 40) * scale));
     });
-    const front = this.slots(P, Math.ceil(P.w / 90));
-    const gh = rng.int(0, front.length);
-    front.forEach((x, k) => {
-      if (k === gh) this.gate('greenhouse', g, (gg) => this.greenhouse(gg, P, x, ground));
-      else if (k % 2) this.gate('trees', g, (gg) => this.cypress(gg, P, x + 10, ground, 34 * scale));
-      else this.house(g, P, x, ground, rng.range(30, 42) * scale);
+    // Along the sidewalk: flower beds in front of the notches, pots by the doors, a bench.
+    this.notches(front).forEach((x, k) => {
+      if (k % 2 === 0) this.gate('flowers', g, (gg) => this.flowerBed(gg, P, x, ground + 12));
     });
-    for (let k = 0; k < 4; k++) {
-      const x = P.w * (0.12 + k * 0.26) + rng.range(-10, 10);
-      this.gate('flowers', g, (gg) => this.flowerBed(gg, P, x, ground + 8));
-    }
-    const fx = P.w * (rng.next() < 0.5 ? 0.3 : 0.7);
-    this.gate('fountain', g, (gg) => this.fountain(gg, P, fx, ground + 4, 14));
+    for (const hb of houses) if (rng.next() < 0.5) this.gate('flowers', g, (gg) => pot(gg, hb.door[0] + 5, ground + 6, P.rng, P.t.greens));
+    const fx = w * (rng.next() < 0.5 ? 0.38 : 0.62);
+    this.gate('fountain', g, (gg) => this.fountain(gg, P, fx, ground + 14, 13));
+    bench(g, fx + 30, ground + 17);
   }
 
   private harbour(g: CanvasRenderingContext2D, P: Place) {
     const { rng, ground, scale, w } = P;
-    // Tall narrow fishermen's houses in a colourful row, the lighthouse at the end of the jetty.
-    const left = rng.next() < 0.5;
-    const lhX = left ? w * 0.1 : w * 0.9;
-    const xs = this.slots(P, Math.ceil(w / 44)).filter((x) => Math.abs(x - lhX) > 34);
-    for (const x of xs) this.house(g, P, x, ground - 4, rng.range(40, 54) * scale, 15, 17);
-    this.gate('lighthouse', g, (gg) => this.lighthouse(gg, P, lhX, ground + 2, 92 * scale));
-    // Crates, barrels and mooring bollards along the quay.
-    for (let k = 0; k < 3; k++) {
-      const x = w * (0.22 + k * 0.28) + rng.range(-12, 12);
-      const third = rng.next() < 0.6;
-      this.gate('crates', g, (gg) => {
-        this.crate(gg, x, ground + 10, 7, null);
-        this.crate(gg, x + 13, ground + 12, 6, null);
-        if (third) this.crate(gg, x + 4, ground + 3, 6, null);
-        this.barrel(gg, x - 14, ground + 12, 5);
-      });
-    }
+    const { back, front } = this.lots(P);
+    // Tall, narrow fishermen's houses; the lighthouse closes the quay at one end.
+    for (const l of back) this.house(g, P, l.x, l.by, rng.range(48, 64) * scale);
+    const lh = rng.next() < 0.5 ? 2 : front.length - 4;
+    const houses: Built[] = [];
+    front.forEach((l, k) => {
+      if (k === lh) this.gate('lighthouse', g, (gg) => this.lighthouse(gg, P, l.x, l.by - 2, 86 * scale));
+      else houses.push(this.house(g, P, l.x, l.by, rng.range(34, 46) * scale));
+    });
+    this.laundry(g, houses, rng);
+    // Crates and barrels by the notches, mooring bollards along the edge of the quay.
+    this.notches(front).forEach((x, k) => {
+      if (k % 3 === 1) {
+        const third = rng.next() < 0.6;
+        this.gate('crates', g, (gg) => {
+          this.crate(gg, x - 6, ground + 12, 6, null);
+          this.crate(gg, x + 6, ground + 13, 5, null);
+          if (third) this.crate(gg, x - 2, ground + 6, 5, null);
+          this.barrel(gg, x + 16, ground + 14, 4);
+        });
+      }
+    });
+    for (let x = 14; x < w; x += 46) cylinder(g, x, ground + 22, 2.4, 5, '#4E555C');
   }
 
   private market(g: CanvasRenderingContext2D, P: Place) {
-    const { rng, ground, scale, w } = P;
-    const roofs: Pt[] = [];
-    for (const x of this.slots(P, Math.ceil(w / 52))) roofs.push(this.house(g, P, x, ground - 12, rng.range(46, 62) * scale, 18, 18));
-    this.gate('garlands', g, () => this.stringLights(roofs, 3));
-    // Stalls with striped awnings, crates of fruit between them.
+    const { rng, ground, scale } = P;
+    const { back, front } = this.lots(P);
+    for (const l of back) this.house(g, P, l.x, l.by, rng.range(48, 62) * scale);
+    const houses = front.map((l) => this.house(g, P, l.x, l.by, rng.range(34, 46) * scale));
+    this.gate('garlands', g, () => this.stringLights(houses.map((hb) => hb.peak), 3));
+    this.laundry(g, houses.filter((_, k) => k % 2 === 0), rng);
+    // Striped stalls in front of every other notch, crates of fruit between them.
     const stripes: [string, string][] = [['#C4553F', '#FBF1E1'], ['#3E7C8C', '#FBF1E1'], ['#F2B23C', '#FBF1E1'], ['#6F8F4E', '#F6E7C9']];
-    const xs = this.slots(P, Math.ceil(w / 95));
-    xs.forEach((x, k) => {
-      this.gate('stalls', g, (gg) => this.stall(gg, x, ground + 6, 22, 12, stripes[(k + this.seed) % stripes.length]));
-      const f1 = rng.pick(FRUIT), f2 = rng.pick(FRUIT);
-      this.gate('fruit', g, (gg) => {
-        this.crate(gg, x + 34, ground + 12, 6, f1);
-        this.crate(gg, x + 46, ground + 13, 6, f2);
-      });
+    this.notches(front).forEach((x, k) => {
+      if (k % 2 === 0) this.gate('stalls', g, (gg) => this.stall(gg, x - 8, ground + 14, 18, 9, stripes[(k / 2 + this.seed) % stripes.length]));
+      else {
+        const f1 = rng.pick(FRUIT), f2 = rng.pick(FRUIT);
+        this.gate('fruit', g, (gg) => {
+          this.crate(gg, x - 5, ground + 12, 5, f1);
+          this.crate(gg, x + 6, ground + 13, 5, f2);
+        });
+      }
     });
+    for (const hb of houses) if (rng.next() < 0.35) this.gate('paint', g, (gg) => pot(gg, hb.door[0] + 5, ground + 6, P.rng, P.t.greens));
   }
 
   private village(g: CanvasRenderingContext2D, P: Place) {
-    const { rng, ground, scale, w } = P;
-    const roofs: Pt[] = [];
-    for (const x of this.slots(P, Math.ceil(w / 60))) this.house(g, P, x, ground - 14, rng.range(48, 66) * scale, 18, 16);
-    for (const x of this.slots(P, Math.ceil(w / 70))) roofs.push(this.house(g, P, x, ground, rng.range(32, 44) * scale, 16, 18));
-    this.gate('garlands', g, () => this.stringLights(roofs, 4));
-    for (let k = 0; k < 3; k++) {
-      const x = w * (0.18 + k * 0.32) + rng.range(-10, 10);
-      this.gate('lamps', g, (gg) => this.lamp(gg, x, ground + 12, 30));
-    }
+    const { rng, ground, scale } = P;
+    const { back, front } = this.lots(P);
+    for (const l of back) this.house(g, P, l.x, l.by, rng.range(48, 64) * scale);
+    const houses = front.map((l) => this.house(g, P, l.x, l.by, rng.range(32, 44) * scale));
+    this.gate('garlands', g, () => this.stringLights(houses.map((hb) => hb.peak), 4));
+    // A street lamp at every other notch, a bench between them.
+    this.notches(front).forEach((x, k) => {
+      if (k % 2 === 0) this.gate('lamps', g, (gg) => this.lamp(gg, x, ground + 16, 26));
+      else if (k % 4 === 1) bench(g, x, ground + 15);
+    });
   }
 
   private ruins(g: CanvasRenderingContext2D, P: Place) {
-    const { rng, ground, scale, w } = P;
-    for (const x of this.slots(P, Math.ceil(w / 70))) {
-      if (rng.next() < 0.45) {
-        const h = rng.range(40, 70) * scale;
-        this.gate('columns', g, (gg) => this.column(gg, P, x, ground - 10, h));
-      } else this.ruinHouse(g, P, x, ground - 10, rng.range(30, 52) * scale);
-    }
-    // A fallen arch, coral and swaying seaweed in front.
-    for (const x of this.slots(P, Math.ceil(w / 60))) {
-      if (rng.next() < 0.5) {
+    const { rng, ground, scale } = P;
+    const { back, front } = this.lots(P);
+    for (const l of back) this.ruinHouse(g, P, l.x, l.by, rng.range(34, 52) * scale);
+    front.forEach((l, k) => {
+      if (k % 2) {
+        const h = rng.range(38, 62) * scale;
+        this.gate('columns', g, (gg) => this.column(gg, P, l.x, l.by - LOT * SIN, h));
+      } else this.ruinHouse(g, P, l.x, l.by, rng.range(26, 40) * scale);
+    });
+    // Coral, swaying seaweed and fallen blocks along the old street.
+    this.notches(front).forEach((x, k) => {
+      if (k % 2 === 0) {
         const c = rng.pick(['#F09A86', '#F2C46B', '#E58FA0']);
-        this.gate('coral', g, (gg) => this.coral(gg, x, ground + 8, c));
-      }
-      for (let k = 0; k < 3; k++) {
-        const wd = { x: x + rng.range(-20, 20), y: ground + 10 + rng.range(-4, 6), h: rng.range(16, 34), c: rng.pick(P.t.greens) };
+        this.gate('coral', g, (gg) => this.coral(gg, x, ground + 14, c));
+      } else box(g, x, ground + 16, 6, 9, 4, shade(P.t.walls[0], -0.1));
+      for (let j = 0; j < 2; j++) {
+        const wd = { x: x + rng.range(-12, 12), y: ground + 12 + rng.range(-3, 6), h: rng.range(14, 28), c: rng.pick(P.t.greens) };
         if (this.has('seaweed')) this.weeds.push(wd);
       }
-    }
-    for (let k = 0; k < 3; k++) {
-      const x = w * (0.2 + k * 0.3) + rng.range(-10, 10);
-      box(g, x, ground + 12, 8, 12, 5, shade(P.t.walls[0], -0.1));
+    });
+  }
+
+  /** Washing hung between neighbouring houses: the most Mediterranean of details. */
+  private laundry(g: CanvasRenderingContext2D, houses: Built[], rng: Rng) {
+    const cloth = ['#FBF6EE', '#E07A5F', '#78B4DC', '#F2C46B', '#E9A6B8', '#8FB98B'];
+    for (let k = 0; k + 1 < houses.length; k++) {
+      const a = houses[k], b = houses[k + 1];
+      if (rng.next() < 0.45 || Math.abs(a.p.R[0] - b.p.L[0]) > 1) continue;
+      const pa = onRight(a.p)(0.5, 0.62), pb = onLeft(b.p)(0.5, 0.62);
+      const mid: Pt = [(pa[0] + pb[0]) / 2, Math.max(pa[1], pb[1]) + 5];
+      g.strokeStyle = 'rgba(70,60,55,0.6)';
+      g.lineWidth = 0.7;
+      g.beginPath();
+      g.moveTo(pa[0], pa[1]);
+      g.quadraticCurveTo(mid[0], mid[1], pb[0], pb[1]);
+      g.stroke();
+      for (let j = 1; j < 4; j++) {
+        const u = j / 4;
+        const x = (1 - u) * (1 - u) * pa[0] + 2 * u * (1 - u) * mid[0] + u * u * pb[0];
+        const y = (1 - u) * (1 - u) * pa[1] + 2 * u * (1 - u) * mid[1] + u * u * pb[1];
+        g.fillStyle = rng.pick(cloth);
+        g.fillRect(x - 2, y, 4, 4 + rng.range(0, 3));
+      }
     }
   }
 
   // ---------------------------------------------------------------- props
 
-  /** A house with a gabled tile roof, shuttered windows and a door. Returns its gable peak. */
-  private house(g: CanvasRenderingContext2D, P: Place, x: number, by: number, h: number, l = 0, r = 0): Pt {
+  /** A house with a gabled tile roof, shuttered windows and a door, on a square lot. */
+  private house(g: CanvasRenderingContext2D, P: Place, x: number, by: number, h: number): Built {
     const { rng, t } = P;
-    l = l || rng.range(15, 24);
-    r = r || rng.range(15, 22);
+    const l = LOT, r = LOT;
     // Until the village is repainted, the walls and shutters stay faded.
     const faded = !t.night && !t.underwater && !this.has('paint');
     const wall = faded ? mix(rng.pick(t.walls), '#D6D0C6', 0.6) : rng.pick(t.walls);
     const shutter = faded ? mix(rng.pick(t.shutters), '#A9A49C', 0.6) : rng.pick(t.shutters);
     const lights = this.has('lights');
-    // Cast shadow on the paving (the sun is high on the right), then the house.
-    const sl = h * 0.5;
-    poly(g, [[x - l * COS, by - l * SIN], [x, by], [x - sl, by + sl * 0.16], [x - l * COS - sl, by - l * SIN + sl * 0.16]], t.night ? 'rgba(10,8,30,0.18)' : 'rgba(60,40,20,0.1)');
+    // Cast shadow on the paving, falling forward and to the left (the sun is high behind, on the right).
+    const sx = -h * 0.22, sy = h * 0.18;
+    poly(g, [[x - l * COS, by - l * SIN], [x, by], [x + sx, by + sy], [x - l * COS + sx, by - l * SIN + sy]], t.night ? 'rgba(10,8,30,0.2)' : 'rgba(60,40,20,0.12)');
     const p = box(g, x, by, l, r, h, wall, false);
     // Contact shading where the walls meet the ground.
     const ao = (f: Face) => {
@@ -666,7 +824,7 @@ export class Scene {
     const dark = t.night ? '#2B2747' : 'rgba(45,55,66,0.62)';
     for (let f = 0; f < floors; f++) {
       const v0 = (f + 0.3) / floors, v1 = v0 + 0.42 / floors;
-      const us = f === 0 ? [0.2] : l > 18 ? [0.3, 0.7] : [0.5];
+      const us = f === 0 ? [0.25] : [0.5];
       for (const u of us) {
         const lit = t.night && rng.next() < 0.6 && lights;
         quadOn(g, L, u - 0.07, u + 0.07, v0, v1, lit ? GLOW : dark);
@@ -692,8 +850,26 @@ export class Scene {
         if (lit && !this.mute) this.lit.push(R(0.5, v0)[0]);
       }
     }
-    // Door.
+    // Door, with a little stone step.
     quadOn(g, L, 0.55, 0.75, 0, 0.62 / floors, shade(shutter, -0.15));
+    quadOn(g, L, 0.52, 0.78, 0, 0.05 / floors, shade(t.ground, -0.1));
+    // Bougainvillea climbing the front corner of some houses.
+    if (!t.night && !t.underwater) {
+      const climb = rng.next() < 0.3;
+      const pick = [rng.next(), rng.next(), rng.next()];
+      if (climb)
+        this.gate(this.theme === 'garden' ? 'flowers' : 'paint', g, (gg) => {
+          for (let k = 0; k < 14; k++) {
+            const v = (k / 14) * 0.75 * (0.6 + pick[k % 3] * 0.4);
+            const c = lerp(p.F, p.Ft, v);
+            const dx = Math.sin(k * 2.3) * 3;
+            gg.fillStyle = k % 3 === 0 ? '#5E9466' : k % 2 ? '#D94F8C' : '#EC7FB0';
+            gg.beginPath();
+            gg.arc(c[0] + dx, c[1], 1.6 + (k % 2) * 0.6, 0, Math.PI * 2);
+            gg.fill();
+          }
+        });
+    }
     if (t.night && lights) {
       const d = L(0.65, 0.3 / floors);
       const glow = g.createRadialGradient(d[0], d[1], 1, d[0], d[1], 14);
@@ -702,7 +878,8 @@ export class Scene {
       g.fillStyle = glow;
       g.fillRect(d[0] - 14, d[1] - 14, 28, 28);
     }
-    return this.roof(g, P, p, rng.pick(t.roofs), Math.min(l, r) * 0.75, wall);
+    const peak = this.roof(g, P, p, rng.pick(t.roofs), Math.min(l, r) * 0.75, wall);
+    return { p, peak, door: L(0.65, 0) };
   }
 
   /** A gabled roof whose ridge runs along the left face; the gable end faces right. */
@@ -733,6 +910,7 @@ export class Scene {
     if (P.rng.next() < 0.45) {
       const c = lerp(rB, rF, 0.3);
       box(g, c[0], c[1] + 6, 3, 3, 9, shade(P.t.walls[1 % P.t.walls.length], -0.1));
+      if (!this.mute && !P.t.underwater) this.smokes.push([c[0], c[1] - 4]);
     }
     return rF;
   }
@@ -771,7 +949,7 @@ export class Scene {
 
   private greenhouse(g: CanvasRenderingContext2D, P: Place, x: number, by: number) {
     const h = 18 * P.scale + 6;
-    const p = box(g, x, by, 26, 14, h, '#D3ECE6', false);
+    const p = box(g, x, by, LOT, LOT, h, '#D3ECE6', false);
     g.strokeStyle = 'rgba(255,255,255,0.9)';
     g.lineWidth = 1;
     const L = onLeft(p), R = onRight(p);
@@ -952,7 +1130,7 @@ export class Scene {
   /** A drowned house: no roof, a jagged broken top, dark empty windows. */
   private ruinHouse(g: CanvasRenderingContext2D, P: Place, x: number, by: number, h: number) {
     const col = P.rng.pick(P.t.walls);
-    const p = box(g, x, by, P.rng.range(16, 22), P.rng.range(14, 20), h, col, false);
+    const p = box(g, x, by, LOT, LOT, h, col, false);
     const L = onLeft(p), R = onRight(p);
     for (const u of [0.3, 0.7]) quadOn(g, L, u - 0.08, u + 0.08, 0.45, 0.75, 'rgba(8,40,52,0.55)');
     quadOn(g, R, 0.4, 0.6, 0.45, 0.75, 'rgba(8,40,52,0.45)');
@@ -995,6 +1173,17 @@ export class Scene {
   // ---------------------------------------------------------------- living details
 
   private drawLife(g: CanvasRenderingContext2D, t: Theme, w: number, h: number, time: number) {
+    // Wisps of smoke drifting from the chimneys.
+    for (let k = 0; k < this.smokes.length; k++) {
+      const [x, y] = this.smokes[k];
+      for (let j = 0; j < 3; j++) {
+        const u = (time * 0.22 + j / 3 + k * 0.37) % 1;
+        g.fillStyle = t.night ? `rgba(190,190,220,${(1 - u) * 0.22})` : `rgba(255,255,255,${(1 - u) * 0.5})`;
+        g.beginPath();
+        g.arc(x + u * 7 + Math.sin(time + j + k) * 1.5, y - u * 16, 1.4 + u * 3.2, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
     // Fountain jets.
     for (const [x, y] of this.fountains) {
       g.fillStyle = 'rgba(255,255,255,0.75)';
