@@ -1889,12 +1889,19 @@ export class Scene {
       const x = ((time * (12 + k * 4) + k * 140) % (w + 160)) - 80;
       const y = this.skyY * 0.3 + k * 16 + Math.sin(time * 0.8 + k) * 6;
       const flap = Math.sin(time * 7 + k * 2) * 3;
+      // Never across the title: they fade out as they fly behind the centre of the top bar.
+      const centre = Math.abs(x - w / 2) / (w * 0.32);
+      if (y < 180 && centre < 1) {
+        if (centre < 0.55) continue;
+        g.globalAlpha = (centre - 0.55) / 0.45;
+      } else g.globalAlpha = 1;
       g.beginPath();
       g.moveTo(x - 5, y - flap);
       g.lineTo(x, y);
       g.lineTo(x + 5, y - flap);
       g.stroke();
     }
+    g.globalAlpha = 1;
   }
 
   private drawRays(g: CanvasRenderingContext2D, w: number, h: number, time: number) {

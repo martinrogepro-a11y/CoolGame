@@ -107,7 +107,8 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
   fond sec teinté de sa couleur ; l'eau arrive toujours depuis la fontaine, avec reflet, rides et éclats de soleil.
   Les maisons d'arrivée sont de petites maisons-jouets vues de dessus, façade et porte comprises.
 - ✅ **Ce qui navigue sur les canaux vient du lieu** : canards au jardin, petit bateau de pêche au port, gondole
-  chargée de fruits au marché, gondole et sa lanterne la nuit, poissons dans la cité engloutie. Au port, la source est
+  chargée de fruits au marché, gondole et sa lanterne la nuit, poissons dans la cité engloutie, dessinés de profil
+  comme des jouets sur l'eau (bien plus reconnaissables que vus de dessus). Au port, la source est
   une glène de cordage. Les joints du plateau reprennent ceux des pavés de la place.
 - ✅ Les fontaines prennent le style du lieu (bassin moussu, tonneau, pierre aux carreaux bleus, bougies, amphore).
 - ⏳ (5) Un vrai pass d'illustrateur sur les dessins (pixel art plus fin en 10×10 et 12×12) et sur l'icône.
