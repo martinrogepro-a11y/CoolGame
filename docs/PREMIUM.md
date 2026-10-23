@@ -40,6 +40,12 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
   cases est complété case par case ; une loupe flotte au-dessus du doigt (comme celle d'iOS) pour voir la case cachée.
 - ✅ Vibrations fines (tic à chaque case, succès à chaque canal), canaux coupés qui se reforment si on recule.
 - ✅ Doigt fantôme au premier niveau : on comprend sans lire.
+- ✅ **Transition signature** : chaque changement d'écran se fait par une mosaïque de tesselles qui tournent et
+  tombent en vague diagonale ; les fenêtres font monter leur contenu l'un après l'autre, les tesselles gagnées
+  défilent comme des pièces, les cartes s'enfoncent sous le doigt. Respecte le réglage « réduire les animations ».
+- ✅ **Performances** : tout ce qui ne bouge pas (ciel, décor, lumière, grain) est composé une fois en une seule image ;
+  rendu à 2× la résolution (au lieu de 3×) ; demi-cadence quand personne ne touche l'écran. Mesuré sur un
+  processeur ralenti 6 fois, sans carte graphique : de 3 à 60 images/s au repos, environ 40 en traçant.
 - ⏳ (4) Effets d'écran au tout premier dessin révélé (particules de tesselles), transitions entre écrans animées.
 
 ## 3. Direction artistique et son
@@ -94,6 +100,8 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
   marché une fois restauré, église à coupole la nuit). Les toits varient (deux sens de pignon, toits en croupe,
   toits-terrasses avec pergola, plantes ou citerne), les façades aussi (balcons en fer forgé, stores rayés au-dessus
   des portes, arcades au rez-de-chaussée du marché, portes cintrées).
+- ✅ **La Cité engloutie** a sa rue, elle aussi : un temple (colonnade debout une fois restaurée, fronton), une
+  grande tête de statue couchée dans le sable, des amphores, et une épave de voilier au loin.
 - ✅ **Des canaux en pierre** : chaque canal est un chenal creusé, bordé de pierre (lèvre éclairée, ombre portée), au
   fond sec teinté de sa couleur ; l'eau arrive toujours depuis la fontaine, avec reflet, rides et éclats de soleil.
   Les maisons d'arrivée sont de petites maisons-jouets vues de dessus, façade et porte comprises.

@@ -1573,3 +1573,68 @@ button[disabled] {
   color: #f3eee4;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
 }
+
+/* Screen transition: tesserae turning and falling away in a diagonal wave. */
+.mosaic-wipe {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  pointer-events: none;
+  z-index: 60;
+}
+.mosaic-wipe i {
+  margin: 1px;
+  border-radius: 3px;
+  animation: tess-out 0.42s cubic-bezier(0.55, 0, 0.75, 0.2) both;
+}
+@keyframes tess-out {
+  from {
+    transform: scale(1.04) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0) rotate(30deg);
+    opacity: 0.6;
+  }
+}
+
+/* Sheets: their contents rise in one after the other. */
+.sheet > * {
+  animation: rise 0.42s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+.sheet > *:nth-child(2) { animation-delay: 60ms; }
+.sheet > *:nth-child(3) { animation-delay: 110ms; }
+.sheet > *:nth-child(4) { animation-delay: 160ms; }
+.sheet > *:nth-child(5) { animation-delay: 210ms; }
+.sheet > *:nth-child(6) { animation-delay: 250ms; }
+.sheet > *:nth-child(n + 7) { animation-delay: 290ms; }
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Cards and buttons give under the finger. */
+.card,
+.btn,
+.icon-btn,
+.lvl,
+.vtab {
+  transition: transform 0.12s ease;
+}
+.card:active,
+.lvl:active,
+.vtab:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet > * {
+    animation: none;
+  }
+}

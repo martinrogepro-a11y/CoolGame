@@ -26,6 +26,9 @@ export class App {
   private board: HTMLCanvasElement;
   private screen: Screen = 'home';
   private last = performance.now();
+  private frames = 0;
+  private pending = 0;
+  private lastTouch = performance.now();
   private pal: Palette;
   private puzzle: PuzzleMode;
 
@@ -54,6 +57,7 @@ export class App {
       void this.action(el.dataset.a!, el.dataset.v ?? '');
     });
     window.addEventListener('resize', () => this.puzzle.resize());
+    for (const ev of ['pointerdown', 'pointermove'] as const) window.addEventListener(ev, () => (this.lastTouch = performance.now()), { passive: true });
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
         refreshDaily(save);
@@ -90,6 +94,7 @@ export class App {
   // ---------------------------------------------------------------- navigation
 
   private go(screen: Screen) {
+    if (screen !== this.screen) this.wipe();
     this.screen = screen;
     if (screen !== 'puzzle') this.puzzle.stop();
     // Each place has its soundscape, in levels and (softer) behind the home screen.
@@ -107,6 +112,31 @@ export class App {
     // Light text over the dark places (night, sunken city).
     const shown = screen === 'village' ? this.place : screen === 'home' ? chapterOf(save.puzzle.next).chapter.id : '';
     this.ui.classList.toggle('pz-dark', shown === 'night' || shown === 'deep');
+  }
+
+  /**
+   * The game's signature transition: the new screen appears as a mosaic of tesserae
+   * that turn and fall away in a diagonal wave.
+   */
+  private wipe() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const host = this.ui.parentElement;
+    if (!host) return;
+    host.querySelector('.mosaic-wipe')?.remove();
+    const cols = 8;
+    const rows = Math.ceil((cols * window.innerHeight) / window.innerWidth);
+    const colors = [...MATERIALS.map((m) => m.color), this.pal.card, this.pal.card];
+    const el = document.createElement('div');
+    el.className = 'mosaic-wipe';
+    el.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    el.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    let html = '';
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        html += `<i style="background:${colors[(r * 5 + c * 3 + ((r * c) % 4)) % colors.length]};animation-delay:${(r + c) * 16}ms"></i>`;
+    el.innerHTML = html;
+    host.appendChild(el);
+    setTimeout(() => el.remove(), (rows + cols) * 16 + 500);
   }
 
   private toast(msg: string) {
@@ -140,10 +170,12 @@ export class App {
   private async action(a: string, v: string) {
     if (a.startsWith('pz-')) {
       if (a === 'pz-play' || a === 'pz-daily') {
+        if (this.screen !== 'puzzle') this.wipe();
         this.screen = 'puzzle';
         this.board.style.display = 'block';
       }
       if (a === 'pz-levels') {
+        if (this.screen !== 'levels') this.wipe();
         this.screen = 'levels';
         this.board.style.display = 'none';
       }
@@ -241,12 +273,27 @@ export class App {
   // ---------------------------------------------------------------- frame loop
 
   private frame(now: number) {
-    const dt = Math.min(0.05, (now - this.last) / 1000);
+    const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
+    // When nobody touches the screen and nothing on the board is moving, the gentle
+    // ambient animation runs at half rate: smooth enough, and half the battery.
+    this.frames++;
+    this.pending += dt;
+    const idle = now - this.lastTouch > 2500 && !(this.screen === 'puzzle' && this.puzzle.busy);
+    if (idle && this.frames % 2) {
+      requestAnimationFrame((n) => this.frame(n));
+      return;
+    }
+    const step = Math.min(0.1, this.pending);
+    this.pending = 0;
+    this.render(step);
+    requestAnimationFrame((n) => this.frame(n));
+  }
+
+  private render(dt: number) {
     if (this.screen === 'village') this.puzzle.villageView(dt, this.place);
     else if (this.screen === 'home') this.puzzle.ambient(dt);
     else if (this.screen === 'puzzle') this.puzzle.frame(dt);
-    requestAnimationFrame((n) => this.frame(n));
   }
 
   // ---------------------------------------------------------------- home

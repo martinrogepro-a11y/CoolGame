@@ -40,6 +40,10 @@ export class PuzzleRenderer {
   private pulses: { k: number; t: number }[] = [];
   /** Water fill progress (0..1) of each linked canal, keyed by its two ends. */
   private flow = new Map<number, number>();
+  /** True while something on the board is moving fast (water rushing in, a hint, the reveal). */
+  get animating(): boolean {
+    return this.pulses.length > 0 || (this.reveal > 0 && this.reveal < 1) || [...this.flow.values()].some((f) => f < 1);
+  }
   /** Width of the mosaic border, in cells. */
   private border = 0.34;
   /** Finger position while drawing: a magnifier shows the cells under it on dense grids. */
@@ -64,7 +68,8 @@ export class PuzzleRenderer {
   }
 
   resize() {
-    this.dpr = Math.min(window.devicePixelRatio || 1, 3);
+    // Twice the CSS resolution is as sharp as the eye sees on a phone, at less than half the pixels of 3×.
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.cw = this.canvas.clientWidth;
     this.ch = this.canvas.clientHeight;
     this.canvas.width = Math.round(this.cw * this.dpr);

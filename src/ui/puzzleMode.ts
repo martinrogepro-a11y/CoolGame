@@ -243,6 +243,11 @@ export class PuzzleMode {
     if (this.st) this.renderer.layout(this.st.n);
   }
 
+  /** True while the player is drawing or the board is animating: render at full rate. */
+  get busy(): boolean {
+    return this.pointer !== null || this.solvedAt >= 0 || this.renderer.animating;
+  }
+
   frame(dt: number) {
     if (!this.st) return;
     if (this.solvedAt >= 0) {
@@ -383,7 +388,7 @@ export class PuzzleMode {
     const r = this.result!;
     const perfect = st.perfect(this.hintsUsed);
     const stars = [0, 1, 2].map((k) => `<i class="star ${k === 0 || perfect ? 'on' : ''}">★</i>`).join('');
-    const chips = r.earned.map((n, c) => (n > 0 ? `<span class="t">${sq(c)}${n}</span>` : '')).join('');
+    const chips = r.earned.map((n, c) => (n > 0 ? `<span class="t">${sq(c)}<b data-count="${n}">0</b></span>` : '')).join('');
     const canDouble = !this.doubled && r.total > 0 && ads.rewardedAvailable();
     const chestPct = Math.min(100, Math.round((save.puzzle.chest / CHEST_STARS) * 100));
     const chestReady = save.puzzle.chest >= CHEST_STARS;
@@ -411,6 +416,15 @@ export class PuzzleMode {
         ${canDouble ? `<button class="btn" data-a="pz-double">${icon.video} ${t('doubleAd')}</button>` : ''}
         <div class="row2"><button class="btn" data-a="pz-home">${t('home')}</button><button class="btn" data-a="pz-levels">${t('pz_journey')}</button></div>
       </div>`);
+    // The tesserae won count up, like coins dropping into the purse.
+    const counters = [...this.host.ui.querySelectorAll<HTMLElement>('.earned b[data-count]')];
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const u = Math.min(1, (now - t0 - 350) / 700);
+      for (const el of counters) el.textContent = String(Math.round(Number(el.dataset.count) * (1 - (1 - Math.max(0, u)) ** 3)));
+      if (u < 1 && counters[0]?.isConnected) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
     // Let the finished mosaic show above the sheet: shrink the board into the space left.
     this.host.ui.querySelector('.modal')?.classList.add('modal-low');
     const sheet = this.host.ui.querySelector('.sheet');

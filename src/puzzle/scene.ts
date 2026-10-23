@@ -311,6 +311,36 @@ function flag(g: CanvasRenderingContext2D, x: number, y: number, col: string) {
   poly(g, [[x + 0.5, y - 14], [x + 9, y - 11.5], [x + 0.5, y - 9]], col);
 }
 
+/** A terracotta amphora, standing or lying at an angle. */
+function amphora(g: CanvasRenderingContext2D, x: number, by: number, tilt: number) {
+  g.save();
+  g.translate(x, by);
+  g.fillStyle = 'rgba(0,30,40,0.18)';
+  g.beginPath();
+  g.ellipse(1, 0, 5, 1.6, 0, 0, Math.PI * 2);
+  g.fill();
+  g.rotate(tilt);
+  g.fillStyle = '#C9825F';
+  g.beginPath();
+  g.moveTo(-1, 0);
+  g.quadraticCurveTo(-5.5, -5, -2, -11);
+  g.lineTo(-1.2, -14);
+  g.lineTo(1.2, -14);
+  g.lineTo(2, -11);
+  g.quadraticCurveTo(5.5, -5, 1, 0);
+  g.closePath();
+  g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.18)';
+  g.fillRect(-3, -9, 1.2, 5);
+  g.strokeStyle = '#A9643F';
+  g.lineWidth = 0.8;
+  g.beginPath();
+  g.arc(-2.6, -11.5, 1.6, Math.PI * 0.5, Math.PI * 1.4);
+  g.arc(2.6, -11.5, 1.6, -Math.PI * 0.4, Math.PI * 0.5);
+  g.stroke();
+  g.restore();
+}
+
 /** A wooden bench on the sidewalk. */
 function bench(g: CanvasRenderingContext2D, x: number, by: number) {
   g.fillStyle = 'rgba(0,0,0,0.12)';
@@ -340,8 +370,8 @@ export class Scene {
   /** While true, props draw into a throwaway canvas and leave no living details behind. */
   private mute = false;
   private sinkCtx: CanvasRenderingContext2D | null = null;
-  private far: HTMLCanvasElement | null = null;
-  private near: HTMLCanvasElement | null = null;
+  /** Sky, scenery, light and grain, composed once per layout. */
+  private stat: HTMLCanvasElement | null = null;
   private key = '';
   private fountains: Pt[] = [];
   /** Chimney tops, for their wisps of smoke. */
@@ -369,18 +399,13 @@ export class Scene {
       this.key = key;
       this.build(t, w, h, dpr, board);
     }
-    const sky = g.createLinearGradient(0, 0, 0, this.skyY);
-    sky.addColorStop(0, t.sky[0]);
-    sky.addColorStop(1, t.sky[1]);
-    g.fillStyle = sky;
-    g.fillRect(0, 0, w, h);
-    if (t.night) this.drawNightSky(g, w, time);
+    // Everything that never moves (sky, moon or sun, scenery, light, grain) is one cached
+    // image: a single copy per frame, then only the living details on top.
+    if (this.stat) g.drawImage(this.stat, 0, 0, w, h);
+    if (t.night) this.drawStars(g, w, time);
     else if (t.underwater) this.drawRays(g, w, h, time);
     else this.drawClouds(g, w, time);
-    if (this.far) g.drawImage(this.far, 0, 0, w, h);
-    if (this.near) g.drawImage(this.near, 0, 0, w, h);
     this.drawLife(g, t, w, h, time);
-    this.drawLight(g, w, h);
   }
 
   /**
@@ -456,7 +481,6 @@ export class Scene {
 
     const far = mk();
     this.farLayer(far.g, P);
-    this.far = far.c;
 
     const near = mk();
     const g = near.g;
@@ -474,7 +498,20 @@ export class Scene {
     this.bld = bld.c;
     this.groundY = ground;
     this.quayAndWater(g, t, w, h, quayY);
-    this.near = near.c;
+
+    const stat = mk();
+    const sg = stat.g;
+    const sky = sg.createLinearGradient(0, 0, 0, this.skyY);
+    sky.addColorStop(0, t.sky[0]);
+    sky.addColorStop(1, t.sky[1]);
+    sg.fillStyle = sky;
+    sg.fillRect(0, 0, w, h);
+    if (t.night) this.drawMoon(sg, w);
+    else if (!t.underwater) this.drawSun(sg, w);
+    sg.drawImage(far.c, 0, 0, w, h);
+    sg.drawImage(near.c, 0, 0, w, h);
+    this.drawLight(sg, w, h);
+    this.stat = stat.c;
 
     const r2 = new Rng(this.seed + 5);
     if (t.underwater) {
@@ -508,6 +545,19 @@ export class Scene {
     } else {
       // A far row of rooftops (a bell tower and a dome for the town, broken columns underwater).
       let x = -10;
+      if (t.underwater) {
+        // A sunken sailing ship resting on its side in the distance.
+        const sx = w * rng.range(0.15, 0.85), sy = base - 4;
+        g.fillStyle = shade(t.sky[1], 0.18);
+        g.beginPath();
+        g.moveTo(sx - 40, sy - 6);
+        g.quadraticCurveTo(sx - 30, sy + 6, sx + 30, sy + 2);
+        g.lineTo(sx + 42, sy - 14);
+        g.quadraticCurveTo(sx, sy - 8, sx - 40, sy - 6);
+        g.fill();
+        g.fillRect(sx - 6, sy - 52, 2.5, 46);
+        poly(g, [[sx - 4, sy - 50], [sx + 14, sy - 44], [sx - 4, sy - 30]], shade(t.sky[1], 0.3));
+      }
       while (x < w + 20) {
         const bw = rng.range(18, 34), bh = rng.range(14, 34) * P.scale;
         g.fillStyle = t.underwater ? shade(t.sky[1], 0.25) : shade(t.sky[1], t.night ? -0.35 : -0.12);
@@ -839,25 +889,88 @@ export class Scene {
 
   private ruins(g: CanvasRenderingContext2D, P: Place) {
     const { rng, ground, scale } = P;
-    const { back, front } = this.lots(P);
-    for (const l of back) this.ruinHouse(g, P, l.x, l.by, rng.range(34, 52) * scale);
-    front.forEach((l, k) => {
-      if (k % 2) {
-        const h = rng.range(38, 62) * scale;
-        this.gate('columns', g, (gg) => this.column(gg, P, l.x, l.by - LOT * SIN, h));
-      } else this.ruinHouse(g, P, l.x, l.by, rng.range(26, 40) * scale);
+    const { front } = this.street(P, {
+      house: (l, isFront) => {
+        if (isFront && l.k % 2) {
+          const h = rng.range(38, 62) * scale;
+          this.gate('columns', g, (gg) => this.column(gg, P, l.x, l.by - LOT * SIN, h));
+          return null;
+        }
+        this.ruinHouse(g, P, l.x, l.by, (isFront ? rng.range(26, 40) : rng.range(34, 52)) * scale);
+        return null;
+      },
+      landmark: (l) => this.temple(g, P, l.x, l.by, Math.min(54 * scale + 10, (l.cap ?? 999) - 22)),
+      square: (x, y) => this.statueHead(g, P, x, y),
     });
-    // Coral, swaying seaweed and fallen blocks along the old street.
+    // Coral, amphorae, swaying seaweed and fallen blocks along the drowned street.
     this.notches(front).forEach((x, k) => {
-      if (k % 2 === 0) {
+      if (k % 3 === 0) {
         const c = rng.pick(['#F09A86', '#F2C46B', '#E58FA0']);
         this.gate('coral', g, (gg) => this.coral(gg, x, ground + 14, c));
-      } else box(g, x, ground + 16, 6, 9, 4, shade(P.t.walls[0], -0.1));
+      } else if (k % 3 === 1) amphora(g, x, ground + 15, rng.range(-0.6, 0.6));
+      else box(g, x, ground + 16, 6, 9, 4, shade(P.t.walls[0], -0.1));
       for (let j = 0; j < 2; j++) {
         const wd = { x: x + rng.range(-12, 12), y: ground + 12 + rng.range(-3, 6), h: rng.range(14, 28), c: rng.pick(P.t.greens) };
         if (this.has('seaweed')) this.weeds.push(wd);
       }
     });
+  }
+
+  /** The sunken temple: steps, a colonnade (standing once restored), a pediment. */
+  private temple(g: CanvasRenderingContext2D, P: Place, x: number, by: number, h: number) {
+    const stone = '#93CBBC';
+    box(g, x, by + 2, LOT + 3, LOT + 3, 3, shade(stone, -0.12));
+    box(g, x, by - 1, LOT + 1, LOT + 1, 3, shade(stone, -0.05));
+    const base = box(g, x, by - 4, LOT, LOT, 0.1, stone);
+    const L = onLeft(base), R = onRight(base);
+    // The cella behind the columns.
+    box(g, x, by - 4 - LOT * SIN * 0.5, LOT * 0.6, LOT * 0.6, h * 0.9, shade(stone, -0.18), false);
+    const standing = this.has('columns');
+    for (const f of [L, R])
+      for (const u of [0.15, 0.5, 0.85]) {
+        const q = f(u, 0);
+        if (standing) cylinder(g, q[0], q[1], 2.6, h, stone);
+        else {
+          cylinder(g, q[0], q[1], 2.6, h * (0.25 + ((u * 7) % 1) * 0.3), stone);
+        }
+      }
+    if (!standing) return;
+    // Entablature and pediment.
+    const top = box(g, x, by - 4 - h, LOT, LOT, 4, shade(stone, 0.06));
+    this.roof(g, P, top, shade(stone, -0.05), LOT * 0.45, stone, 'gable');
+  }
+
+  /** A great stone head lying on the sand, half swallowed by it. */
+  private statueHead(g: CanvasRenderingContext2D, P: Place, x: number, y: number) {
+    const stone = '#A9D3C6';
+    g.fillStyle = 'rgba(0,30,40,0.18)';
+    g.beginPath();
+    g.ellipse(x + 2, y + 6, 15, 4, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = stone;
+    g.beginPath();
+    g.ellipse(x, y, 13, 9, -0.25, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = shade(stone, -0.18);
+    g.beginPath();
+    g.ellipse(x + 4, y + 2, 9, 6, -0.25, 0, Math.PI);
+    g.fill();
+    // Brow, closed eye, nose and lips in profile.
+    g.strokeStyle = shade(stone, -0.35);
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(x - 6, y - 3);
+    g.quadraticCurveTo(x - 2, y - 5, x + 2, y - 3);
+    g.moveTo(x - 5, y - 1);
+    g.quadraticCurveTo(x - 2, y, x + 1, y - 1);
+    g.moveTo(x + 4, y - 2);
+    g.lineTo(x + 8, y + 1);
+    g.lineTo(x + 5, y + 2);
+    g.moveTo(x + 4, y + 4);
+    g.lineTo(x + 7, y + 4.5);
+    g.stroke();
+    if (this.has('seaweed')) for (let k = 0; k < 2; k++) this.weeds.push({ x: x - 9 + k * 15, y: y + 4, h: 14 + k * 6, c: P.t.greens[k % P.t.greens.length] });
+    amphora(g, x + 18, y + 6, 1.2);
   }
 
   /** The garden's chapel: whitewashed, a rose window, an arched door and a bell in its gable. */
@@ -1709,8 +1822,7 @@ export class Scene {
     g.fill();
   }
 
-  private drawClouds(g: CanvasRenderingContext2D, w: number, time: number) {
-    // A soft sun glow, then a few puffy clouds drifting.
+  private drawSun(g: CanvasRenderingContext2D, w: number) {
     const sx = w * 0.78, sy = Math.min(70, this.skyY * 0.3);
     const sun = g.createRadialGradient(sx, sy, 4, sx, sy, 90);
     sun.addColorStop(0, 'rgba(255,248,225,0.9)');
@@ -1718,9 +1830,13 @@ export class Scene {
     sun.addColorStop(1, 'rgba(255,240,210,0)');
     g.fillStyle = sun;
     g.fillRect(sx - 90, sy - 90, 180, 180);
+  }
+
+  /** A few puffy clouds drifting, high enough to pass above the roofs. */
+  private drawClouds(g: CanvasRenderingContext2D, w: number, time: number) {
     for (let k = 0; k < 3; k++) {
       const x = ((time * (3 + k) + k * 170) % (w + 160)) - 80;
-      const y = this.skyY * (0.22 + k * 0.17);
+      const y = this.skyY * (0.16 + k * 0.1);
       // A soft shaded underside, then the sunlit puff.
       for (const [dy, col] of [[2.5, 'rgba(200,190,200,0.35)'], [0, 'rgba(255,255,255,0.85)']] as [number, string][]) {
         g.fillStyle = col;
@@ -1733,14 +1849,18 @@ export class Scene {
     }
   }
 
-  private drawNightSky(g: CanvasRenderingContext2D, w: number, time: number) {
+  /** Stars twinkling in the upper sky. */
+  private drawStars(g: CanvasRenderingContext2D, w: number, time: number) {
     const rng = new Rng(this.seed * 7 + 3);
     for (let k = 0; k < 40; k++) {
-      const x = rng.next() * w, y = rng.next() * this.skyY * 0.85;
+      const x = rng.next() * w, y = rng.next() * this.skyY * 0.5;
       g.fillStyle = `rgba(255,250,240,${0.35 + 0.35 * Math.sin(time * (0.7 + rng.next()) + k)})`;
       g.fillRect(x, y, 1.5, 1.5);
     }
-    // A small crescent moon with a halo.
+  }
+
+  /** A small crescent moon with its halo. */
+  private drawMoon(g: CanvasRenderingContext2D, w: number) {
     const mx = w * 0.26, my = Math.max(110, this.skyY * 0.5);
     const halo = g.createRadialGradient(mx, my, 6, mx, my, 50);
     halo.addColorStop(0, 'rgba(255,240,210,0.35)');

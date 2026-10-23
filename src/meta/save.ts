@@ -139,7 +139,7 @@ const PUZZLE_MISSIONS: { kind: MissionKind; goals: number[]; reward: number }[] 
 export function makeMissions(day: string): Mission[] {
   const rng = new Rng(hashString('missions' + day));
   // Two puzzle missions plus one in the village.
-  const kinds = [...PUZZLE_MISSIONS, { kind: 'restore' as MissionKind, goals: [1, 2], reward: 30 }];
+  const kinds = [...PUZZLE_MISSIONS, { kind: 'restore' as MissionKind, goals: [2, 3], reward: 30 }];
   return kinds.map((t, k) => {
     const goal = rng.pick(t.goals);
     return {
