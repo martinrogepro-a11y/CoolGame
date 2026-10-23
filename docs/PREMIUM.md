@@ -38,6 +38,7 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
   toute la largeur avec une bordure plus fine, pour éviter l'effet « zoom arrière » d'un chapitre à l'autre ; sur les
   grilles denses, fontaines, maisons, canaux et symboles sont dessinés plus grands ; un glissé rapide qui saute des
   cases est complété case par case ; une loupe flotte au-dessus du doigt (comme celle d'iOS) pour voir la case cachée.
+  Aucune grille ne dépasse 8×8 (les 11 dessins en 9×9 ont été redessinés), vérifié par un test.
 - ✅ Vibrations fines (tic à chaque case, succès à chaque canal), canaux coupés qui se reforment si on recule.
 - ✅ Doigt fantôme au premier niveau : on comprend sans lire.
 - ✅ **Transition signature** : chaque changement d'écran se fait par une mosaïque de tesselles qui tournent et

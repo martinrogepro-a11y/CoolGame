@@ -29,6 +29,10 @@ describe('journey levels', () => {
     }
   });
 
+  it('no grid is larger than 8x8 (cells stay comfortable on a phone)', () => {
+    for (let i = 0; i < LEVEL_COUNT; i++) expect(levelAt(i).n, levelAt(i).id).toBeLessThanOrEqual(8);
+  });
+
   it('daily puzzles are unique too (mirrored journey layouts)', () => {
     for (const day of ['2026-10-19', '2026-10-20', '2026-12-25']) {
       const lv = dailyLevel(day);

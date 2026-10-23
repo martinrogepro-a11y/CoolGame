@@ -14,7 +14,7 @@ Tout ce qui fait une appli de jeu « premium », dans le jeu et autour (store, a
 ```bash
 npm install
 npm run dev        # jeu dans le navigateur : http://localhost:5173 (ouvrable depuis ton téléphone sur le même Wi-Fi)
-npm test           # tests : progression, village, mécaniques, unicité des 50 niveaux
+npm test           # tests : progression, village, mécaniques, unicité des 50 niveaux (8×8 au plus)
 npm run levels     # régénère les niveaux à solution unique (src/puzzle/levels.json)
 npm run levels -- --mechanics   # ajoute les mécaniques de chapitre (ponts, terrasses, lanternes, courants)
 npm run build      # build de production dans dist/
