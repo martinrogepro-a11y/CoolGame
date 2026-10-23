@@ -107,14 +107,6 @@ const LIGHT: Record<ThemeId, { x: number; y: number; rgb: string; a: number; vig
   deep: { x: 0.5, y: -0.1, rgb: '170,255,240', a: 0.45, vignette: 0.25 },
 };
 
-export function boatColor(theme: ThemeId): string {
-  return THEMES[theme].boat;
-}
-
-export function isUnderwater(theme: ThemeId): boolean {
-  return THEMES[theme].underwater;
-}
-
 /**
  * The board seen from above, as a piece of the place itself (like Mini Motorways' map):
  * grass beds in the garden, a wooden pier over the sea at the harbour, glazed tiles on the
@@ -122,10 +114,10 @@ export function isUnderwater(theme: ThemeId): boolean {
  * calm so the canals always read first.
  */
 const BOARD: Record<ThemeId, { grout: string; cell: string; cell2: string; bank: string; stone: string }> = {
-  garden: { grout: '#CDB998', cell: '#E4EFD0', cell2: '#DCE9C5', bank: '#B49C78', stone: '#DDD2BC' },
+  garden: { grout: '#C3C09C', cell: '#E4EFD0', cell2: '#DCE9C5', bank: '#B49C78', stone: '#DDD2BC' },
   harbour: { grout: '#6FB8C9', cell: '#F0E3CC', cell2: '#E9D9BE', bank: '#A88B67', stone: '#D3C8B6' },
-  market: { grout: '#D6B48C', cell: '#FAEBD8', cell2: '#F4DDC5', bank: '#C49F77', stone: '#E6D6BF' },
-  night: { grout: '#4E4977', cell: '#E4E0EF', cell2: '#DAD5E8', bank: '#7C76A6', stone: '#BDB7D6' },
+  market: { grout: '#C99A76', cell: '#FAEBD8', cell2: '#F4DDC5', bank: '#C49F77', stone: '#E6D6BF' },
+  night: { grout: '#3E3A66', cell: '#E4E0EF', cell2: '#DAD5E8', bank: '#7C76A6', stone: '#BDB7D6' },
   deep: { grout: '#2F7778', cell: '#E2F0EA', cell2: '#D7EAE2', bank: '#4F938F', stone: '#C3DED5' },
 };
 

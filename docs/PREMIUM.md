@@ -34,6 +34,10 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
   d'eau et une note de musique qui monte à chaque canal relié.
 - ✅ **Cérémonie de fin** : les tuiles se posent depuis le centre, une montée de notes, un reflet de lumière balaie
   la mosaïque, puis le nom du dessin apparaît en serif.
+- ✅ **Ergonomie des grandes grilles** : les petites grilles sont plafonnées (60 px par case) et les grandes prennent
+  toute la largeur avec une bordure plus fine, pour éviter l'effet « zoom arrière » d'un chapitre à l'autre ; sur les
+  grilles denses, fontaines, maisons, canaux et symboles sont dessinés plus grands ; un glissé rapide qui saute des
+  cases est complété case par case ; une loupe flotte au-dessus du doigt (comme celle d'iOS) pour voir la case cachée.
 - ✅ Vibrations fines (tic à chaque case, succès à chaque canal), canaux coupés qui se reforment si on recule.
 - ✅ Doigt fantôme au premier niveau : on comprend sans lire.
 - ⏳ (4) Effets d'écran au tout premier dessin révélé (particules de tesselles), transitions entre écrans animées.
@@ -93,6 +97,9 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
 - ✅ **Des canaux en pierre** : chaque canal est un chenal creusé, bordé de pierre (lèvre éclairée, ombre portée), au
   fond sec teinté de sa couleur ; l'eau arrive toujours depuis la fontaine, avec reflet, rides et éclats de soleil.
   Les maisons d'arrivée sont de petites maisons-jouets vues de dessus, façade et porte comprises.
+- ✅ **Ce qui navigue sur les canaux vient du lieu** : canards au jardin, petit bateau de pêche au port, gondole
+  chargée de fruits au marché, gondole et sa lanterne la nuit, poissons dans la cité engloutie. Au port, la source est
+  une glène de cordage. Les joints du plateau reprennent ceux des pavés de la place.
 - ✅ Les fontaines prennent le style du lieu (bassin moussu, tonneau, pierre aux carreaux bleus, bougies, amphore).
 - ⏳ (5) Un vrai pass d'illustrateur sur les dessins (pixel art plus fin en 10×10 et 12×12) et sur l'icône.
 

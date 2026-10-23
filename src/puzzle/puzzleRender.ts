@@ -1,6 +1,6 @@
 import { drawGlyph, MATERIALS, type Palette } from '../game/content';
 import { PUZZLE_COLORS, type PuzzleState } from './puzzle';
-import { boardStyle, boatColor, isUnderwater, Scene } from './scene';
+import { boardStyle, Scene } from './scene';
 
 const STONE = '#A99D8A';
 
@@ -40,6 +40,14 @@ export class PuzzleRenderer {
   private pulses: { k: number; t: number }[] = [];
   /** Water fill progress (0..1) of each linked canal, keyed by its two ends. */
   private flow = new Map<number, number>();
+  /** Width of the mosaic border, in cells. */
+  private border = 0.34;
+  /** Finger position while drawing: a magnifier shows the cells under it on dense grids. */
+  loupe: { x: number; y: number } | null = null;
+  /** Objects are drawn larger and simpler when cells are small (level of detail). */
+  private get dense(): boolean {
+    return this.cell < 48;
+  }
   /** Decor around the board (chapter mood). */
   readonly scene = new Scene();
   private bs = boardStyle('harbour');
@@ -64,9 +72,12 @@ export class PuzzleRenderer {
   }
 
   layout(n: number) {
-    const availW = this.cw - 32;
+    // Dense grids get the full width (a thinner mosaic border, a narrower margin); small
+    // ones are capped, so the jump from the first levels to the last is not a zoom-out.
+    this.border = n >= 8 ? 0.22 : 0.34;
+    const availW = this.cw - (n >= 8 ? 14 : 32) - this.border * 2 * 36;
     const availH = this.ch - this.insets.top - this.insets.bottom;
-    this.cell = Math.floor(Math.min(availW / n, availH / n, 72));
+    this.cell = Math.floor(Math.min(availW / n, availH / n, 60));
     this.ox = Math.round((this.cw - this.cell * n) / 2);
     this.oy = Math.round(this.insets.top + (availH - this.cell * n) / 2);
   }
@@ -129,6 +140,41 @@ export class PuzzleRenderer {
       g.fillText(this.title, this.cw / 2, this.oy - 14 + (1 - g.globalAlpha) * 8);
       g.restore();
     }
+    if (this.loupe && this.dense && rv === 0) this.drawLoupe();
+  }
+
+  /**
+   * On dense grids the finger hides the cell it is on: a round magnifier floats above it
+   * (like the iOS text loupe) showing the canal's head and its neighbours, enlarged.
+   */
+  private drawLoupe() {
+    const g = this.g;
+    const { x, y } = this.loupe!;
+    const src = this.cell * 1.3, R = 58, zoom = R / src;
+    const cx = Math.min(this.cw - R - 8, Math.max(R + 8, x));
+    const cy = Math.max(R + 70, y - 110);
+    const d = this.dpr;
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,0.3)';
+    g.shadowBlur = 14;
+    g.shadowOffsetY = 4;
+    g.fillStyle = '#FBF8F1';
+    g.beginPath();
+    g.arc(cx, cy, R + 3, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+    g.save();
+    g.beginPath();
+    g.arc(cx, cy, R, 0, Math.PI * 2);
+    g.clip();
+    g.drawImage(this.canvas, (x - src) * d, (y - src) * d, src * 2 * d, src * 2 * d, cx - R, cy - R, R * 2, R * 2);
+    // Where the finger is.
+    g.strokeStyle = 'rgba(255,255,255,0.9)';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(cx, cy, 6 * zoom, 0, Math.PI * 2);
+    g.stroke();
+    g.restore();
   }
 
   private baseCanvas: HTMLCanvasElement | null = null;
@@ -139,7 +185,7 @@ export class PuzzleRenderer {
     const n = st.n;
     const pad = 0.5;
     const px = Math.round((n + pad * 2) * this.cell * this.dpr);
-    const key = `${this.bs.kind}|${n}|${px}|${[...st.stalls].join()}|${[...st.currents.keys()].join()}`;
+    const key = `${this.bs.kind}|${n}|${px}|${this.border}|${[...st.stalls].join()}|${[...st.currents.keys()].join()}`;
     if (this.baseCanvas && key === this.baseKey) return this.baseCanvas;
     this.baseKey = key;
     const c = (this.baseCanvas ??= document.createElement('canvas'));
@@ -150,7 +196,7 @@ export class PuzzleRenderer {
     g.clearRect(-pad, -pad, n + pad * 2, n + pad * 2);
     const bs = this.bs;
     // Border: a band of coloured tesserae around the joints.
-    const bw = 0.34;
+    const bw = this.border;
     g.fillStyle = 'rgba(0,0,0,0.12)';
     g.fillRect(-bw, -bw + 0.08, n + bw * 2, n + bw * 2);
     g.fillStyle = bs.slab;
@@ -343,12 +389,13 @@ export class PuzzleRenderer {
     // A canal is a channel dug in the square: a stone edging catching the light on its
     // upper lip and casting a shadow below, a sunken bed, then water that rushes in from
     // the fountain. Edgings first, so separate canals never look joined.
+    const wk = this.dense ? 1.14 : 1;
     const stroke = (path: number[], col: string, width: number, dy = 0) => {
       g.save();
       g.translate(0, dy);
       trace(path);
       g.strokeStyle = col;
-      g.lineWidth = width;
+      g.lineWidth = Math.min(0.8, width * wk);
       g.stroke();
       g.restore();
     };
@@ -563,42 +610,117 @@ export class PuzzleRenderer {
     }
   }
 
-  /** A gondola seen from above (a little fish in the sunken city), heading `ang`. */
+  /**
+   * Who travels the finished canals depends on the place: ducks in the garden, a little
+   * fishing boat at the harbour, a gondola loaded with fruit at the market, a gondola and
+   * its lantern at night, a fish in the sunken city. Seen from above, heading `ang`.
+   */
   private drawBoat(x: number, y: number, ang: number, accent: string) {
     const g = this.g;
+    const kind = this.bs.kind;
     g.save();
     g.translate(x, y);
     g.rotate(ang);
-    if (isUnderwater(this.scene.theme)) {
-      g.fillStyle = accent;
+    const ellipse = (cx: number, cy: number, rx: number, ry: number, col: string) => {
+      g.fillStyle = col;
       g.beginPath();
-      g.ellipse(0, 0, 0.16, 0.08, 0, 0, Math.PI * 2);
-      g.moveTo(-0.14, 0);
-      g.lineTo(-0.26, -0.08);
-      g.lineTo(-0.26, 0.08);
+      g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
       g.fill();
-      g.fillStyle = 'rgba(255,255,255,0.8)';
+    };
+    // A soft wake opening behind it.
+    if (kind !== 'deep') {
+      g.strokeStyle = 'rgba(255,255,255,0.45)';
+      g.lineWidth = 0.025;
       g.beginPath();
-      g.arc(0.08, -0.02, 0.02, 0, Math.PI * 2);
-      g.fill();
-    } else {
-      g.fillStyle = 'rgba(0,0,0,0.18)';
-      g.beginPath();
-      g.ellipse(0.02, 0.04, 0.24, 0.09, 0, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = boatColor(this.scene.theme);
-      g.beginPath();
-      g.moveTo(0.26, 0);
-      g.quadraticCurveTo(0.1, -0.11, -0.2, -0.08);
-      g.lineTo(-0.24, 0);
-      g.lineTo(-0.2, 0.08);
-      g.quadraticCurveTo(0.1, 0.11, 0.26, 0);
-      g.fill();
-      g.strokeStyle = 'rgba(40,40,46,0.35)';
-      g.lineWidth = 0.02;
+      g.moveTo(-0.18, -0.05);
+      g.lineTo(-0.36, -0.12);
+      g.moveTo(-0.18, 0.05);
+      g.lineTo(-0.36, 0.12);
       g.stroke();
-      g.fillStyle = accent;
-      g.fillRect(-0.08, -0.05, 0.12, 0.1);
+    }
+    switch (kind) {
+      case 'garden': {
+        // A duck and its duckling.
+        for (const [dx, s] of [[0.06, 1], [-0.2, 0.6]] as [number, number][]) {
+          ellipse(dx, 0.02 * s, 0.11 * s, 0.075 * s, 'rgba(0,0,0,0.15)');
+          ellipse(dx, 0, 0.11 * s, 0.07 * s, s === 1 ? '#FBF6EC' : '#F4D35E');
+          ellipse(dx + 0.09 * s, 0, 0.045 * s, 0.045 * s, s === 1 ? '#FBF6EC' : '#F2C12E');
+          ellipse(dx + 0.14 * s, 0, 0.025 * s, 0.015 * s, '#F2A93B');
+        }
+        break;
+      }
+      case 'harbour': {
+        // A small fishing boat: white hull with a coloured stripe, a wheelhouse, a mast.
+        ellipse(0.02, 0.04, 0.24, 0.09, 'rgba(0,0,0,0.18)');
+        g.fillStyle = '#FBF6EE';
+        g.beginPath();
+        g.moveTo(0.26, 0);
+        g.quadraticCurveTo(0.14, -0.1, -0.2, -0.085);
+        g.lineTo(-0.2, 0.085);
+        g.quadraticCurveTo(0.14, 0.1, 0.26, 0);
+        g.fill();
+        g.strokeStyle = accent;
+        g.lineWidth = 0.025;
+        g.stroke();
+        g.fillStyle = '#B98A5A';
+        g.fillRect(-0.16, -0.055, 0.2, 0.11);
+        g.fillStyle = accent;
+        g.fillRect(-0.12, -0.045, 0.09, 0.09);
+        g.fillStyle = '#4E4A46';
+        g.beginPath();
+        g.arc(0.1, 0, 0.022, 0, Math.PI * 2);
+        g.fill();
+        break;
+      }
+      case 'market':
+      case 'night': {
+        // A gondola: long black hull with its curled prow, the gondolier at the stern.
+        ellipse(0.02, 0.04, 0.27, 0.08, 'rgba(0,0,0,0.2)');
+        g.fillStyle = '#2E2A2E';
+        g.beginPath();
+        g.moveTo(0.3, -0.01);
+        g.quadraticCurveTo(0.1, -0.09, -0.26, -0.05);
+        g.lineTo(-0.28, 0);
+        g.lineTo(-0.26, 0.05);
+        g.quadraticCurveTo(0.1, 0.09, 0.3, 0.01);
+        g.fill();
+        g.fillStyle = '#C9A25E';
+        g.fillRect(0.24, -0.02, 0.06, 0.04);
+        if (kind === 'market') {
+          // Crates of fruit in the canal's colour.
+          for (const [cx, col] of [[0.1, accent], [-0.02, '#F2A93B'], [-0.13, accent]] as [number, string][]) {
+            g.fillStyle = '#C89A64';
+            g.fillRect(cx - 0.05, -0.045, 0.1, 0.09);
+            ellipse(cx, 0, 0.032, 0.032, col);
+          }
+        } else {
+          // Its lantern lights the water around it.
+          const glow = g.createRadialGradient(0.18, 0, 0.01, 0.18, 0, 0.42);
+          glow.addColorStop(0, 'rgba(255,214,130,0.55)');
+          glow.addColorStop(1, 'rgba(255,214,130,0)');
+          g.fillStyle = glow;
+          g.fillRect(-0.24, -0.42, 0.84, 0.84);
+          ellipse(0.18, 0, 0.03, 0.03, '#FFE3A1');
+          ellipse(-0.04, 0, 0.06, 0.05, accent);
+        }
+        ellipse(-0.2, 0, 0.04, 0.04, '#F1D2B8');
+        break;
+      }
+      default: {
+        // A fish, its tail beating.
+        const wag = Math.sin(this.time * 8 + x) * 0.04;
+        g.fillStyle = accent;
+        g.beginPath();
+        g.ellipse(0, 0, 0.16, 0.08, 0, 0, Math.PI * 2);
+        g.moveTo(-0.14, 0);
+        g.lineTo(-0.27, -0.08 + wag);
+        g.lineTo(-0.27, 0.08 + wag);
+        g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.85)';
+        g.beginPath();
+        g.arc(0.08, -0.02, 0.022, 0, Math.PI * 2);
+        g.fill();
+      }
     }
     g.restore();
   }
@@ -661,7 +783,7 @@ export class PuzzleRenderer {
       else this.building(x, y, col, done);
       if (this.colorblind || e.kind === 'fountain') {
         g.fillStyle = 'rgba(255,255,255,0.95)';
-        drawGlyph(g, glyph, x, y + (e.kind === 'fountain' ? 0 : 0.04), 0.09);
+        drawGlyph(g, glyph, x, y + (e.kind === 'fountain' ? 0 : 0.04), this.dense ? 0.12 : 0.09);
       }
     }
   }
@@ -670,7 +792,7 @@ export class PuzzleRenderer {
   private fountain(x: number, y: number, col: string, done: boolean, seed: number) {
     const g = this.g;
     const kind = this.bs.kind;
-    const R = 0.38, r = 0.27;
+    const R = this.dense ? 0.43 : 0.38, r = this.dense ? 0.32 : 0.27;
     g.fillStyle = 'rgba(0,0,0,0.16)';
     g.beginPath();
     g.arc(x + 0.02, y + 0.06, R, 0, Math.PI * 2);
@@ -705,12 +827,20 @@ export class PuzzleRenderer {
         break;
       }
       case 'harbour': {
-        // A water barrel seen from above: staves and an iron hoop.
-        ring(14, '#B88A5C', '#A57A4E');
-        g.strokeStyle = '#5E5148';
-        g.lineWidth = 0.035;
+        // A coil of mooring rope around the basin: the harbour's own spring.
+        ring(1, '#D9BF8C', '#D9BF8C');
+        g.strokeStyle = '#A88A5C';
+        g.lineWidth = 0.025;
         g.beginPath();
-        g.arc(x, y, R - 0.02, 0, Math.PI * 2);
+        for (let k = 0; k < 22; k++) {
+          const a = (k / 22) * Math.PI * 2;
+          g.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+          g.lineTo(x + Math.cos(a + 0.22) * R, y + Math.sin(a + 0.22) * R);
+        }
+        g.stroke();
+        g.beginPath();
+        g.arc(x, y, (R + r) / 2, 0, Math.PI * 2);
+        g.strokeStyle = 'rgba(120,95,60,0.35)';
         g.stroke();
         break;
       }
@@ -796,7 +926,7 @@ export class PuzzleRenderer {
   /** The building a canal feeds, in the style of the place. */
   private building(x: number, y: number, col: string, done: boolean) {
     const g = this.g;
-    const h = 0.33;
+    const h = this.dense ? 0.38 : 0.33;
     const kind = this.bs.kind;
     // Night: warm light pooling around the houses (stronger once water arrives).
     if (kind === 'night') {

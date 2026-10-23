@@ -77,15 +77,33 @@ export class PuzzleMode {
     });
     host.canvas.addEventListener('pointermove', (e) => {
       if (e.pointerId !== this.pointer || !this.st) return;
+      const r = host.canvas.getBoundingClientRect();
+      this.renderer.loupe = { x: e.clientX - r.left, y: e.clientY - r.top };
       const c = cellOf(e);
       if (c.i < 0 || !c.inner) return;
-      const k = this.st.drawingPath;
-      const wasConnected = k >= 0 && this.st.isConnected(k);
-      if (this.st.extend(c.i)) {
+      const st = this.st;
+      const k = st.drawingPath;
+      if (k < 0) return;
+      const path = st.paths[k];
+      // A fast swipe can skip cells: walk there one cell at a time (long axis first),
+      // so the canal follows the finger instead of stopping short.
+      const n = st.n;
+      const head = path[path.length - 1];
+      const steps: number[] = [];
+      let x = head % n, y = Math.floor(head / n);
+      const tx = c.i % n, ty = Math.floor(c.i / n);
+      while ((x !== tx || y !== ty) && steps.length < 2 * n) {
+        if (Math.abs(tx - x) >= Math.abs(ty - y)) x += Math.sign(tx - x);
+        else y += Math.sign(ty - y);
+        steps.push(y * n + x);
+      }
+      for (const cell of steps) {
+        const wasConnected = st.isConnected(k);
+        if (!st.extend(cell)) break;
         audio.place();
         haptics.tick();
-        if (!wasConnected && this.st.isConnected(k)) {
-          audio.flow(this.st.pathColor(k), this.st.connectedCount());
+        if (!wasConnected && st.isConnected(k)) {
+          audio.flow(st.pathColor(k), st.connectedCount());
           haptics.success();
         }
       }
@@ -93,6 +111,7 @@ export class PuzzleMode {
     const up = (e: PointerEvent) => {
       if (e.pointerId !== this.pointer || !this.st) return;
       this.pointer = null;
+      this.renderer.loupe = null;
       this.st.end();
       this.checkSolved();
     };
