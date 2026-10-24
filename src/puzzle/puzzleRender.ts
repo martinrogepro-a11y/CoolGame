@@ -141,7 +141,7 @@ export class PuzzleRenderer {
       g.shadowBlur = 8;
       g.textAlign = 'center';
       g.textBaseline = 'bottom';
-      g.font = `600 ${Math.round(Math.min(34, this.cell * 0.8))}px 'Fraunces Variable', Georgia, serif`;
+      g.font = `600 ${Math.round(Math.min(34, this.cell * 0.8))}px 'Lora Variable', Georgia, serif`;
       g.fillText(this.title, this.cw / 2, this.oy - 14 + (1 - g.globalAlpha) * 8);
       g.restore();
     }
@@ -476,20 +476,26 @@ export class PuzzleRenderer {
         g.restore();
       }
     });
-    // Boats (or fish, under the sea) drifting back and forth along finished canals.
+    // Boats (or fish, under the sea) drifting back and forth along finished canals, between
+    // the fountain and the house (never over them), turning smoothly at the bends.
     st.paths.forEach((path, k) => {
       if (path.length < 3 || (this.flow.get(path[0] * 1000 + path[path.length - 1]) ?? 0) < 1) return;
       const len = path.length - 1;
-      const u = (this.time * (1.1 / len) + k * 0.37) % 2;
-      const pos = (u < 1 ? u : 2 - u) * len;
-      const i0 = Math.min(len - 1, Math.floor(pos));
-      const f = pos - i0;
-      const [ax, ay] = this.center(path[i0], n);
-      const [bx, by] = this.center(path[i0 + 1], n);
-      // Seen side on, it faces the way it goes (on a vertical stretch, the canal's general direction).
-      const back = u >= 1 ? -1 : 1;
-      const dx = Math.sign(bx - ax) || Math.sign((path[len] % n) - (path[0] % n)) || 1;
-      this.drawBoat(ax + (bx - ax) * f, ay + (by - ay) * f, dx * back, colorOf(st.pathColor(k)), k);
+      const u = (this.time * (0.9 / len) + k * 0.37) % 2;
+      const pos = 0.62 + (u < 1 ? u : 2 - u) * (len - 1.24);
+      const at = (p: number): [number, number] => {
+        const i0 = Math.min(len - 1, Math.floor(p));
+        const f = p - i0;
+        const [ax, ay] = this.center(path[i0], n);
+        const [bx, by] = this.center(path[i0 + 1], n);
+        return [ax + (bx - ax) * f, ay + (by - ay) * f];
+      };
+      const [x, y] = at(pos);
+      // Heading: the direction of travel, looked at a little ahead and behind, so it eases round corners.
+      const [x0, y0] = at(Math.max(0, pos - 0.3));
+      const [x1, y1] = at(Math.min(len, pos + 0.3));
+      const ang = Math.atan2(y1 - y0, x1 - x0) + (u < 1 ? 0 : Math.PI);
+      this.drawBoat(x, y, ang, colorOf(st.pathColor(k)), k);
     });
     // Short highlight on canals laid by a hint.
     for (let j = this.pulses.length - 1; j >= 0; j--) {
@@ -618,184 +624,152 @@ export class PuzzleRenderer {
   }
 
   /**
-   * Who travels the finished canals depends on the place: a duck and its duckling in the
+   * Who travels the finished canals depends on the place: a duck and her duckling in the
    * garden, a fishing boat at the harbour, a gondola loaded with fruit at the market, a
-   * gondola and its lantern at night, a fish in the sunken city. Drawn side on, like toys
-   * floating on the water (far easier to recognise than from above), outlined, facing
-   * the way they go.
+   * gondola and its lantern at night, a fish in the sunken city. Seen from above like the
+   * little houses of the board, in flat colours with the same soft shadow, heading `ang`.
    */
-  private drawBoat(x: number, y: number, facing: number, accent: string, seed: number) {
+  private drawBoat(x: number, y: number, ang: number, accent: string, seed: number) {
     const g = this.g;
     const kind = this.bs.kind;
-    const bob = Math.sin(this.time * 3 + seed) * 0.015;
-    g.save();
-    g.translate(x, y + 0.14 + bob);
-    g.scale(facing * 1.15, 1.15);
-    g.lineJoin = 'round';
-    g.lineCap = 'round';
-    const ink = 'rgba(40,32,30,0.75)';
-    const shape = (draw: () => void, fill: string, line = ink) => {
+    const fill = (col: string, draw: () => void) => {
+      g.fillStyle = col;
       g.beginPath();
       draw();
-      g.fillStyle = fill;
       g.fill();
-      g.strokeStyle = line;
-      g.lineWidth = 0.025;
-      g.stroke();
     };
-    // Ripples where it sits on the water, and a little wake behind.
+    const oval = (cx: number, cy: number, rx: number, ry: number) => g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    // A hull shape: rounded stern, pointed bow.
+    const hull = (l: number, w: number, bow = 0.6) => {
+      g.moveTo(l, 0);
+      g.quadraticCurveTo(l * bow, -w, -l * 0.55, -w * 0.9);
+      g.quadraticCurveTo(-l, -w * 0.8, -l, 0);
+      g.quadraticCurveTo(-l, w * 0.8, -l * 0.55, w * 0.9);
+      g.quadraticCurveTo(l * bow, w, l, 0);
+    };
+    g.save();
+    g.translate(x, y);
+    // The soft shadow every object on the board casts (drawn unrotated, like theirs).
+    const sh = kind === 'garden' ? 0.16 : kind === 'market' || kind === 'night' ? 0.32 : 0.26;
+    fill('rgba(0,0,0,0.16)', () => g.ellipse(0.02, 0.05, sh, sh * 0.62, 0, 0, Math.PI * 2));
+    g.rotate(ang);
+    // Gondolas are long and slim: drawn a size up so their cargo and gondolier read at a glance.
+    const k = kind === 'market' || kind === 'night' ? 1.3 : kind === 'harbour' ? 1.12 : 1;
+    g.scale(k, k);
     if (kind !== 'deep') {
-      g.fillStyle = 'rgba(255,255,255,0.35)';
+      // Little ripples opening behind it.
+      g.strokeStyle = 'rgba(255,255,255,0.55)';
+      g.lineWidth = 0.025;
+      g.lineCap = 'round';
       g.beginPath();
-      g.ellipse(0, 0.02, 0.3, 0.045, 0, 0, Math.PI * 2);
-      g.fill();
-      g.strokeStyle = 'rgba(255,255,255,0.6)';
-      g.lineWidth = 0.022;
-      g.beginPath();
-      g.moveTo(-0.3, 0.01);
-      g.lineTo(-0.44, 0.03);
-      g.moveTo(-0.32, 0.05);
-      g.lineTo(-0.42, 0.08);
+      const t = (this.time * 1.2 + seed) % 1;
+      for (const s of [-1, 1]) {
+        g.moveTo(-0.2, s * 0.06);
+        g.quadraticCurveTo(-0.28, s * 0.11, -0.34 - t * 0.06, s * (0.12 + t * 0.04));
+      }
       g.stroke();
     }
-    const duck = (dx: number, k: number, body: string) => {
-      g.save();
-      g.translate(dx, 0);
-      g.scale(k, k);
-      shape(() => {
-        g.moveTo(-0.2, -0.08);
-        g.quadraticCurveTo(-0.22, -0.2, -0.12, -0.14);
-        g.quadraticCurveTo(0.02, -0.16, 0.08, -0.1);
-        g.quadraticCurveTo(0.18, -0.08, 0.17, 0);
-        g.quadraticCurveTo(0, 0.04, -0.14, 0);
-        g.closePath();
-      }, body);
-      shape(() => g.arc(0.12, -0.2, 0.075, 0, Math.PI * 2), body);
-      shape(() => {
-        g.moveTo(0.18, -0.21);
-        g.lineTo(0.27, -0.18);
-        g.lineTo(0.18, -0.16);
-        g.closePath();
-      }, '#F2A93B');
-      g.fillStyle = '#2E2A2E';
-      g.beginPath();
-      g.arc(0.14, -0.22, 0.016, 0, Math.PI * 2);
-      g.fill();
-      g.strokeStyle = 'rgba(40,32,30,0.45)';
-      g.lineWidth = 0.02;
-      g.beginPath();
-      g.moveTo(-0.08, -0.08);
-      g.quadraticCurveTo(0, -0.12, 0.06, -0.06);
-      g.stroke();
-      g.restore();
-    };
     switch (kind) {
-      case 'garden':
-        duck(0.04, 1.15, '#FBF6EC');
-        duck(-0.3, 0.62, '#F4D35E');
+      case 'garden': {
+        // A white duck and her yellow duckling, swimming in file.
+        const duck = (dx: number, k: number, body: string, wing: string) => {
+          g.save();
+          g.translate(dx, 0);
+          g.scale(k, k);
+          fill(body, () => oval(0, 0, 0.17, 0.11));
+          fill(body, () => {
+            g.moveTo(-0.15, -0.05);
+            g.lineTo(-0.24, 0);
+            g.lineTo(-0.15, 0.05);
+          });
+          fill(wing, () => oval(-0.03, -0.055, 0.1, 0.035));
+          fill(wing, () => oval(-0.03, 0.055, 0.1, 0.035));
+          fill(body, () => oval(0.15, 0, 0.075, 0.07));
+          fill('#F2A93B', () => oval(0.235, 0, 0.04, 0.025));
+          fill('#2E2A2E', () => {
+            oval(0.17, -0.04, 0.013, 0.013);
+            oval(0.17, 0.04, 0.013, 0.013);
+          });
+          g.restore();
+        };
+        duck(-0.27, 0.6, '#F7D35B', '#E9BE3B');
+        duck(0.06, 1, '#FBF6EC', '#E6DED0');
         break;
+      }
       case 'harbour': {
-        // A fishing boat: hull with a stripe in the canal's colour, a wheelhouse, a mast and pennant.
-        shape(() => {
-          g.moveTo(-0.3, -0.1);
-          g.lineTo(0.32, -0.1);
-          g.lineTo(0.22, 0.03);
-          g.lineTo(-0.24, 0.03);
-          g.closePath();
-        }, '#FBF6EE');
-        g.fillStyle = accent;
-        g.fillRect(-0.27, -0.06, 0.55, 0.04);
-        shape(() => g.rect(-0.16, -0.24, 0.16, 0.14), '#F3E3CB');
-        g.fillStyle = '#5F8FB0';
-        g.fillRect(-0.13, -0.21, 0.1, 0.05);
-        g.strokeStyle = ink;
-        g.lineWidth = 0.025;
+        // A fishing boat: white hull, a gunwale in the canal's colour, a wooden deck and a wheelhouse.
+        fill(shadeHex(accent, -0.15), () => hull(0.27, 0.12));
+        fill('#FBF6EE', () => hull(0.25, 0.1));
+        fill('#C9A27A', () => hull(0.19, 0.065, 0.5));
+        g.strokeStyle = 'rgba(120,90,60,0.35)';
+        g.lineWidth = 0.012;
         g.beginPath();
-        g.moveTo(0.12, -0.1);
-        g.lineTo(0.12, -0.42);
+        for (const yy of [-0.02, 0.02]) {
+          g.moveTo(-0.15, yy);
+          g.lineTo(0.15, yy);
+        }
         g.stroke();
-        shape(() => {
-          g.moveTo(0.12, -0.42);
-          g.lineTo(0.26, -0.38);
-          g.lineTo(0.12, -0.34);
-          g.closePath();
-        }, accent);
+        fill('#F3E8D6', () => g.rect(-0.17, -0.06, 0.12, 0.12));
+        fill(accent, () => g.rect(-0.18, -0.07, 0.14, 0.04));
+        fill(shadeHex(accent, -0.2), () => g.rect(-0.18, 0.03, 0.14, 0.04));
+        fill('#4E4A46', () => oval(0.08, 0, 0.022, 0.022));
         break;
       }
       case 'market':
       case 'night': {
-        // A gondola: long black hull with its curled prow, the gondolier and his oar at the stern.
+        // A gondola: long black hull, the comb-shaped iron at the bow, the gondolier at the stern.
         if (kind === 'night') {
-          const glow = g.createRadialGradient(0.3, -0.2, 0.01, 0.3, -0.2, 0.5);
-          glow.addColorStop(0, 'rgba(255,214,130,0.6)');
+          const glow = g.createRadialGradient(0.22, 0, 0.01, 0.22, 0, 0.45);
+          glow.addColorStop(0, 'rgba(255,214,130,0.55)');
           glow.addColorStop(1, 'rgba(255,214,130,0)');
           g.fillStyle = glow;
-          g.fillRect(-0.2, -0.7, 1, 1);
+          g.fillRect(-0.25, -0.45, 0.9, 0.9);
         }
-        shape(() => {
-          g.moveTo(-0.36, -0.12);
-          g.quadraticCurveTo(-0.28, 0.03, 0, 0.03);
-          g.quadraticCurveTo(0.28, 0.03, 0.36, -0.16);
-          g.lineTo(0.31, -0.07);
-          g.lineTo(-0.31, -0.07);
-          g.closePath();
-        }, '#2E2A2E', 'rgba(255,255,255,0.35)');
-        g.fillStyle = '#C9A25E';
-        g.fillRect(0.3, -0.2, 0.025, 0.08);
+        fill('#2E2A2E', () => hull(0.32, 0.095, 0.7));
+        fill('#4A4448', () => hull(0.26, 0.065, 0.7));
+        fill('#D8B36A', () => g.rect(0.25, -0.025, 0.07, 0.05));
         if (kind === 'market') {
-          for (const [cx, col] of [[0.14, accent], [0.02, '#F2A93B'], [-0.1, '#8DBF55']] as [number, string][]) {
-            shape(() => g.rect(cx - 0.055, -0.15, 0.11, 0.08), '#C89A64');
-            shape(() => g.arc(cx, -0.16, 0.04, Math.PI, 0), col);
+          for (const [cx, col] of [[0.12, accent], [0.0, '#F2A93B'], [-0.11, '#8DBF55']] as [number, string][]) {
+            fill('#C89A64', () => g.rect(cx - 0.05, -0.045, 0.1, 0.09));
+            fill(col, () => {
+              oval(cx - 0.02, -0.015, 0.022, 0.022);
+              oval(cx + 0.02, 0.015, 0.022, 0.022);
+            });
           }
         } else {
-          g.strokeStyle = ink;
-          g.lineWidth = 0.02;
-          g.beginPath();
-          g.moveTo(0.3, -0.12);
-          g.lineTo(0.3, -0.24);
-          g.stroke();
-          shape(() => g.rect(0.27, -0.29, 0.06, 0.07), '#FFE3A1');
-          shape(() => g.rect(-0.02, -0.15, 0.14, 0.08), accent);
+          fill(accent, () => g.rect(-0.04, -0.045, 0.12, 0.09));
+          fill('#FFE3A1', () => oval(0.22, 0, 0.03, 0.03));
         }
-        // Gondolier: striped top, straw hat, the long oar.
-        shape(() => g.rect(-0.27, -0.33, 0.08, 0.26), kind === 'night' ? '#3A3468' : '#2E2A2E');
-        g.fillStyle = '#FBF6EE';
-        for (const yy of [-0.3, -0.25, -0.2]) g.fillRect(-0.27, yy, 0.08, 0.02);
-        shape(() => g.arc(-0.23, -0.38, 0.045, 0, Math.PI * 2), '#F1D2B8');
-        shape(() => g.rect(-0.3, -0.43, 0.14, 0.025), '#F2DCA0');
+        // The gondolier seen from above: straw hat with its ribbon, and the oar.
         g.strokeStyle = '#8C6E58';
-        g.lineWidth = 0.025;
+        g.lineWidth = 0.022;
         g.beginPath();
-        g.moveTo(-0.17, -0.3);
-        g.lineTo(-0.4, 0.04);
+        g.moveTo(-0.22, 0);
+        g.lineTo(-0.36, 0.1);
         g.stroke();
+        fill('#F2DCA0', () => oval(-0.22, 0, 0.055, 0.055));
+        fill(accent, () => oval(-0.22, 0, 0.03, 0.03));
         break;
       }
       default: {
         // A fish, tail beating.
         const wag = Math.sin(this.time * 8 + seed) * 0.05;
-        shape(() => {
-          g.moveTo(0.22, -0.08);
-          g.quadraticCurveTo(0.08, -0.24, -0.12, -0.1);
-          g.lineTo(-0.26, -0.2 + wag);
-          g.lineTo(-0.24, -0.08);
-          g.lineTo(-0.26, 0.04 + wag);
-          g.lineTo(-0.12, -0.06);
-          g.quadraticCurveTo(0.08, 0.06, 0.22, -0.08);
-          g.closePath();
-        }, accent);
-        g.fillStyle = 'rgba(255,255,255,0.3)';
-        g.beginPath();
-        g.ellipse(0.04, -0.12, 0.08, 0.025, 0, 0, Math.PI * 2);
-        g.fill();
-        g.fillStyle = '#FBF6EE';
-        g.beginPath();
-        g.arc(0.13, -0.1, 0.03, 0, Math.PI * 2);
-        g.fill();
-        g.fillStyle = '#2E2A2E';
-        g.beginPath();
-        g.arc(0.135, -0.1, 0.015, 0, Math.PI * 2);
-        g.fill();
+        fill(shadeHex(accent, -0.2), () => {
+          g.moveTo(-0.12, 0);
+          g.lineTo(-0.26, -0.08 + wag);
+          g.lineTo(-0.24, wag * 0.5);
+          g.lineTo(-0.26, 0.08 + wag);
+        });
+        fill(shadeHex(accent, -0.15), () => {
+          oval(0, -0.07, 0.05, 0.03);
+          oval(0, 0.07, 0.05, 0.03);
+        });
+        fill(accent, () => oval(0.02, 0, 0.16, 0.07));
+        fill('rgba(255,255,255,0.3)', () => oval(0.04, -0.02, 0.09, 0.02));
+        fill('#2E2A2E', () => {
+          oval(0.12, -0.035, 0.014, 0.014);
+          oval(0.12, 0.035, 0.014, 0.014);
+        });
       }
     }
     g.restore();

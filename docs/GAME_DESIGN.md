@@ -34,7 +34,7 @@ Voir **[PREMIUM.md](PREMIUM.md)** pour le détail. En bref :
 - **Sensation de jeu** : l'eau coule dans le canal une fois relié, puis la cérémonie de révélation (tuiles, notes,
   reflet de lumière, nom du dessin en serif). Doigt fantôme au premier niveau.
 - **Autour du jeu** : partage du défi du jour façon Wordle, notifications locales (avec une pré-permission), demande
-  d'avis au bon moment, musique d'ambiance générative, typographie Fraunces.
+  d'avis au bon moment, musique d'ambiance générative, typographie Lora.
 
 ## 1 ter. Mode principal : puzzles de canaux (v0.3)
 

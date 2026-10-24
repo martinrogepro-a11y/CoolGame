@@ -12,7 +12,7 @@
   --shadow: 0 1px 0 rgba(0, 0, 0, 0.04), 0 8px 24px rgba(40, 30, 20, 0.08);
   --st: env(safe-area-inset-top, 0px);
   --sb: env(safe-area-inset-bottom, 0px);
-  --display: 'Fraunces Variable', 'Iowan Old Style', Georgia, serif;
+  --display: 'Lora Variable', 'Iowan Old Style', Georgia, serif;
   --font: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light;
 }
@@ -1465,7 +1465,7 @@ button[disabled] {
   border: none;
   background: var(--card);
   color: var(--ink);
-  font: 600 14px 'Fraunces Variable', Georgia, serif;
+  font: 600 14px 'Lora Variable', Georgia, serif;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   display: grid;
   place-items: center;
@@ -1637,4 +1637,40 @@ button[disabled] {
   .sheet > * {
     animation: none;
   }
+}
+
+/* The level title and the tips sit on a soft pill, so they stay legible over the roofs and the water. */
+#ui .pz-title,
+#ui .hint.tip {
+  background: rgba(251, 248, 241, 0.86);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border-radius: 18px;
+  box-shadow: 0 2px 12px rgba(40, 30, 20, 0.12);
+  text-shadow: none;
+}
+#ui .pz-title {
+  padding: 4px 16px 6px;
+}
+#ui .hint.tip {
+  left: 20px;
+  right: 20px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+#ui.pz-dark .pz-title,
+#ui.pz-dark .hint.tip {
+  background: rgba(30, 26, 56, 0.62);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  text-shadow: none;
+}
+/* The pill hugs its text, and numbers keep their natural width ("Niveau 1", not "Niveau  1"). */
+#ui .pz-title {
+  flex: 0 1 auto;
+  margin: 0 auto;
+}
+.pz-title span,
+.display,
+.logo h1 {
+  font-variant-numeric: proportional-nums;
 }

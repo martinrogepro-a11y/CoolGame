@@ -52,7 +52,7 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
 ## 3. Direction artistique et son
 
 - ✅ Palette papier chaude et cohérente, 10 teintes de canaux harmonisées, symboles pour les daltoniens.
-- ✅ Typographie : **Fraunces** (serif éditoriale, embarquée hors-ligne) pour les titres, le logo et les noms de
+- ✅ Typographie : **Lora** (serif éditoriale classique, embarquée hors-ligne ; elle remplace Fraunces, dont le « J » à crochet gênait la lecture) pour les titres, le logo et les noms de
   dessins ; arrondi système pour l'interface.
 - ✅ **Musique d'ambiance générative** (nappes douces et cloches, façon Alto) et sons synthétisés : aucun fichier
   audio, aucune licence, et la musique ne tourne jamais en boucle à l'identique.

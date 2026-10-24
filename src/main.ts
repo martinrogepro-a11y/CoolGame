@@ -1,4 +1,4 @@
-import '@fontsource-variable/fraunces';
+import '@fontsource-variable/lora';
 import './styles.css';
 import { App as CapApp } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
