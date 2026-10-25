@@ -521,22 +521,49 @@ export class PuzzleRenderer {
       const lanes = st.bridgeLanes();
       for (const b of st.bridges) {
         const x = b % n, y = Math.floor(b / n);
-        // An aqueduct: a stone deck carrying the horizontal canal over the vertical one.
-        g.fillStyle = 'rgba(0,0,0,0.22)';
-        g.fillRect(x - 0.02, y + 0.76, 1.04, 0.08);
-        g.fillStyle = this.bs.stone;
-        g.fillRect(x - 0.02, y + 0.2, 1.04, 0.58);
-        g.fillStyle = 'rgba(0,0,0,0.16)';
-        g.fillRect(x - 0.02, y + 0.2, 1.04, 0.07);
-        g.fillRect(x - 0.02, y + 0.71, 1.04, 0.07);
-        g.strokeStyle = 'rgba(0,0,0,0.12)';
-        g.lineWidth = 0.02;
+        // A little stone bridge carrying the horizontal canal over the vertical one: its
+        // arched front over the water, a deck of dressed stone, a low parapet on each side.
+        const stone = this.bs.stone;
+        g.fillStyle = 'rgba(10,30,50,0.28)';
+        g.fillRect(x + 0.04, y + 0.86, 0.92, 0.1);
+        g.fillStyle = shadeHex(stone, -0.22);
         g.beginPath();
-        for (let k = 1; k < 4; k++) {
-          g.moveTo(x + k / 4, y + 0.27);
-          g.lineTo(x + k / 4, y + 0.71);
-        }
+        g.roundRect(x - 0.02, y + 0.7, 1.04, 0.2, [0, 0, 0.04, 0.04]);
+        g.fill();
+        g.fillStyle = 'rgba(15,35,55,0.55)';
+        g.beginPath();
+        g.ellipse(x + 0.5, y + 0.9, 0.27, 0.15, 0, Math.PI, 0);
+        g.fill();
+        g.strokeStyle = shadeHex(stone, 0.1);
+        g.lineWidth = 0.03;
+        g.beginPath();
+        g.ellipse(x + 0.5, y + 0.9, 0.29, 0.17, 0, Math.PI, 0);
         g.stroke();
+        g.fillStyle = stone;
+        g.beginPath();
+        g.roundRect(x - 0.02, y + 0.16, 1.04, 0.58, 0.04);
+        g.fill();
+        g.strokeStyle = 'rgba(0,0,0,0.1)';
+        g.lineWidth = 0.018;
+        g.beginPath();
+        for (let r = 0; r < 3; r++)
+          for (let c = 0; c < 5; c++) {
+            const jx = x + (c + (r % 2 ? 0.5 : 0)) * 0.24;
+            if (jx > x && jx < x + 1) {
+              g.moveTo(jx, y + 0.26 + r * 0.14);
+              g.lineTo(jx, y + 0.38 + r * 0.14);
+            }
+          }
+        g.stroke();
+        for (const py of [0.16, 0.66]) {
+          g.fillStyle = shadeHex(stone, 0.18);
+          g.fillRect(x - 0.02, y + py, 1.04, 0.07);
+          g.fillStyle = shadeHex(stone, -0.12);
+          g.fillRect(x - 0.02, y + py + 0.07, 1.04, 0.02);
+          g.fillStyle = shadeHex(stone, -0.05);
+          g.fillRect(x - 0.03, y + py - 0.02, 0.1, 0.11);
+          g.fillRect(x + 0.93, y + py - 0.02, 0.1, 0.11);
+        }
         const k = lanes.get(b)!.h;
         if (k >= 0) {
           const path = st.paths[k];
@@ -623,74 +650,85 @@ export class PuzzleRenderer {
     }
   }
 
+  /** Which way each traveller faces (1 right, -1 left), kept while it goes up or down. */
+  private facing = new Map<number, number>();
+
   /**
    * Who travels the finished canals depends on the place: a duck and her duckling in the
-   * garden, a fishing boat at the harbour, a market barge under a striped awning, a rowing
-   * boat and its lantern at night, a fish in the sunken city. The boats are one family,
-   * built like the board's little houses: a chunky top seen from above, the side of the
-   * hull showing below it, flat colours, the same soft shadow.
+   * garden, a fishing boat at the harbour, a market barge under its awning, a rowing boat
+   * with its lantern at night, a fish in the sunken city. Like the houses on the board they
+   * stand upright, seen from the front and a little above, so each one is known by its
+   * silhouette at a glance; they turn round to face the way they go.
    */
   private drawBoat(x: number, y: number, ang: number, accent: string, seed: number) {
     const g = this.g;
     const kind = this.bs.kind;
+    const c = Math.cos(ang);
+    let face = this.facing.get(seed) ?? 1;
+    if (Math.abs(c) > 0.35) face = c > 0 ? 1 : -1;
+    this.facing.set(seed, face);
     const fill = (col: string, draw: () => void) => {
       g.fillStyle = col;
       g.beginPath();
       draw();
       g.fill();
     };
-    const oval = (cx: number, cy: number, rx: number, ry: number) => g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-    // A toy hull: round stern, gently pointed bow.
-    const L = 0.33, W = 0.17;
-    const hull = (l = L, w = W) => {
-      g.moveTo(l, 0);
-      g.bezierCurveTo(l * 0.75, -w * 1.05, -l * 0.55, -w * 1.05, -l * 0.95, -w * 0.6);
-      g.quadraticCurveTo(-l * 1.08, 0, -l * 0.95, w * 0.6);
-      g.bezierCurveTo(-l * 0.55, w * 1.05, l * 0.75, w * 1.05, l, 0);
-    };
-    const boat = kind === 'harbour' || kind === 'market' || kind === 'night';
+    const oval = (cx: number, cy: number, rx: number, ry: number, r = 0) => g.ellipse(cx, cy, rx, ry, r, 0, Math.PI * 2);
+    const bob = Math.sin(this.time * 2.6 + seed) * 0.014;
     g.save();
-    g.translate(x, y);
-    const sh = boat ? 0.36 : kind === 'garden' ? 0.17 : 0.22;
-    fill('rgba(0,0,0,0.16)', () => g.ellipse(0.03, 0.07, sh, sh * 0.6, 0, 0, Math.PI * 2));
-    if (kind === 'night') {
-      const glow = g.createRadialGradient(0, 0, 0.02, 0, 0, 0.62);
-      glow.addColorStop(0, 'rgba(255,214,130,0.5)');
-      glow.addColorStop(1, 'rgba(255,214,130,0)');
-      g.fillStyle = glow;
-      g.fillRect(-0.62, -0.62, 1.24, 1.24);
-    }
-    const sides: Record<string, string> = { harbour: '#C9C2B6', market: '#8C6447', night: '#5A4636' };
-    const decks: Record<string, string> = { harbour: '#FBF6EE', market: '#B98A5A', night: '#9C7350' };
-    if (boat) {
-      // The side of the hull, showing below its top (as the houses show their front wall).
-      g.save();
-      g.translate(0, 0.055);
-      g.rotate(ang);
-      fill(sides[kind], () => hull());
-      g.restore();
-    }
-    g.rotate(ang);
+    g.translate(x, y + 0.06);
+    const K = this.dense ? 1.15 : 1.3;
+    g.scale(K, K);
+    // Shadow and ripples on the water stay level; the traveller rocks above them.
+    fill('rgba(20,40,60,0.18)', () => oval(0, 0.04, 0.3, 0.07));
     if (kind !== 'deep') {
-      // Little ripples opening behind it.
-      g.strokeStyle = 'rgba(255,255,255,0.55)';
-      g.lineWidth = 0.025;
+      g.strokeStyle = 'rgba(255,255,255,0.6)';
+      g.lineWidth = 0.022;
       g.lineCap = 'round';
+      const t = (this.time * 0.9 + seed * 0.3) % 1;
+      g.globalAlpha = 1 - t;
       g.beginPath();
-      const t = (this.time * 1.2 + seed) % 1;
-      const r0 = boat ? 0.32 : 0.2;
       for (const s of [-1, 1]) {
-        g.moveTo(-r0, s * 0.08);
-        g.quadraticCurveTo(-r0 - 0.08, s * 0.13, -r0 - 0.14 - t * 0.06, s * (0.15 + t * 0.04));
+        const ex = -face * (0.3 + t * 0.12);
+        g.moveTo(ex, 0.04 + s * 0.02);
+        g.lineTo(ex - face * 0.1, 0.04 + s * (0.04 + t * 0.03));
       }
       g.stroke();
+      g.globalAlpha = 1;
     }
-    if (boat) {
-      fill(decks[kind], () => hull());
-      // Gunwale in the canal's colour, then the inside of the boat.
-      fill(kind === 'harbour' ? accent : shadeHex(decks[kind], -0.18), () => hull(L * 0.86, W * 0.8));
-      fill(kind === 'harbour' ? '#E8DCC6' : shadeHex(decks[kind], 0.12), () => hull(L * 0.76, W * 0.66));
-    }
+    g.translate(0, bob);
+    g.rotate(Math.sin(this.time * 2.1 + seed * 1.7) * 0.035);
+    g.scale(face, 1);
+    // A toy hull from the side: rounded keel, raised bow, the inside seen just over the rim.
+    const hull = (col: string, inside: string, band: string) => {
+      fill(col, () => {
+        g.moveTo(-0.3, -0.05);
+        g.lineTo(0.34, -0.1);
+        g.quadraticCurveTo(0.26, 0.09, 0.08, 0.1);
+        g.lineTo(-0.16, 0.1);
+        g.quadraticCurveTo(-0.3, 0.09, -0.3, -0.05);
+      });
+      fill(band, () => {
+        g.moveTo(-0.3, -0.05);
+        g.lineTo(0.34, -0.1);
+        g.lineTo(0.315, -0.045);
+        g.lineTo(-0.295, 0.005);
+      });
+      fill('rgba(0,0,0,0.12)', () => {
+        g.moveTo(-0.27, 0.06);
+        g.lineTo(0.2, 0.06);
+        g.quadraticCurveTo(0.14, 0.1, 0.08, 0.1);
+        g.lineTo(-0.16, 0.1);
+        g.quadraticCurveTo(-0.24, 0.095, -0.27, 0.06);
+      });
+      fill(inside, () => oval(0.01, -0.075, 0.28, 0.035, -0.08));
+    };
+    const person = (px: number, coat: string, hat: string) => {
+      fill(coat, () => g.roundRect(px - 0.05, -0.2, 0.1, 0.13, [0.05, 0.05, 0.01, 0.01]));
+      fill('#F1C9A5', () => oval(px, -0.24, 0.042, 0.042));
+      fill(hat, () => oval(px, -0.275, 0.07, 0.018));
+      fill(hat, () => g.roundRect(px - 0.035, -0.32, 0.07, 0.05, 0.015));
+    };
     switch (kind) {
       case 'garden': {
         // A white duck and her yellow duckling, swimming in file.
@@ -698,99 +736,125 @@ export class PuzzleRenderer {
           g.save();
           g.translate(dx, 0);
           g.scale(k, k);
-          fill(body, () => oval(0, 0, 0.17, 0.11));
           fill(body, () => {
-            g.moveTo(-0.15, -0.05);
-            g.lineTo(-0.24, 0);
-            g.lineTo(-0.15, 0.05);
+            g.moveTo(-0.22, -0.1);
+            g.quadraticCurveTo(-0.16, 0.08, 0.02, 0.07);
+            g.quadraticCurveTo(0.17, 0.06, 0.16, -0.03);
+            g.lineTo(-0.12, -0.04);
+            g.closePath();
           });
-          fill(wing, () => oval(-0.03, -0.055, 0.1, 0.035));
-          fill(wing, () => oval(-0.03, 0.055, 0.1, 0.035));
-          fill(body, () => oval(0.15, 0, 0.075, 0.07));
-          fill('#F2A93B', () => oval(0.235, 0, 0.04, 0.025));
-          fill('#2E2A2E', () => {
-            oval(0.17, -0.04, 0.013, 0.013);
-            oval(0.17, 0.04, 0.013, 0.013);
-          });
+          fill(wing, () => oval(-0.04, -0.02, 0.1, 0.045, -0.15));
+          fill(body, () => g.roundRect(0.08, -0.17, 0.07, 0.15, 0.035));
+          fill(body, () => oval(0.13, -0.18, 0.065, 0.06));
+          fill('#F2A93B', () => oval(0.205, -0.17, 0.045, 0.02));
+          fill('#2E2A2E', () => oval(0.145, -0.195, 0.013, 0.013));
           g.restore();
         };
-        duck(-0.27, 0.6, '#F7D35B', '#E9BE3B');
-        duck(0.06, 1, '#FBF6EC', '#E6DED0');
+        duck(-0.25, 0.62, '#F7D35B', '#E9BE3B');
+        duck(0.06, 1, '#FBF6EC', '#E3DACB');
         break;
       }
       case 'harbour': {
-        // A wheelhouse with a two-tone roof, like the houses on the board; a mast forward.
-        g.save();
-        g.rotate(-ang);
-        const c = [Math.cos(ang) * -0.06, Math.sin(ang) * -0.06];
-        g.translate(c[0], c[1]);
-        fill('#F3E8D6', () => g.rect(-0.08, -0.02, 0.16, 0.09));
-        fill('rgba(60,70,80,0.55)', () => g.rect(-0.04, 0.02, 0.08, 0.035));
-        fill(shadeHex(accent, 0.14), () => g.rect(-0.1, -0.1, 0.2, 0.06));
-        fill(shadeHex(accent, -0.1), () => g.rect(-0.1, -0.04, 0.2, 0.04));
-        g.restore();
-        fill('#6E5A48', () => oval(0.13, 0, 0.022, 0.022));
+        // A fishing boat: white hull striped in the canal's colour, wheelhouse, mast and pennant.
+        hull('#FBF6EE', '#C9B79B', accent);
+        g.strokeStyle = '#7A6552';
+        g.lineWidth = 0.022;
+        g.beginPath();
+        g.moveTo(0.17, -0.08);
+        g.lineTo(0.17, -0.4);
+        g.stroke();
+        fill(accent, () => {
+          g.moveTo(0.17, -0.4);
+          g.lineTo(0.28, -0.37);
+          g.lineTo(0.17, -0.34);
+        });
+        fill('#F3E8D6', () => g.rect(-0.18, -0.25, 0.2, 0.18));
+        fill('#6E8FA8', () => g.rect(-0.04, -0.21, 0.05, 0.06));
+        fill(shadeHex(accent, -0.15), () => g.roundRect(-0.21, -0.29, 0.26, 0.05, 0.02));
+        fill('#C9C0B2', () => g.rect(-0.18, -0.105, 0.2, 0.035));
         break;
       }
       case 'market': {
-        // A floating stall: fruit at bow and stern, a scalloped awning striped in the canal's colour.
-        for (const [cx, col] of [[0.2, '#F2A93B'], [-0.22, '#8DBF55']] as [number, string][]) {
-          fill('#C89A64', () => g.rect(cx - 0.05, -0.06, 0.1, 0.12));
+        // A floating stall: crates of fruit under a striped, scalloped awning on two poles.
+        hull('#B07C52', '#7C5638', accent);
+        g.strokeStyle = '#6E5440';
+        g.lineWidth = 0.02;
+        g.beginPath();
+        g.moveTo(-0.2, -0.07);
+        g.lineTo(-0.2, -0.33);
+        g.moveTo(0.2, -0.08);
+        g.lineTo(0.2, -0.33);
+        g.stroke();
+        for (const [cx, col] of [[-0.11, '#E8553F'], [0.0, '#F2A93B'], [0.11, '#8DBF55']] as [number, string][]) {
+          fill('#D8B07C', () => g.rect(cx - 0.05, -0.15, 0.1, 0.07));
           fill(col, () => {
-            oval(cx - 0.018, -0.022, 0.026, 0.026);
-            oval(cx + 0.02, 0.018, 0.026, 0.026);
-            oval(cx - 0.02, 0.03, 0.022, 0.022);
+            oval(cx - 0.022, -0.155, 0.025, 0.025);
+            oval(cx + 0.022, -0.16, 0.025, 0.025);
           });
         }
-        const n = 4, wA = 0.26, hA = 0.24, x0 = -wA / 2 - 0.01;
-        fill('rgba(0,0,0,0.14)', () => g.rect(x0 + 0.015, -hA / 2 + 0.03, wA, hA));
+        const n = 6, x0 = -0.27, wA = 0.54, w = wA / n;
         for (let i = 0; i < n; i++) {
-          const sx = x0 + (i * wA) / n, c = i % 2 ? '#FBF1E1' : shadeHex(accent, -0.32);
-          fill(c, () => g.rect(sx, -hA / 2, wA / n + 0.002, hA));
-          // Scalloped edges hanging over both sides.
-          fill(i % 2 ? '#EADFCB' : shadeHex(accent, -0.42), () => {
-            g.arc(sx + wA / n / 2, hA / 2, wA / n / 2, 0, Math.PI);
-            g.arc(sx + wA / n / 2, -hA / 2, wA / n / 2, Math.PI, 0);
+          const col = i % 2 ? '#FBF1E1' : shadeHex(accent, -0.1);
+          fill(col, () => {
+            g.moveTo(x0 + i * w + w * 0.15, -0.43);
+            g.lineTo(x0 + (i + 1) * w - w * 0.15 + 0.002, -0.43);
+            g.lineTo(x0 + (i + 1) * w + 0.002, -0.33);
+            g.lineTo(x0 + i * w, -0.33);
           });
+          fill(col, () => g.arc(x0 + (i + 0.5) * w, -0.33, w / 2, 0, Math.PI));
         }
-        fill('rgba(255,255,255,0.25)', () => g.rect(x0, -0.012, wA, 0.024));
         break;
       }
       case 'night': {
-        // A rowing boat: a seat in the canal's colour, two oars, the lantern on its pole at the bow.
-        g.strokeStyle = '#6E5440';
+        // A rowing boat: the rower in the canal's colour, a lantern glowing on its crook at the bow.
+        const glow = g.createRadialGradient(0.3, -0.3, 0.01, 0.3, -0.3, 0.42);
+        glow.addColorStop(0, 'rgba(255,214,130,0.55)');
+        glow.addColorStop(1, 'rgba(255,214,130,0)');
+        g.fillStyle = glow;
+        g.fillRect(-0.15, -0.75, 0.9, 0.9);
+        hull('#8A6447', '#5E4330', accent);
+        g.strokeStyle = '#4E3A2C';
         g.lineWidth = 0.022;
         g.lineCap = 'round';
         g.beginPath();
-        g.moveTo(-0.04, -0.1);
-        g.lineTo(-0.14, -0.22);
-        g.moveTo(-0.04, 0.1);
-        g.lineTo(-0.14, 0.22);
+        g.moveTo(-0.1, -0.13);
+        g.lineTo(-0.3, 0.06);
+        g.moveTo(0.24, -0.08);
+        g.quadraticCurveTo(0.26, -0.4, 0.33, -0.36);
         g.stroke();
-        fill(accent, () => g.rect(-0.08, -0.1, 0.07, 0.2));
-        fill('#3A3440', () => oval(0.15, 0, 0.03, 0.03));
-        fill('#FFE3A1', () => oval(0.15, 0, 0.022, 0.022));
+        fill('#3A3440', () => g.roundRect(0.305, -0.33, 0.05, 0.07, 0.015));
+        fill('#FFE3A1', () => g.rect(0.315, -0.32, 0.03, 0.05));
+        person(-0.04, accent, '#2E2A3A');
         break;
       }
       default: {
-        // A fish, tail beating.
-        const wag = Math.sin(this.time * 8 + seed) * 0.05;
+        // A fish, tail beating, a bubble rising now and then.
+        const wag = Math.sin(this.time * 8 + seed) * 0.04;
         fill(shadeHex(accent, -0.2), () => {
-          g.moveTo(-0.12, 0);
-          g.lineTo(-0.26, -0.08 + wag);
-          g.lineTo(-0.24, wag * 0.5);
-          g.lineTo(-0.26, 0.08 + wag);
+          g.moveTo(-0.14, -0.08);
+          g.lineTo(-0.3, -0.18 + wag);
+          g.lineTo(-0.26, -0.08 + wag * 0.5);
+          g.lineTo(-0.3, 0.02 + wag);
         });
         fill(shadeHex(accent, -0.15), () => {
-          oval(0, -0.07, 0.05, 0.03);
-          oval(0, 0.07, 0.05, 0.03);
+          g.moveTo(-0.02, -0.16);
+          g.lineTo(0.08, -0.22);
+          g.lineTo(0.1, -0.15);
         });
-        fill(accent, () => oval(0.02, 0, 0.16, 0.07));
-        fill('rgba(255,255,255,0.3)', () => oval(0.04, -0.02, 0.09, 0.02));
-        fill('#2E2A2E', () => {
-          oval(0.12, -0.035, 0.014, 0.014);
-          oval(0.12, 0.035, 0.014, 0.014);
-        });
+        fill(shadeHex(accent, -0.35), () => oval(0.01, -0.08, 0.2, 0.1));
+        fill(accent, () => oval(0.01, -0.085, 0.185, 0.085));
+        fill(shadeHex(accent, 0.55), () => oval(0.03, -0.035, 0.14, 0.035));
+        fill(shadeHex(accent, -0.15), () => oval(0.04, -0.075, 0.05, 0.025, 0.4));
+        fill('#FFFFFF', () => oval(0.12, -0.1, 0.03, 0.03));
+        fill('#2E2A2E', () => oval(0.128, -0.1, 0.016, 0.016));
+        const bt = (this.time * 0.5 + seed * 0.21) % 1;
+        g.globalAlpha = 1 - bt;
+        g.strokeStyle = 'rgba(255,255,255,0.8)';
+        g.lineWidth = 0.015;
+        g.beginPath();
+        g.arc(0.24, -0.12 - bt * 0.3, 0.025 + bt * 0.015, 0, Math.PI * 2);
+        g.stroke();
+        g.globalAlpha = 1;
       }
     }
     g.restore();

@@ -13,7 +13,8 @@ import { iap } from '../monetization/iap';
 import { chapterOf, CHAPTERS, firstLevelOf } from '../puzzle/chapters';
 import { drawPictureThumb } from '../puzzle/puzzleRender';
 import { t, type Key } from './i18n';
-import { icon } from './icons';
+import { icon, logoMark } from './icons';
+import { skylineBand } from './band';
 import { levelAt, PuzzleMode, scheduleReminders } from './puzzleMode';
 
 type Screen = 'home' | 'collection' | 'shop' | 'settings' | 'puzzle' | 'levels' | 'village';
@@ -190,6 +191,8 @@ export class App {
         break;
       }
       case 'v-restore': this.restoreNext(); break;
+      case 'goals': this.goalsSheet(); break;
+      case 'close': this.closeModal(); break;
       case 'claim': {
         const n = claimMission(save, v);
         if (n) {
@@ -198,6 +201,7 @@ export class App {
           haptics.success();
           this.toast(`+${n}`);
           this.go('home');
+          this.goalsSheet();
         }
         break;
       }
@@ -312,15 +316,11 @@ export class App {
     const next = save.puzzle.next;
     const lv = levelAt(next);
     const { chapter, ci, li } = chapterOf(next);
-    const chest = Math.min(100, Math.round((save.puzzle.chest / CHEST_STARS) * 100));
     return `<button class="card level-card" data-a="pz-play" data-v="${next}">
         <canvas class="next-pic"></canvas>
         <span class="txt"><small>${t('pz_chapter')} ${['I', 'II', 'III', 'IV', 'V', 'VI'][ci] ?? ci + 1} · ${t(`ch_${chapter.id}` as Key)}</small><b>${t('pz_level', { n: next + 1 })}</b>
         <small>${lv.n}×${lv.n} · ${li + 1}/${chapter.pictures.length}</small></span>
-        <span class="go">${icon.play}</span></button>
-      <button class="card chest-row ${save.puzzle.chest >= CHEST_STARS ? 'ready' : ''}" data-a="pz-levels">
-        <span class="ic">${icon.gift}</span><span class="txt"><b>${t('pz_journey')}</b><span class="bar"><i style="width:${chest}%"></i></span></span>
-        <small>${Math.min(save.puzzle.chest, CHEST_STARS)}/${CHEST_STARS} ★</small></button>`;
+        <span class="go">${icon.play}</span></button>`;
   }
 
   private drawHomeLevel() {
@@ -338,48 +338,59 @@ export class App {
 
   private homeHtml(): string {
     refreshDaily(save);
-    const tiles = [0, 1, 2, 3, 3, 0, 1, 2, 2, 3, 0, 1]
-      .map((c, k) => `<i style="background:${MATERIALS[c].color};animation-delay:${k * 40}ms"></i>`)
-      .join('');
-    const missions = save.missions.list
-      .map((m) => {
-        const done = m.progress >= m.goal;
-        const right = m.claimed
-          ? `<span class="reward">${icon.check}</span>`
-          : done
-            ? `<button class="btn primary" data-a="claim" data-v="${m.id}">${t('claim')} +${m.reward}</button>`
-            : `<span class="reward">+${m.reward}</span>`;
-        return `<div class="mission"><div class="txt"><span>${esc(this.missionText(m))}</span>
-          <div class="bar"><i style="width:${Math.round((m.progress / m.goal) * 100)}%"></i></div></div>${right}</div>`;
-      })
-      .join('');
+    const done = save.missions.list.filter((m) => m.progress >= m.goal).length;
+    const claimable = save.missions.list.some((m) => m.progress >= m.goal && !m.claimed);
+    const dots = save.missions.list.map((m) => `<i class="${m.progress >= m.goal ? 'on' : ''}"></i>`).join('');
     const daily = save.daily.played ? t('pz_dailyDone') : t('dailyNew');
     const gift = save.gift > 0
       ? `<div class="card gift"><span class="ic">${icon.gift}</span><b>${t('gift', { n: save.gift })}</b>
           <button class="btn" data-a="gift">${t('collect')}</button><button class="btn gold" data-a="gift2">${icon.video}×2</button></div>`
       : '';
+    const chest = Math.min(100, Math.round((save.puzzle.chest / CHEST_STARS) * 100));
+    // The village is the backdrop: the logo sits in its sky, the cards gather at the bottom,
+    // and one card (carry on) leads.
     return `
-      <div class="screen">
+      <div class="screen home">
         <div class="row">
           <span class="chip flame">${icon.flame}<b>${save.streak.count}</b></span>
           <div class="spacer"></div>
           <button class="icon-btn" data-a="go" data-v="settings" aria-label="${t('settings')}">${icon.gear}</button>
         </div>
-        <div class="logo"><div class="tiles">${tiles}</div><h1>CANALIA</h1><p>${t('tagline')}</p></div>
+        <div class="logo">${logoMark}<h1>CANALIA</h1><p>${t('tagline')}</p></div>
+        <div class="spacer"></div>
+        ${gift}
         ${this.levelCardHtml()}
         <div class="duo">
-          <button class="card mini" data-a="pz-daily"><span class="ic gold">${icon.calendar}</span><b>${t('daily')}</b><small>${esc(daily)}</small></button>
+          <button class="card mini" data-a="pz-daily"><span class="ic gold">${icon.calendar}</span><span class="t"><b>${t('daily')}</b><small>${esc(daily)}</small></span></button>
           ${this.villageCardHtml()}
         </div>
-        ${gift}
-        <div class="section-title">${t('missions')}</div>
-        <div class="card" style="padding:0">${missions}</div>
+        <button class="card goals ${claimable ? 'ready' : ''}" data-a="goals">
+          <span class="dots">${dots}</span><b>${t('goals')}</b>
+          ${claimable ? `<em>${t('toClaim')}</em>` : `<small>${done}/${save.missions.list.length}</small>`}${icon.right}</button>
         <div class="nav">
-          <button data-a="village">${icon.city}${t('village')}</button>
+          <button data-a="pz-levels">${icon.journey}${t('pz_journey')}<span class="mini-bar"><i style="width:${chest}%"></i></span></button>
           <button data-a="go" data-v="collection">${icon.grid}${t('collection')}</button>
           <button data-a="go" data-v="shop">${icon.bag}${t('shop')}</button>
         </div>
       </div>`;
+  }
+
+  /** Today's goals, in a sheet over the home screen. */
+  private goalsSheet() {
+    const rows = save.missions.list
+      .map((m) => {
+        const done = m.progress >= m.goal;
+        const right = m.claimed
+          ? `<span class="reward">${icon.check}</span>`
+          : done
+            ? `<button class="btn primary" data-a="claim" data-v="${m.id}">${t('claim')} +${m.reward} ${sq(0)}</button>`
+            : `<span class="reward">+${m.reward} ${sq(0)}</span>`;
+        return `<div class="mission"><div class="txt"><span>${esc(this.missionText(m))}</span>
+          <div class="bar"><i style="width:${Math.round((m.progress / m.goal) * 100)}%"></i></div><small>${Math.min(m.progress, m.goal)}/${m.goal}</small></div>${right}</div>`;
+      })
+      .join('');
+    this.modal(`<h2>${t('goals')}</h2><p>${t('goals_d')}</p><div class="card" style="padding:0">${rows}</div>
+      <div class="stack"><button class="btn" data-a="close">${t('close')}</button></div>`);
   }
 
   /** Place shown on the village screen. */
@@ -395,7 +406,7 @@ export class App {
     const next = nextRestoration(save.village, place);
     const ready = !!next && save.village.stars >= next.cost;
     const sub = next ? `${t(`v_${place}_${next.id}` as Key)} · ★${next.cost}` : t('v_doneAll', { p: t(`ch_${place}` as Key) });
-    return `<button class="card mini village-mini ${ready ? 'ready' : ''}" data-a="village"><span class="ic">${icon.city}</span><b>${t('village')} <em>★ ${save.village.stars}</em></b><small>${esc(sub)}</small></button>`;
+    return `<button class="card mini village-mini ${ready ? 'ready' : ''}" data-a="village"><span class="ic">${icon.city}</span><span class="t"><b>${t('village')} <em>★ ${save.village.stars}</em></b><small>${esc(sub)}</small></span></button>`;
   }
 
   /** The village of a place: its scene, large, and the list of things to bring back. */
@@ -495,7 +506,8 @@ export class App {
     }).join('');
     const total = save.puzzle.stars.filter(Boolean).length;
     return `
-      <div class="screen">
+      <div class="screen meta">
+        ${skylineBand()}
         <div class="topbar">
           <button class="icon-btn" data-a="go" data-v="home" aria-label="${t('home')}">${icon.back}</button>
           <h2>${t('collection')}<br><small>${total} ${t('pz_pictures')}</small></h2>
@@ -525,7 +537,8 @@ export class App {
         ${owned ? `<button class="btn" disabled>${icon.check}</button>` : `<button class="btn ${hero ? 'gold' : 'primary'}" data-a="buy" data-v="${id}">${esc(iap.price(id))}</button>`}
       </div>`;
     return `
-      <div class="screen">
+      <div class="screen meta">
+        ${skylineBand()}
         <div class="topbar">
           <button class="icon-btn" data-a="go" data-v="home" aria-label="${t('home')}">${icon.back}</button>
           <h2>${t('shop')}</h2>
@@ -551,7 +564,8 @@ export class App {
       `<div class="setting"><span>${t(label)}</span><button class="toggle ${s[k] ? 'on' : ''}" data-a="toggle" data-v="${k}" aria-pressed="${s[k]}"></button></div>`;
     const seg = (['auto', 'en', 'fr'] as const).map((l) => `<button class="${s.lang === l ? 'on' : ''}" data-a="lang" data-v="${l}">${l === 'auto' ? 'Auto' : l.toUpperCase()}</button>`).join('');
     return `
-      <div class="screen">
+      <div class="screen meta">
+        ${skylineBand()}
         <div class="topbar">
           <button class="icon-btn" data-a="go" data-v="home" aria-label="${t('home')}">${icon.back}</button>
           <h2>${t('settings')}</h2>

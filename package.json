@@ -11,6 +11,7 @@
     "levels": "tsx scripts/build-levels.ts",
     "cap:sync": "npm run build && cap sync",
     "android": "npm run cap:sync && cap open android",
+    "apk": "npm run cap:sync && cd android && ./gradlew assembleDebug",
     "ios": "npm run cap:sync && cap open ios"
   },
   "repository": {

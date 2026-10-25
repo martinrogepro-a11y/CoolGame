@@ -1774,3 +1774,244 @@ button[disabled] {
   text-decoration: none;
   font-weight: 600;
 }
+
+/* ------------------------------------------------------------------ home: the village is the backdrop */
+
+.screen.home .logo {
+  margin-top: 2vh;
+}
+.logo .mark {
+  display: block;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 10px;
+  filter: drop-shadow(0 6px 14px rgba(20, 50, 70, 0.25));
+  animation: tile-in 0.7s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.screen.home .level-card {
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 24px;
+}
+.screen.home .level-card b {
+  font-size: 26px;
+}
+.screen.home .level-card .go {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--terra);
+  color: #fff8ee;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 3px 0 #9e3f27, 0 10px 22px rgba(200, 87, 58, 0.35);
+}
+.screen.home .level-card .go svg {
+  width: 26px;
+  height: 26px;
+  margin-left: 3px;
+}
+.screen.home .duo {
+  margin-top: 10px;
+}
+.screen.home .card.mini {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  min-height: 76px;
+  border-radius: 20px;
+}
+.screen.home .card.mini .ic {
+  margin: 0;
+  flex: none;
+}
+.screen.home .card.mini .t {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.screen.home .card.mini b {
+  font-size: 15px;
+}
+.screen.home .card.mini small {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card.mini .ic {
+  color: var(--accent);
+}
+.card.mini .ic.gold {
+  color: #2a1e05;
+}
+.card.goals {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 20px;
+  text-align: left;
+}
+.card.goals b {
+  flex: 1;
+  font-size: 15px;
+}
+.card.goals small {
+  color: var(--sub);
+  font-weight: 700;
+}
+.card.goals em {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--terra);
+}
+.card.goals svg {
+  width: 18px;
+  height: 18px;
+  color: var(--sub);
+}
+.card.goals.ready {
+  box-shadow: 0 0 0 2px var(--terra), var(--shadow);
+}
+.card.goals .dots {
+  display: flex;
+  gap: 4px;
+}
+.card.goals .dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--line);
+  transform: rotate(8deg);
+}
+.card.goals .dots i.on {
+  background: var(--gold);
+}
+.nav button svg {
+  color: var(--accent);
+}
+.nav .mini-bar {
+  width: 44px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.nav .mini-bar i {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+}
+.mission .txt small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sub);
+}
+.mission .reward .t,
+.mission .btn .t {
+  display: inline-flex;
+}
+.bar i {
+  background: var(--accent);
+}
+.sheet .mission {
+  text-align: left;
+}
+.screen.home .card.mini b {
+  white-space: nowrap;
+}
+
+/* Chapter title: a parchment page, held a moment longer, with the chapter's number set in gold. */
+.chapter-card {
+  background: #fbf4e6;
+  padding: 24px 32px 22px;
+  box-shadow: 0 2px 0 rgba(90, 70, 40, 0.1), 0 24px 60px rgba(40, 30, 20, 0.22);
+  animation-duration: 2.8s;
+}
+.chapter-card small {
+  color: #b9852a;
+}
+.chapter-card b {
+  color: #2e2a26;
+}
+.chapter-card b::after {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 2px;
+  margin: 8px auto 2px;
+  border-radius: 1px;
+  background: #d9a441;
+}
+.chapter-card span {
+  color: #7a7064;
+}
+
+/* Menu screens: a strip of the village across the top, the title set on its sky. */
+.screen.meta {
+  padding-top: calc(var(--st) + 12px);
+}
+.screen.meta .band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--st) + 160px);
+  z-index: 0;
+  pointer-events: none;
+}
+.screen.meta .band svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.screen.meta .band::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 18px;
+  background: linear-gradient(rgba(242, 236, 226, 0), var(--bg));
+}
+.screen.meta > :not(.band) {
+  position: relative;
+  z-index: 1;
+}
+.screen.meta .topbar {
+  margin-bottom: 90px;
+}
+.screen.meta .topbar h2,
+.screen.meta .topbar small {
+  text-shadow: 0 0 10px rgba(244, 234, 219, 0.9);
+}
+:root.dark .screen.meta .band {
+  filter: brightness(0.45) saturate(0.8);
+}
+
+/* The patron's pack is the shop's hero: warm gold paper, a gold seal. */
+.shop-item.hero {
+  background: linear-gradient(135deg, #fcf2dc, #f5dfb0);
+  box-shadow: 0 0 0 1px #e8c97a, var(--shadow);
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+.shop-item.hero .ic {
+  background: #e0a332;
+  color: #fff8e8;
+  border-radius: 50%;
+}
+.shop-item.hero b {
+  font-family: var(--display);
+  font-size: 18px;
+}
+.shop-item .ic {
+  color: var(--accent);
+}

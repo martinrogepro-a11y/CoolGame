@@ -1,3 +1,4 @@
+import { skylineBand } from './band';
 import { analytics } from '../core/analytics';
 import { ambience } from '../core/ambience';
 import { audio, music } from '../core/audio';
@@ -366,8 +367,12 @@ export class PuzzleMode {
     const el = document.createElement('div');
     el.className = 'chapter-card';
     el.innerHTML = `<small>${t('pz_chapter')} ${ROMAN[ci] ?? ci + 1}${encore ? ` · ${t('pz_encore', { n: encore })}` : ''}</small><b>${t(`ch_${id}` as Key)}</b><span>${t(`ch_${id}_d` as Key)}</span>`;
-    this.host.ui.appendChild(el);
-    setTimeout(() => el.remove(), 2600);
+    // After the page-turn of tiles has settled, so the title is never read through it.
+    setTimeout(() => {
+      if (!this.st) return;
+      this.host.ui.appendChild(el);
+      setTimeout(() => el.remove(), 2800);
+    }, 650);
   }
 
   private shareTextFor(): string {
@@ -602,7 +607,8 @@ export class PuzzleMode {
       });
     }
     this.host.ui.innerHTML = `
-      <div class="screen">
+      <div class="screen meta">
+        ${skylineBand()}
         <div class="topbar">
           <button class="icon-btn" data-a="pz-home" aria-label="${t('home')}">${icon.back}</button>
           <h2 class="display">${t('pz_journey')}<br><small>${save.puzzle.stars.filter(Boolean).length} ${t('pz_pictures')} · ${save.puzzle.stars.filter((s) => s === 3).length} ★★★</small></h2>
