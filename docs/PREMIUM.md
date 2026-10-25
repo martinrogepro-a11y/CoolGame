@@ -113,6 +113,27 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
 - ✅ Les fontaines prennent le style du lieu (bassin moussu, tonneau, pierre aux carreaux bleus, bougies, amphore).
 - ⏳ (5) Un vrai pass d'illustrateur sur les dessins (pixel art plus fin en 10×10 et 12×12) et sur l'icône.
 
+### Une seule famille de design (passe d'audit)
+- **Couleur d'action** : bleu de port profond (#1F4A5E), jamais de noir. Les boutons principaux sont en relief
+  comme les tuiles du plateau (arête claire en haut, pied plus sombre).
+- **Typographie** : le serif (Lora) nomme les lieux et les dessins (titres d'écran, chapitres, niveaux, mosaïques).
+  La sans arrondie fait tout le reste. Les légendes sont en #7A7064, contrastées sur le crème.
+- **Une silhouette par rôle, dans tous les lieux** : une fontaine est toujours un bassin rond, une maison a
+  toujours un mur avant et un toit. Seule la matière change : au Marché, le toit devient un auvent rayé.
+  Les obstacles sont des socles carrés, par exemple la terrasse de café sur son plancher.
+- **Voyageurs des canaux** : ils forment une seule famille de bateaux-jouets, avec une coque vue de dessus, son
+  flanc visible et la même ombre que les maisons.
+  - Au Port, une barque de pêche avec sa cabine.
+  - Au Marché, une barge-échoppe sous auvent rayé.
+  - La Nuit, un canot à lanterne.
+  - Au Jardin, une cane et son caneton.
+  - Dans la Cité engloutie, un poisson.
+- **Mosaïque** : tesselles en céramique émaillée (ton qui varie légèrement, reflet doux, arête cuite) au lieu
+  d'aplats.
+- **Nuit** : un plateau en ardoise crépusculaire. La lumière vient des pièces, pas du sol.
+- **Victoire** : le nom du dessin n'apparaît qu'une fois, avec une seule grande action (« Niveau suivant ») et
+  des liens discrets pour le reste.
+
 ## 4. Les boucles de rétention
 
 | Horizon | Mécanique | État |

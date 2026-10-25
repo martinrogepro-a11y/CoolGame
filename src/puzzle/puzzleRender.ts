@@ -245,7 +245,7 @@ export class PuzzleRenderer {
       g.roundRect((cell % n) + 0.04, Math.floor(cell / n) + 0.04, 0.92, 0.92, 0.14);
       g.fill();
     }
-    for (const cell of st.stalls) terrace(g, (cell % n) + 0.5, Math.floor(cell / n) + 0.5, this.bs.tess[0]);
+    for (const cell of st.stalls) terrace(g, (cell % n) + 0.5, Math.floor(cell / n) + 0.5, '#F1E4C8');
     return c;
   }
 
@@ -261,9 +261,9 @@ export class PuzzleRenderer {
     g.save();
     g.clip();
     // A raised tile: light catches its top edge, its bottom edge sits in shade.
-    g.fillStyle = 'rgba(255,255,255,0.45)';
+    g.fillStyle = bs.kind === 'night' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.45)';
     g.fillRect(x0, y0, w, 0.04);
-    g.fillStyle = 'rgba(40,30,20,0.07)';
+    g.fillStyle = bs.kind === 'night' ? 'rgba(10,8,30,0.18)' : 'rgba(40,30,20,0.07)';
     g.fillRect(x0, y0 + w - 0.06, w, 0.06);
     switch (bs.kind) {
       case 'garden': {
@@ -310,8 +310,8 @@ export class PuzzleRenderer {
         break;
       }
       case 'market': {
-        // Glazed tiles with a faint azulejo star.
-        g.strokeStyle = alt ? 'rgba(196,85,63,0.16)' : 'rgba(62,124,140,0.16)';
+        // Glazed tiles with a faint azulejo star (barely there: the canals read first).
+        g.strokeStyle = alt ? 'rgba(196,85,63,0.07)' : 'rgba(62,124,140,0.07)';
         g.lineWidth = 0.035;
         const cx = x0 + w / 2, cy = y0 + w / 2;
         g.beginPath();
@@ -328,11 +328,11 @@ export class PuzzleRenderer {
         break;
       }
       case 'night': {
-        // Four worn cobbles.
-        g.fillStyle = 'rgba(80,70,130,0.08)';
-        for (const [dx, dy] of [[0, 0], [0.5, 0], [0, 0.5], [0.5, 0.5]]) {
+        // Dusk cobbles, a few catching the moonlight.
+        for (let k = 0; k < 3; k++) {
+          g.fillStyle = `rgba(200,195,255,${0.04 + r(k + 40) * 0.05})`;
           g.beginPath();
-          g.roundRect(x0 + dx * w + 0.04, y0 + dy * w + 0.04, w / 2 - 0.08, w / 2 - 0.08, 0.1);
+          g.ellipse(x0 + 0.2 + r(k) * 0.55, y0 + 0.2 + r(k + 5) * 0.55, 0.11, 0.08, r(k + 7) * 3, 0, Math.PI * 2);
           g.fill();
         }
         break;
@@ -625,9 +625,10 @@ export class PuzzleRenderer {
 
   /**
    * Who travels the finished canals depends on the place: a duck and her duckling in the
-   * garden, a fishing boat at the harbour, a gondola loaded with fruit at the market, a
-   * gondola and its lantern at night, a fish in the sunken city. Seen from above like the
-   * little houses of the board, in flat colours with the same soft shadow, heading `ang`.
+   * garden, a fishing boat at the harbour, a market barge under a striped awning, a rowing
+   * boat and its lantern at night, a fish in the sunken city. The boats are one family,
+   * built like the board's little houses: a chunky top seen from above, the side of the
+   * hull showing below it, flat colours, the same soft shadow.
    */
   private drawBoat(x: number, y: number, ang: number, accent: string, seed: number) {
     const g = this.g;
@@ -639,23 +640,37 @@ export class PuzzleRenderer {
       g.fill();
     };
     const oval = (cx: number, cy: number, rx: number, ry: number) => g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-    // A hull shape: rounded stern, pointed bow.
-    const hull = (l: number, w: number, bow = 0.6) => {
+    // A toy hull: round stern, gently pointed bow.
+    const L = 0.33, W = 0.17;
+    const hull = (l = L, w = W) => {
       g.moveTo(l, 0);
-      g.quadraticCurveTo(l * bow, -w, -l * 0.55, -w * 0.9);
-      g.quadraticCurveTo(-l, -w * 0.8, -l, 0);
-      g.quadraticCurveTo(-l, w * 0.8, -l * 0.55, w * 0.9);
-      g.quadraticCurveTo(l * bow, w, l, 0);
+      g.bezierCurveTo(l * 0.75, -w * 1.05, -l * 0.55, -w * 1.05, -l * 0.95, -w * 0.6);
+      g.quadraticCurveTo(-l * 1.08, 0, -l * 0.95, w * 0.6);
+      g.bezierCurveTo(-l * 0.55, w * 1.05, l * 0.75, w * 1.05, l, 0);
     };
+    const boat = kind === 'harbour' || kind === 'market' || kind === 'night';
     g.save();
     g.translate(x, y);
-    // The soft shadow every object on the board casts (drawn unrotated, like theirs).
-    const sh = kind === 'garden' ? 0.16 : kind === 'market' || kind === 'night' ? 0.32 : 0.26;
-    fill('rgba(0,0,0,0.16)', () => g.ellipse(0.02, 0.05, sh, sh * 0.62, 0, 0, Math.PI * 2));
+    const sh = boat ? 0.36 : kind === 'garden' ? 0.17 : 0.22;
+    fill('rgba(0,0,0,0.16)', () => g.ellipse(0.03, 0.07, sh, sh * 0.6, 0, 0, Math.PI * 2));
+    if (kind === 'night') {
+      const glow = g.createRadialGradient(0, 0, 0.02, 0, 0, 0.62);
+      glow.addColorStop(0, 'rgba(255,214,130,0.5)');
+      glow.addColorStop(1, 'rgba(255,214,130,0)');
+      g.fillStyle = glow;
+      g.fillRect(-0.62, -0.62, 1.24, 1.24);
+    }
+    const sides: Record<string, string> = { harbour: '#C9C2B6', market: '#8C6447', night: '#5A4636' };
+    const decks: Record<string, string> = { harbour: '#FBF6EE', market: '#B98A5A', night: '#9C7350' };
+    if (boat) {
+      // The side of the hull, showing below its top (as the houses show their front wall).
+      g.save();
+      g.translate(0, 0.055);
+      g.rotate(ang);
+      fill(sides[kind], () => hull());
+      g.restore();
+    }
     g.rotate(ang);
-    // Gondolas are long and slim: drawn a size up so their cargo and gondolier read at a glance.
-    const k = kind === 'market' || kind === 'night' ? 1.3 : kind === 'harbour' ? 1.12 : 1;
-    g.scale(k, k);
     if (kind !== 'deep') {
       // Little ripples opening behind it.
       g.strokeStyle = 'rgba(255,255,255,0.55)';
@@ -663,11 +678,18 @@ export class PuzzleRenderer {
       g.lineCap = 'round';
       g.beginPath();
       const t = (this.time * 1.2 + seed) % 1;
+      const r0 = boat ? 0.32 : 0.2;
       for (const s of [-1, 1]) {
-        g.moveTo(-0.2, s * 0.06);
-        g.quadraticCurveTo(-0.28, s * 0.11, -0.34 - t * 0.06, s * (0.12 + t * 0.04));
+        g.moveTo(-r0, s * 0.08);
+        g.quadraticCurveTo(-r0 - 0.08, s * 0.13, -r0 - 0.14 - t * 0.06, s * (0.15 + t * 0.04));
       }
       g.stroke();
+    }
+    if (boat) {
+      fill(decks[kind], () => hull());
+      // Gunwale in the canal's colour, then the inside of the boat.
+      fill(kind === 'harbour' ? accent : shadeHex(decks[kind], -0.18), () => hull(L * 0.86, W * 0.8));
+      fill(kind === 'harbour' ? '#E8DCC6' : shadeHex(decks[kind], 0.12), () => hull(L * 0.76, W * 0.66));
     }
     switch (kind) {
       case 'garden': {
@@ -697,58 +719,57 @@ export class PuzzleRenderer {
         break;
       }
       case 'harbour': {
-        // A fishing boat: white hull, a gunwale in the canal's colour, a wooden deck and a wheelhouse.
-        fill(shadeHex(accent, -0.15), () => hull(0.27, 0.12));
-        fill('#FBF6EE', () => hull(0.25, 0.1));
-        fill('#C9A27A', () => hull(0.19, 0.065, 0.5));
-        g.strokeStyle = 'rgba(120,90,60,0.35)';
-        g.lineWidth = 0.012;
-        g.beginPath();
-        for (const yy of [-0.02, 0.02]) {
-          g.moveTo(-0.15, yy);
-          g.lineTo(0.15, yy);
-        }
-        g.stroke();
-        fill('#F3E8D6', () => g.rect(-0.17, -0.06, 0.12, 0.12));
-        fill(accent, () => g.rect(-0.18, -0.07, 0.14, 0.04));
-        fill(shadeHex(accent, -0.2), () => g.rect(-0.18, 0.03, 0.14, 0.04));
-        fill('#4E4A46', () => oval(0.08, 0, 0.022, 0.022));
+        // A wheelhouse with a two-tone roof, like the houses on the board; a mast forward.
+        g.save();
+        g.rotate(-ang);
+        const c = [Math.cos(ang) * -0.06, Math.sin(ang) * -0.06];
+        g.translate(c[0], c[1]);
+        fill('#F3E8D6', () => g.rect(-0.08, -0.02, 0.16, 0.09));
+        fill('rgba(60,70,80,0.55)', () => g.rect(-0.04, 0.02, 0.08, 0.035));
+        fill(shadeHex(accent, 0.14), () => g.rect(-0.1, -0.1, 0.2, 0.06));
+        fill(shadeHex(accent, -0.1), () => g.rect(-0.1, -0.04, 0.2, 0.04));
+        g.restore();
+        fill('#6E5A48', () => oval(0.13, 0, 0.022, 0.022));
         break;
       }
-      case 'market':
+      case 'market': {
+        // A floating stall: fruit at bow and stern, a scalloped awning striped in the canal's colour.
+        for (const [cx, col] of [[0.2, '#F2A93B'], [-0.22, '#8DBF55']] as [number, string][]) {
+          fill('#C89A64', () => g.rect(cx - 0.05, -0.06, 0.1, 0.12));
+          fill(col, () => {
+            oval(cx - 0.018, -0.022, 0.026, 0.026);
+            oval(cx + 0.02, 0.018, 0.026, 0.026);
+            oval(cx - 0.02, 0.03, 0.022, 0.022);
+          });
+        }
+        const n = 4, wA = 0.26, hA = 0.24, x0 = -wA / 2 - 0.01;
+        fill('rgba(0,0,0,0.14)', () => g.rect(x0 + 0.015, -hA / 2 + 0.03, wA, hA));
+        for (let i = 0; i < n; i++) {
+          const sx = x0 + (i * wA) / n, c = i % 2 ? '#FBF1E1' : shadeHex(accent, -0.32);
+          fill(c, () => g.rect(sx, -hA / 2, wA / n + 0.002, hA));
+          // Scalloped edges hanging over both sides.
+          fill(i % 2 ? '#EADFCB' : shadeHex(accent, -0.42), () => {
+            g.arc(sx + wA / n / 2, hA / 2, wA / n / 2, 0, Math.PI);
+            g.arc(sx + wA / n / 2, -hA / 2, wA / n / 2, Math.PI, 0);
+          });
+        }
+        fill('rgba(255,255,255,0.25)', () => g.rect(x0, -0.012, wA, 0.024));
+        break;
+      }
       case 'night': {
-        // A gondola: long black hull, the comb-shaped iron at the bow, the gondolier at the stern.
-        if (kind === 'night') {
-          const glow = g.createRadialGradient(0.22, 0, 0.01, 0.22, 0, 0.45);
-          glow.addColorStop(0, 'rgba(255,214,130,0.55)');
-          glow.addColorStop(1, 'rgba(255,214,130,0)');
-          g.fillStyle = glow;
-          g.fillRect(-0.25, -0.45, 0.9, 0.9);
-        }
-        fill('#2E2A2E', () => hull(0.32, 0.095, 0.7));
-        fill('#4A4448', () => hull(0.26, 0.065, 0.7));
-        fill('#D8B36A', () => g.rect(0.25, -0.025, 0.07, 0.05));
-        if (kind === 'market') {
-          for (const [cx, col] of [[0.12, accent], [0.0, '#F2A93B'], [-0.11, '#8DBF55']] as [number, string][]) {
-            fill('#C89A64', () => g.rect(cx - 0.05, -0.045, 0.1, 0.09));
-            fill(col, () => {
-              oval(cx - 0.02, -0.015, 0.022, 0.022);
-              oval(cx + 0.02, 0.015, 0.022, 0.022);
-            });
-          }
-        } else {
-          fill(accent, () => g.rect(-0.04, -0.045, 0.12, 0.09));
-          fill('#FFE3A1', () => oval(0.22, 0, 0.03, 0.03));
-        }
-        // The gondolier seen from above: straw hat with its ribbon, and the oar.
-        g.strokeStyle = '#8C6E58';
+        // A rowing boat: a seat in the canal's colour, two oars, the lantern on its pole at the bow.
+        g.strokeStyle = '#6E5440';
         g.lineWidth = 0.022;
+        g.lineCap = 'round';
         g.beginPath();
-        g.moveTo(-0.22, 0);
-        g.lineTo(-0.36, 0.1);
+        g.moveTo(-0.04, -0.1);
+        g.lineTo(-0.14, -0.22);
+        g.moveTo(-0.04, 0.1);
+        g.lineTo(-0.14, 0.22);
         g.stroke();
-        fill('#F2DCA0', () => oval(-0.22, 0, 0.055, 0.055));
-        fill(accent, () => oval(-0.22, 0, 0.03, 0.03));
+        fill(accent, () => g.rect(-0.08, -0.1, 0.07, 0.2));
+        fill('#3A3440', () => oval(0.15, 0, 0.03, 0.03));
+        fill('#FFE3A1', () => oval(0.15, 0, 0.022, 0.022));
         break;
       }
       default: {
@@ -895,19 +916,20 @@ export class PuzzleRenderer {
         break;
       }
       case 'market': {
-        // A cream stone rim inlaid with small blue tiles (unlike the striped parasols).
+        // A round basin with a band of blue glazed tiles, like the square's fountains.
         ring(1, '#F3E3CB', '#F3E3CB');
-        g.fillStyle = '#3E7C8C';
-        for (let k = 0; k < 10; k++) {
-          const a = (k / 10) * Math.PI * 2;
-          const cx = x + Math.cos(a) * 0.325, cy = y + Math.sin(a) * 0.325;
-          g.beginPath();
-          g.moveTo(cx, cy - 0.035);
-          g.lineTo(cx + 0.035, cy);
-          g.lineTo(cx, cy + 0.035);
-          g.lineTo(cx - 0.035, cy);
-          g.fill();
-        }
+        g.strokeStyle = '#3E7C8C';
+        g.lineWidth = 0.07;
+        g.beginPath();
+        g.arc(x, y, 0.325, 0, Math.PI * 2);
+        g.stroke();
+        g.strokeStyle = '#F3E3CB';
+        g.lineWidth = 0.075;
+        g.setLineDash([0.012, 0.19]);
+        g.beginPath();
+        g.arc(x, y, 0.325, 0, Math.PI * 2);
+        g.stroke();
+        g.setLineDash([]);
         break;
       }
       case 'night': {
@@ -994,18 +1016,36 @@ export class PuzzleRenderer {
     g.fill();
     switch (kind) {
       case 'market': {
-        // A stall's striped awning, with a scalloped front edge.
-        const st = 5;
+        // A market shop: the same little house as everywhere else (front wall below, roof
+        // above), but its roof is a striped awning and its front a counter of fruit.
+        const top = y - h - 0.06, eaves = y + h * 0.62;
+        g.fillStyle = '#F3E8D6';
+        g.fillRect(x - h + 0.03, eaves - 0.02, h * 2 - 0.06, 0.28);
+        g.fillStyle = '#A8784F';
+        g.fillRect(x - h + 0.08, eaves + 0.1, h * 2 - 0.16, 0.12);
+        FRUIT_ROW.forEach((c, k) => {
+          g.fillStyle = c;
+          g.beginPath();
+          g.arc(x - h + 0.14 + (k * (h * 2 - 0.28)) / (FRUIT_ROW.length - 1), eaves + 0.1, 0.04, 0, Math.PI * 2);
+          g.fill();
+        });
+        const st = 5, w = (h * 2 + 0.04) / st, x0 = x - h - 0.02;
         for (let k = 0; k < st; k++) {
           g.fillStyle = k % 2 ? '#FBF1E1' : col;
-          g.fillRect(x - h + (k * h * 2) / st, y - h, (h * 2) / st + 0.005, h * 1.75);
-        }
-        for (let k = 0; k < st; k++) {
+          g.beginPath();
+          g.roundRect(x0 + k * w, top, w + 0.004, eaves - top, k === 0 ? [0.08, 0, 0, 0] : k === st - 1 ? [0, 0.08, 0, 0] : 0);
+          g.fill();
           g.fillStyle = k % 2 ? '#EADFCB' : shadeHex(col, -0.15);
           g.beginPath();
-          g.arc(x - h + ((k + 0.5) * h * 2) / st, y + h * 0.75, h / st, 0, Math.PI);
+          g.arc(x0 + (k + 0.5) * w, eaves, w / 2, 0, Math.PI);
           g.fill();
         }
+        // The awning's slope: light at the back, shade towards the front.
+        const sl = g.createLinearGradient(0, top, 0, eaves);
+        sl.addColorStop(0, 'rgba(255,255,255,0.18)');
+        sl.addColorStop(1, 'rgba(0,0,0,0.1)');
+        g.fillStyle = sl;
+        g.fillRect(x0, top, w * st, eaves - top);
         break;
       }
       case 'deep': {
@@ -1112,12 +1152,7 @@ export class PuzzleRenderer {
       g.save();
       g.translate(x + 0.5, y + 0.5);
       g.rotate(rot * (1 - t * 0.3));
-      g.fillStyle = c < 5 ? MATERIALS[c].color : this.pal.dark ? '#3a3f52' : '#EFE7DA';
-      g.beginPath();
-      g.roundRect(-s / 2, -s / 2, s, s, 0.12);
-      g.fill();
-      g.fillStyle = 'rgba(255,255,255,0.22)';
-      g.fillRect(-s / 2 + 0.1, -s / 2 + 0.1, s * 0.4, s * 0.12);
+      glazedTile(g, s, c < 5 ? MATERIALS[c].color : this.pal.dark ? '#3a3f52' : '#EFE7DA', hash(i * 17 + n));
       // A band of light sweeps diagonally across the finished mosaic.
       if (this.glint > 0 && this.glint < 1) {
         const d = this.glint * (2 * n + 4) - 2 - (x + y);
@@ -1150,37 +1185,101 @@ export function drawPictureThumb(canvas: HTMLCanvasElement, colors: number[], n:
   for (let i = 0; i < n * n; i++) {
     const c = colors[i];
     const x = i % n, y = Math.floor(i / n);
-    g.fillStyle = solved ? (c < 5 ? MATERIALS[c].color : pal.dark ? '#3a3f52' : '#EFE7DA') : c < 5 ? (pal.dark ? '#4a5068' : '#d9cfbf') : pal.card;
-    g.fillRect(x * cell + cell * 0.08, y * cell + cell * 0.08, cell * 0.84, cell * 0.84);
+    if (solved) {
+      g.save();
+      g.translate((x + 0.5) * cell, (y + 0.5) * cell);
+      g.scale(cell, cell);
+      glazedTile(g, 0.88, c < 5 ? MATERIALS[c].color : pal.dark ? '#3a3f52' : '#EFE7DA', hash(i * 17 + n));
+      g.restore();
+      continue;
+    }
+    g.fillStyle = c < 5 ? (pal.dark ? '#4a5068' : '#d9cfbf') : pal.card;
+    g.fillRect(x * cell + cell * 0.06, y * cell + cell * 0.06, cell * 0.88, cell * 0.88);
   }
 }
 
-/** Lightens (k > 0) or darkens (k < 0) a #rrggbb colour. */
-function shadeHex(hex: string, k: number): string {
-  const v = parseInt(hex.slice(1), 16);
-  const f = (c: number) => Math.round(k >= 0 ? c + (255 - c) * k : c * (1 + k));
-  return `rgb(${f((v >> 16) & 255)},${f((v >> 8) & 255)},${f(v & 255)})`;
+/**
+ * A glazed ceramic tessera centred on the origin, `s` wide: a slight shift of tone from one
+ * tile to the next (hand-made), light across the glaze, a darker fired edge, a soft gleam.
+ */
+function glazedTile(g: CanvasRenderingContext2D, s: number, color: string, h: number) {
+  const base = shadeHex(color, (h - 0.5) * 0.1);
+  const grad = g.createLinearGradient(-s / 2, -s / 2, s / 2, s / 2);
+  grad.addColorStop(0, shadeHex(base, 0.12));
+  grad.addColorStop(1, shadeHex(base, -0.1));
+  g.fillStyle = grad;
+  g.beginPath();
+  g.roundRect(-s / 2, -s / 2, s, s, 0.12);
+  g.fill();
+  g.strokeStyle = shadeHex(base, -0.22);
+  g.lineWidth = 0.035;
+  g.stroke();
+  const gl = g.createRadialGradient(-s * 0.2, -s * 0.22, 0, -s * 0.2, -s * 0.22, s * 0.32);
+  gl.addColorStop(0, 'rgba(255,255,255,0.4)');
+  gl.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gl;
+  g.fillRect(-s / 2, -s / 2, s, s);
 }
 
-/** A café terrace seen from above: a round parasol over a little table and chairs. */
+/** Lightens (k > 0) or darkens (k < 0) a #rrggbb or rgb() colour. */
+function shadeHex(col: string, k: number): string {
+  let c: number[];
+  if (col.startsWith('#')) {
+    const v = parseInt(col.slice(1), 16);
+    c = [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  } else c = col.slice(col.indexOf('(') + 1, col.indexOf(')')).split(',').map(Number);
+  const f = (v: number) => Math.round(k >= 0 ? v + (255 - v) * k : v * (1 + k));
+  return `rgb(${f(c[0])},${f(c[1])},${f(c[2])})`;
+}
+
+const FRUIT_ROW = ['#E8553F', '#F2A93B', '#8DBF55', '#F4D35E'];
+
+/**
+ * A café terrace seen from above: a square wooden deck (a plinth, so it reads as "blocked"),
+ * chairs, and a plain parasol whose panels show only as a soft star of folds.
+ */
 function terrace(g: CanvasRenderingContext2D, x: number, y: number, accent: string) {
   g.fillStyle = 'rgba(0,0,0,0.16)';
   g.beginPath();
-  g.arc(x + 0.04, y + 0.07, 0.36, 0, Math.PI * 2);
+  g.roundRect(x - 0.4 + 0.03, y - 0.4 + 0.07, 0.8, 0.8, 0.08);
   g.fill();
-  g.fillStyle = '#9C8574';
-  for (const [dx, dy] of [[-0.33, 0], [0.33, 0], [0, -0.33], [0, 0.33]]) g.fillRect(x + dx - 0.06, y + dy - 0.06, 0.12, 0.12);
-  const k = 8;
-  for (let i = 0; i < k; i++) {
-    g.fillStyle = i % 2 ? '#FBF4E8' : accent;
+  g.fillStyle = '#B98E62';
+  g.beginPath();
+  g.roundRect(x - 0.4, y - 0.4, 0.8, 0.8, 0.08);
+  g.fill();
+  g.strokeStyle = 'rgba(90,60,30,0.25)';
+  g.lineWidth = 0.02;
+  g.beginPath();
+  for (let k = 1; k < 4; k++) {
+    g.moveTo(x - 0.4, y - 0.4 + k * 0.2);
+    g.lineTo(x + 0.4, y - 0.4 + k * 0.2);
+  }
+  g.stroke();
+  g.fillStyle = '#F3E8D6';
+  for (const [dx, dy] of [[-0.27, -0.27], [0.27, -0.27], [-0.27, 0.27], [0.27, 0.27]]) {
     g.beginPath();
-    g.moveTo(x, y);
-    g.arc(x, y, 0.32, (i / k) * Math.PI * 2, ((i + 1) / k) * Math.PI * 2);
-    g.closePath();
+    g.arc(x + dx, y + dy, 0.06, 0, Math.PI * 2);
     g.fill();
   }
-  g.fillStyle = 'rgba(255,255,255,0.8)';
+  g.fillStyle = 'rgba(0,0,0,0.15)';
   g.beginPath();
-  g.arc(x, y, 0.04, 0, Math.PI * 2);
+  g.arc(x + 0.03, y + 0.05, 0.27, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = accent;
+  g.beginPath();
+  g.arc(x, y, 0.27, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = 'rgba(120,90,50,0.22)';
+  g.lineWidth = 0.02;
+  g.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    g.moveTo(x, y);
+    g.lineTo(x + Math.cos(a) * 0.27, y + Math.sin(a) * 0.27);
+  }
+  g.stroke();
+  g.fillStyle = '#9C7A55';
+  g.beginPath();
+  g.arc(x, y, 0.035, 0, Math.PI * 2);
   g.fill();
 }

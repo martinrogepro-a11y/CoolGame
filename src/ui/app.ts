@@ -82,8 +82,8 @@ export class App {
     r.setProperty('--ink', pal.ink);
     r.setProperty('--sub', pal.sub);
     r.setProperty('--line', pal.dots);
-    r.setProperty('--accent', pal.ink);
-    r.setProperty('--accent-ink', pal.card);
+    r.setProperty('--accent', pal.accent);
+    r.setProperty('--accent-ink', pal.accentInk);
     document.documentElement.classList.toggle('dark', pal.dark);
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', pal.bg);
     audio.setEnabled(save.settings.sound);
@@ -430,7 +430,7 @@ export class App {
         <div class="topbar">
           <button class="icon-btn" data-a="go" data-v="home" aria-label="${t('home')}">${icon.back}</button>
           <h2 class="vtitle">${t(`ch_${p}` as Key)}<br><small>${t('v_progress', { n: done.size, m: list.length })}</small></h2>
-          <span class="chip star">★ <b>${save.village.stars}</b></span>
+          <span class="chip star"><i>★</i><b>${save.village.stars}</b></span>
         </div>
         <div class="vtabs">${tabs}</div>
         <div class="spacer"></div>

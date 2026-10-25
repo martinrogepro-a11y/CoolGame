@@ -342,11 +342,9 @@ export class PuzzleMode {
 
   private updateHud() {
     const st = this.st!;
-    const pct = Math.round((st.filledCount() / (st.n * st.n)) * 100);
-    const sub = this.subtitle();
-    const txt = `${sub ? sub + ' · ' : ''}${pct}%`;
+    const txt = this.subtitle();
     if (this.hud.progress && this.hud.progress.textContent !== txt) this.hud.progress.textContent = txt;
-    const pairs = `${icon.belt}<span>${st.connectedCount()}/${st.level.pairs.length}</span>`;
+    const pairs = `${icon.belt}<span>${st.connectedCount()}/${st.level.pairs.length}</span><small>${t('pz_canals')}</small>`;
     if (this.hud.pairs && this.hud.pairs.dataset.v !== pairs) {
       this.hud.pairs.dataset.v = pairs;
       this.hud.pairs.innerHTML = pairs;
@@ -402,6 +400,8 @@ export class PuzzleMode {
     const notif = this.askNotif && !this.albumDone && !chestReady
       ? `<div class="soft-ask"><span>${t('notif_ask')}</span><div class="row2"><button class="btn" data-a="pz-notif-no">${t('notif_later')}</button><button class="btn primary" data-a="pz-notif-yes">${t('notif_yes')}</button></div></div>`
       : '';
+    // The sheet names the picture: the board's own caption bows out.
+    this.renderer.title = '';
     const last = !this.daily && this.levelIndex + 1 >= LEVEL_COUNT && chapterOf(this.levelIndex + 1).encore > chapterOf(this.levelIndex).encore;
     this.host.modal(`
       <div class="stars">${stars}</div>
@@ -414,7 +414,7 @@ export class PuzzleMode {
       <div class="stack">
         ${this.daily ? `<button class="btn primary" data-a="pz-share">${icon.share} ${t('pz_share')}</button>` : `<button class="btn primary" data-a="pz-next">${icon.play} ${last ? t('pz_encoreStart') : t('pz_next')}</button>`}
         ${canDouble ? `<button class="btn" data-a="pz-double">${icon.video} ${t('doubleAd')}</button>` : ''}
-        <div class="row2"><button class="btn" data-a="pz-home">${t('home')}</button><button class="btn" data-a="pz-levels">${t('pz_journey')}</button></div>
+        <div class="links"><button data-a="pz-home">${t('home')}</button><button data-a="pz-levels">${t('pz_journey')}</button></div>
       </div>`);
     // The tesserae won count up, like coins dropping into the purse.
     const counters = [...this.host.ui.querySelectorAll<HTMLElement>('.earned b[data-count]')];

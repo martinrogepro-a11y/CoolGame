@@ -68,33 +68,36 @@ export interface Palette {
   card: string;
   fog: string;
   dark: boolean;
+  /** Main buttons: a colour of the place (harbour blue, terracotta...), never black. */
+  accent: string;
+  accentInk: string;
 }
 
 export const PALETTES: readonly Palette[] = [
   {
     id: 'paper', bg: '#F2ECE2', dots: '#D8CEBE', water: '#BDD3D1', waterLine: '#A7C3C1',
-    rock: '#DDD3C3', rockInk: '#C4B7A3', canal: '#4FA3B5', canalEdge: '#C9B79B', foam: 'rgba(255,255,255,0.75)', ink: '#29282E',
-    sub: '#8C8579', card: '#FBF8F3', fog: 'rgba(242,236,226,0.78)', dark: false,
+    rock: '#DDD3C3', rockInk: '#C4B7A3', canal: '#4FA3B5', canalEdge: '#C9B79B', foam: 'rgba(255,255,255,0.75)', ink: '#2E2A26',
+    sub: '#7A7064', card: '#FBF8F3', fog: 'rgba(242,236,226,0.78)', dark: false, accent: '#1F4A5E', accentInk: '#FBF6EC',
   },
   {
     id: 'night', bg: '#1C2030', dots: '#2E3447', water: '#25324A', waterLine: '#30405C',
     rock: '#2A3043', rockInk: '#394058', canal: '#3E95A8', canalEdge: '#4A5370', foam: 'rgba(220,240,255,0.55)', ink: '#EEE9DF',
-    sub: '#8E93A6', card: '#252A3C', fog: 'rgba(28,32,48,0.8)', dark: true,
+    sub: '#8E93A6', card: '#252A3C', fog: 'rgba(28,32,48,0.8)', dark: true, accent: '#E3B25A', accentInk: '#241C10',
   },
   {
     id: 'sakura', bg: '#F7EBEA', dots: '#E5D2D1', water: '#CADDE6', waterLine: '#B4CDD9',
     rock: '#E9D7D4', rockInk: '#D5BDB9', canal: '#5FA9C0', canalEdge: '#D9BFB8', foam: 'rgba(255,255,255,0.75)', ink: '#3A2D34',
-    sub: '#9C8790', card: '#FFF8F7', fog: 'rgba(247,235,234,0.78)', dark: false,
+    sub: '#8A7480', card: '#FFF8F7', fog: 'rgba(247,235,234,0.78)', dark: false, accent: '#A9504A', accentInk: '#FFF8F7',
   },
   {
     id: 'blueprint', bg: '#1E3A61', dots: '#2D4E7C', water: '#294F82', waterLine: '#3561A0',
     rock: '#264673', rockInk: '#34598C', canal: '#8ED0F0', canalEdge: '#4F75AC', foam: 'rgba(255,255,255,0.75)', ink: '#F3F6FB',
-    sub: '#9DB2CF', card: '#244572', fog: 'rgba(30,58,97,0.8)', dark: true,
+    sub: '#9DB2CF', card: '#244572', fog: 'rgba(30,58,97,0.8)', dark: true, accent: '#F3C969', accentInk: '#1E2A40',
   },
   {
     id: 'dune', bg: '#EEDFC4', dots: '#D9C6A5', water: '#B9D0C6', waterLine: '#A3C0B4',
     rock: '#DCC7A2', rockInk: '#C8AF85', canal: '#3F9DA6', canalEdge: '#C2A577', foam: 'rgba(255,255,255,0.75)', ink: '#33291F',
-    sub: '#8F7C62', card: '#FAF2E4', fog: 'rgba(238,223,196,0.78)', dark: false,
+    sub: '#7C6A51', card: '#FAF2E4', fog: 'rgba(238,223,196,0.78)', dark: false, accent: '#2F5F63', accentInk: '#FAF2E4',
   },
 ];
 

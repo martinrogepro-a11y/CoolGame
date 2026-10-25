@@ -1,15 +1,18 @@
 :root {
   --bg: #f2ece2;
   --card: #fbf8f3;
-  --ink: #29282e;
-  --sub: #8c8579;
+  --ink: #2e2a26;
+  --sub: #7a7064;
   --line: #d8cebe;
-  --accent: #29282e;
-  --accent-ink: #fbf8f3;
+  --accent: #1f4a5e;
+  --accent-ink: #fbf6ec;
+  --terra: #c8573a;
   --danger: #d2463a;
   --gold: #e0a332;
   --radius: 18px;
-  --shadow: 0 1px 0 rgba(0, 0, 0, 0.04), 0 8px 24px rgba(40, 30, 20, 0.08);
+  --shadow: 0 2px 0 rgba(90, 70, 40, 0.08), 0 8px 24px rgba(90, 70, 40, 0.1);
+  /* Raised like the board's tiles: a lit top edge and a darker foot. */
+  --raised: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 3px 0 color-mix(in srgb, var(--accent) 72%, #000), 0 8px 20px rgba(30, 50, 60, 0.18);
   --st: env(safe-area-inset-top, 0px);
   --sb: env(safe-area-inset-bottom, 0px);
   --display: 'Lora Variable', 'Iowan Old Style', Georgia, serif;
@@ -232,6 +235,7 @@ button[disabled] {
 .btn.primary {
   background: var(--accent);
   color: var(--accent-ink);
+  box-shadow: var(--raised);
 }
 
 .btn.gold {
@@ -637,7 +641,7 @@ button[disabled] {
 
 .topbar h2 {
   margin: 0;
-  font-size: 22px;
+  font-size: 24px;
   flex: 1;
 }
 
@@ -781,7 +785,7 @@ button[disabled] {
 }
 
 .toggle.on {
-  background: var(--ink);
+  background: var(--accent);
 }
 
 .toggle.on::after {
@@ -963,6 +967,7 @@ button[disabled] {
   border-radius: 18px;
   background: var(--accent);
   color: var(--accent-ink);
+  box-shadow: var(--raised);
   display: grid;
   place-items: center;
   flex: none;
@@ -1127,14 +1132,23 @@ button[disabled] {
 
 /* ------------------------------------------------------------------ premium layer */
 
+/* One rule: the serif names places and pictures (titles), the rounded sans does the rest. */
 .display,
 .sheet h2,
 .topbar h2,
-.level-card b,
+.level-card b {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: proportional-nums;
+}
 
 .topbar h2 small,
+.sheet h2 small,
 .sheet p {
   font-family: var(--font);
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .sheet h2.display {
@@ -1673,4 +1687,90 @@ button[disabled] {
 .display,
 .logo h1 {
   font-variant-numeric: proportional-nums;
+}
+
+/* ------------------------------------------------------------------ design pass: one family */
+
+/* "Difficult" is a promise, not an alarm: amber, like a lantern. */
+.hard {
+  background: #d9a441;
+  color: #2a1e05;
+}
+
+/* Tips are a note on parchment, read left to right, not a grey box shouting in bold. */
+#ui .hint.tip {
+  background: #fbf4e6;
+  color: var(--ink);
+  border-radius: 20px;
+  text-align: left;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.4;
+  padding: 12px 16px;
+  box-shadow: 0 2px 0 rgba(90, 70, 40, 0.08), 0 8px 24px rgba(90, 70, 40, 0.14);
+}
+#ui.pz-dark .hint.tip {
+  background: #2e2b4a;
+  color: #f3e9d2;
+}
+
+/* The canal counter says what it counts. */
+.pz-pairs small {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sub);
+  margin-left: 2px;
+}
+
+/* Once the mosaic is won, the level's pill steps aside: the sheet names the picture. */
+#ui:has(.modal-low) .pz-title {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+/* Secondary ways out of the win sheet are quiet links, so "Next" stays the one big choice. */
+.sheet .links {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  margin-top: 2px;
+}
+.sheet .links button {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sub);
+  padding: 8px 4px;
+}
+
+/* Balances in ink with a gold star, never washed-out grey on cream. */
+.chip.star {
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+  opacity: 1;
+}
+.chip.star i {
+  font-style: normal;
+  color: var(--gold);
+}
+.screen.village .vtitle small {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sub);
+}
+/* Later restorations stay readable: the lock says "not yet", not the contrast. */
+.vrow.later {
+  opacity: 1;
+  color: var(--sub);
+}
+
+/* Shop: every price sits on the same button, the restore link is a quiet text button. */
+.shop-item .btn {
+  min-width: 92px;
+  flex: none;
+}
+.link {
+  text-decoration: none;
+  font-weight: 600;
 }

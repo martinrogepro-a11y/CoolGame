@@ -117,7 +117,7 @@ const BOARD: Record<ThemeId, { grout: string; cell: string; cell2: string; bank:
   garden: { grout: '#C3C09C', cell: '#E4EFD0', cell2: '#DCE9C5', bank: '#B49C78', stone: '#DDD2BC' },
   harbour: { grout: '#6FB8C9', cell: '#F0E3CC', cell2: '#E9D9BE', bank: '#A88B67', stone: '#D3C8B6' },
   market: { grout: '#C99A76', cell: '#FAEBD8', cell2: '#F4DDC5', bank: '#C49F77', stone: '#E6D6BF' },
-  night: { grout: '#3E3A66', cell: '#E4E0EF', cell2: '#DAD5E8', bank: '#7C76A6', stone: '#BDB7D6' },
+  night: { grout: '#2E2A52', cell: '#58547F', cell2: '#5F5B87', bank: '#8A84B4', stone: '#77719F' },
   deep: { grout: '#2F7778', cell: '#E2F0EA', cell2: '#D7EAE2', bank: '#4F938F', stone: '#C3DED5' },
 };
 
