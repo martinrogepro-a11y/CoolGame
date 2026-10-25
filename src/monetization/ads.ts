@@ -5,6 +5,13 @@ import { ADS, adUnit } from './config';
 type AdMobModule = typeof import('@capacitor-community/admob');
 let admob: AdMobModule['AdMob'] | null = null;
 let ready = false;
+let started: Promise<void> | null = null;
+
+/**
+ * Levels a newcomer plays before the ad SDK (and its consent form) wakes up: the first
+ * thing they see is the game, not a legal dialog. No ad is requested before consent.
+ */
+export const ADS_AFTER_RUNS = 3;
 let rewardedLoaded = false;
 let interstitialLoaded = false;
 
@@ -43,7 +50,13 @@ async function preload() {
 }
 
 export const ads = {
-  async init() {
+  /** Starts the ad SDK once (consent form included). Safe to call again. */
+  init(): Promise<void> {
+    started ??= this.start();
+    return started;
+  },
+
+  async start() {
     if (!isNative) {
       ready = true;
       return;
@@ -85,6 +98,11 @@ export const ads = {
   /** Shows a rewarded video. Resolves true only if the reward was earned. */
   async rewarded(label: string): Promise<boolean> {
     if (!isNative) return fakeAd(label);
+    // The player asked for an ad: this is the moment to ask for consent, if not done yet.
+    if (!started) {
+      await this.init();
+      await preload();
+    }
     if (!admob || !rewardedLoaded) {
       void preload();
       return false;
@@ -102,6 +120,10 @@ export const ads = {
 
   /** Called after each run; shows an interstitial only if pacing rules allow it. */
   async maybeInterstitial(): Promise<void> {
+    if (!started) {
+      if (save.runs >= ADS_AFTER_RUNS) void this.init();
+      return;
+    }
     const a = save.ads;
     a.runsSinceInterstitial++;
     persist();

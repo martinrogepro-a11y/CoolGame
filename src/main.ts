@@ -6,7 +6,7 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { isNative } from './core/platform';
 import { paletteById } from './game/content';
 import { loadSave, persist, save } from './meta/save';
-import { ads } from './monetization/ads';
+import { ads, ADS_AFTER_RUNS } from './monetization/ads';
 import { iap } from './monetization/iap';
 import { App } from './ui/app';
 import { scheduleReminders } from './ui/puzzleMode';
@@ -24,7 +24,7 @@ async function boot() {
   window.addEventListener('pagehide', () => persist(true));
   // Monetisation SDKs load after first paint so they never delay the game.
   setTimeout(() => {
-    void ads.init();
+    if (save.runs >= ADS_AFTER_RUNS) void ads.init();
     void iap.init();
     // Reminders are rescheduled on every launch so they always point at tomorrow.
     if (save.settings.notifications) void scheduleReminders();
