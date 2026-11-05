@@ -134,6 +134,19 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
 - **Victoire** : le nom du dessin n'apparaît qu'une fois, avec une seule grande action (« Niveau suivant ») et
   des liens discrets pour le reste.
 
+### Passe accessibilité et jouabilité (WCAG 2.1 AA)
+- **Contraste** : les textes secondaires sont passés de #7A7064 (4,1:1) à #6E6458 (4,9:1). L'or sert de fond ; en
+  texte, on utilise #8C6216, et pour les étoiles #B07A18. Une étoile non gagnée est dessinée en contour.
+- **Cibles tactiles** : 44 px minimum partout (objectifs, liens de victoire, onglets du village, interrupteurs,
+  choix de langue, lien de restauration des achats).
+- **Thèmes sombres** : le texte posé sur la scène (titre, niveau, astuces) garde l'encre de la scène, car le
+  village reste en plein jour.
+- **Annuler** : un bouton revient avant le dernier trait, le dernier indice ou la dernière remise à zéro.
+- **Cases vides** : quand tout est relié mais pas rempli, les cases restantes pulsent pour que l'œil les trouve.
+- **Premier niveau** : pas de carte de chapitre par-dessus le tutoriel.
+- **Textes** : on parle d'une fontaine et d'une maison, plus jamais d'atelier ; les pluriels suivent la règle de
+  chaque langue ; la série de jours n'est affichée qu'à partir de 1.
+
 ## 4. Les boucles de rétention
 
 | Horizon | Mécanique | État |

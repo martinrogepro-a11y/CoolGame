@@ -12,7 +12,7 @@ import { IAP } from '../monetization/config';
 import { iap } from '../monetization/iap';
 import { chapterOf, CHAPTERS, firstLevelOf } from '../puzzle/chapters';
 import { drawPictureThumb } from '../puzzle/puzzleRender';
-import { t, type Key } from './i18n';
+import { plural, t, type Key } from './i18n';
 import { icon, logoMark } from './icons';
 import { skylineBand } from './band';
 import { levelAt, PuzzleMode, scheduleReminders } from './puzzleMode';
@@ -318,7 +318,7 @@ export class App {
     const { chapter, ci, li } = chapterOf(next);
     return `<button class="card level-card" data-a="pz-play" data-v="${next}">
         <canvas class="next-pic"></canvas>
-        <span class="txt"><small>${t('pz_chapter')} ${['I', 'II', 'III', 'IV', 'V', 'VI'][ci] ?? ci + 1} · ${t(`ch_${chapter.id}` as Key)}</small><b>${t('pz_level', { n: next + 1 })}</b>
+        <span class="txt"><small>${['I', 'II', 'III', 'IV', 'V', 'VI'][ci] ?? ci + 1} · ${t(`ch_${chapter.id}` as Key)}</small><b>${t('pz_level', { n: next + 1 })}</b>
         <small>${lv.n}×${lv.n} · ${li + 1}/${chapter.pictures.length}</small></span>
         <span class="go">${icon.play}</span></button>`;
   }
@@ -352,7 +352,7 @@ export class App {
     return `
       <div class="screen home">
         <div class="row">
-          <span class="chip flame">${icon.flame}<b>${save.streak.count}</b></span>
+          ${save.streak.count > 0 ? `<span class="chip flame">${icon.flame}<b>${save.streak.count}</b></span>` : ''}
           <div class="spacer"></div>
           <button class="icon-btn" data-a="go" data-v="settings" aria-label="${t('settings')}">${icon.gear}</button>
         </div>
@@ -510,7 +510,7 @@ export class App {
         ${skylineBand()}
         <div class="topbar">
           <button class="icon-btn" data-a="go" data-v="home" aria-label="${t('home')}">${icon.back}</button>
-          <h2>${t('collection')}<br><small>${total} ${t('pz_pictures')}</small></h2>
+          <h2>${t('collection')}<br><small>${plural(total, 'pz_picture', 'pz_pictures')}</small></h2>
         </div>
         ${albums}
         <div class="section-title">${t('palettes')}</div>
@@ -545,7 +545,7 @@ export class App {
         </div>
         ${item(P.patron, icon.flame, 'patron', 'patron_d', save.purchases.patron, true)}
         ${item(P.noAds, icon.close, 'noAds', 'noAds_d', save.purchases.noAds)}
-        ${this.wallet()}
+        <div class="wallet-row"><small>${t('wallet')}</small>${this.wallet()}</div>
         <div class="card shop-item"><span class="ic">${icon.bulb}</span>
           <span class="txt"><b>${t('trade', { n: HINT_PACK.hints })}</b><small>${t('trade_d')}</small></span>
           <button class="btn primary" data-a="trade">${HINT_PACK.cost} ${sq(0)}</button></div>

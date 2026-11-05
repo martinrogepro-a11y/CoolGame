@@ -126,6 +126,7 @@ export class PuzzleRenderer {
     if (rv < 1) {
       g.globalAlpha = 1 - Math.min(1, rv * 1.6);
       this.drawCanals(st, dt);
+      if (rv === 0 && st.drawingPath < 0 && st.connectedCount() === st.level.pairs.length && !st.solved()) this.drawEmpty(st);
       this.drawFeatures(st);
       this.drawEndpoints(st);
       if (this.demo) this.drawDemo(st.n, this.demo);
@@ -511,6 +512,23 @@ export class PuzzleRenderer {
       g.lineWidth = 0.5;
       g.stroke();
     }
+  }
+
+  /** Every pair is linked but squares are left: those squares breathe, so the eye finds them. */
+  private drawEmpty(st: PuzzleState) {
+    const g = this.g;
+    const n = st.n;
+    const a = 0.35 + 0.3 * Math.sin(this.time * 4);
+    g.save();
+    g.strokeStyle = this.bs.titleOnDark ? `rgba(255,236,170,${a})` : `rgba(200,87,58,${a})`;
+    g.lineWidth = 0.06;
+    g.setLineDash([0.1, 0.08]);
+    for (const i of st.emptyCells()) {
+      g.beginPath();
+      g.roundRect((i % n) + 0.16, Math.floor(i / n) + 0.16, 0.68, 0.68, 0.14);
+      g.stroke();
+    }
+    g.restore();
   }
 
   /** Bridges (with the crossing canal redrawn on top), lanterns and currents. */

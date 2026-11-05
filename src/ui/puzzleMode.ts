@@ -16,7 +16,7 @@ import { dailyLevel, isHard, levelAt } from '../puzzle/levels';
 import { PuzzleState } from '../puzzle/puzzle';
 import type { ThemeId } from '../puzzle/scene';
 import { drawPictureThumb, PuzzleRenderer } from '../puzzle/puzzleRender';
-import { t, type Key } from './i18n';
+import { plural, t, type Key } from './i18n';
 import { icon } from './icons';
 
 export { levelAt } from '../puzzle/levels';
@@ -185,7 +185,8 @@ export class PuzzleMode {
     requestAnimationFrame(layout);
     if (!daily) {
       const { chapter, ci, li, encore } = chapterOf(index);
-      if (li === 0) this.showChapterCard(ci, chapter.id, encore);
+      // Not over the very first level: there, the board and its tutorial come first.
+      if (li === 0 && (ci > 0 || encore > 0)) this.showChapterCard(ci, chapter.id, encore);
       if (index === 0) this.showTip(t('pz_tut1'));
       else if (index === 1) this.showTip(t('pz_tut2'));
       else if (li === 0 && ci > 0 && lv.features) this.showTip(t(`pz_mech_${chapter.id}` as Key));
@@ -335,6 +336,7 @@ export class PuzzleMode {
       </div>
       <div class="hud-bottom pz-bottom">
         <button class="tool" data-a="pz-reset" aria-label="${t('restart')}">${icon.reset}</button>
+        <button class="tool" data-a="pz-undo" aria-label="${t('undo')}">${icon.undo}</button>
         ${save.settings.dev ? `<button class="tool dev-solve" data-a="pz-devsolve" aria-label="Solve">⏭</button>` : ''}
         <div class="spacer"></div>
         <div class="res pz-pairs" data-h="pairs"></div>
@@ -485,6 +487,13 @@ export class PuzzleMode {
         this.checkSolved();
         return true;
       }
+      case 'pz-undo':
+        if (st && this.solvedAt < 0 && st.undo()) {
+          this.renderer.demo = null;
+          haptics.light();
+          audio.place();
+        }
+        return true;
       case 'pz-reset':
         if (st && this.solvedAt < 0) {
           st.reset();
@@ -611,7 +620,7 @@ export class PuzzleMode {
         ${skylineBand()}
         <div class="topbar">
           <button class="icon-btn" data-a="pz-home" aria-label="${t('home')}">${icon.back}</button>
-          <h2 class="display">${t('pz_journey')}<br><small>${save.puzzle.stars.filter(Boolean).length} ${t('pz_pictures')} · ${save.puzzle.stars.filter((s) => s === 3).length} ★★★</small></h2>
+          <h2 class="display">${t('pz_journey')}<br><small>${plural(save.puzzle.stars.filter(Boolean).length, 'pz_picture', 'pz_pictures')} · ${save.puzzle.stars.filter((s) => s === 3).length} ★★★</small></h2>
         </div>
         <button class="card chest-row ${chestReady ? 'ready' : ''}" data-a="${chestReady ? 'pz-chest' : ''}">
           <span class="ic">${icon.gift}</span><span class="txt"><b>${chestReady ? t('pz_chestOpen') : t('pz_chest')}</b>

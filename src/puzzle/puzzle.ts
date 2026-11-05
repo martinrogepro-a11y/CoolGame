@@ -343,6 +343,8 @@ export class PuzzleState {
   private active = -1;
   private lastStart = -1;
   private snapshot: number[][] = [];
+  /** Boards before each stroke, hint or reset, for undo. */
+  private history: number[][][] = [];
   private endpointAt_: Int16Array;
 
   constructor(level: Level) {
@@ -448,6 +450,7 @@ export class PuzzleState {
 
   /** Starts drawing from cell i: an endpoint (restarts its canal) or any cell of a canal (cuts it there). */
   begin(i: number): number {
+    const before = this.paths.map((p) => p.slice());
     if (this.endpointAt_[i] >= 0) {
       this.paths = this.paths.filter((p) => !p.includes(i));
       this.paths.push([i]);
@@ -459,6 +462,7 @@ export class PuzzleState {
       this.active = k;
     }
     this.snapshot = this.paths.map((p) => p.slice());
+    this.history.push(before);
     this.rebuildOwner();
     return this.active;
   }
@@ -543,7 +547,28 @@ export class PuzzleState {
     }
     // Canals reduced to their starting endpoint disappear.
     this.paths = this.paths.filter((p) => p.length > 1);
+    // A tap that changed nothing leaves no step to undo.
+    const last = this.history[this.history.length - 1];
+    if (last && same(last, this.paths)) this.history.pop();
     this.rebuildOwner();
+  }
+
+  /** Puts the board back as it was before the last stroke, hint or reset. */
+  undo(): boolean {
+    const prev = this.history.pop();
+    if (!prev) return false;
+    this.paths = prev;
+    this.active = -1;
+    this.lastStart = -1;
+    this.rebuildOwner();
+    return true;
+  }
+
+  /** Cells a canal must still cover. */
+  emptyCells(): number[] {
+    const out: number[] = [];
+    for (let i = 0; i < this.n * this.n; i++) if (this.owner[i] < 0 && this.endpointAt_[i] < 0 && !this.stalls.has(i)) out.push(i);
+    return out;
   }
 
   /** Lays the known solution of one canal that is not yet in place. Returns its index, or -1. */
@@ -552,6 +577,7 @@ export class PuzzleState {
     const k = this.level.solution.findIndex((sol) => !placed(sol));
     if (k < 0) return -1;
     const sol = this.level.solution[k];
+    this.history.push(this.paths.map((p) => p.slice()));
     this.paths = this.paths
       .filter((p) => p[0] !== sol[0] && p[0] !== sol[sol.length - 1])
       .map((p) => {
@@ -566,6 +592,7 @@ export class PuzzleState {
   }
 
   reset() {
+    if (this.paths.length) this.history.push(this.paths.map((p) => p.slice()));
     this.paths = [];
     this.moves = 0;
     this.lastStart = -1;
@@ -573,3 +600,5 @@ export class PuzzleState {
     this.rebuildOwner();
   }
 }
+
+const same = (a: number[][], b: number[][]) => a.length === b.length && a.every((p, k) => p.join() === b[k].join());

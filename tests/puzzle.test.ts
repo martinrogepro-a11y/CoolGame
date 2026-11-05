@@ -112,4 +112,45 @@ describe('puzzle play', () => {
     expect(st.solved()).toBe(true);
     expect(st.perfect(1)).toBe(false);
   });
+
+  it('undoes the last stroke, back to the board before it', () => {
+    const st = new PuzzleState(lv);
+    const [a, b] = lv.solution;
+    draw(st, a);
+    const before = JSON.stringify(st.paths);
+    draw(st, b);
+    expect(st.undo()).toBe(true);
+    expect(JSON.stringify(st.paths)).toBe(before);
+    expect(st.undo()).toBe(true);
+    expect(st.paths.length).toBe(0);
+    expect(st.undo()).toBe(false);
+  });
+
+  it('does not record a tap that changed nothing', () => {
+    const st = new PuzzleState(lv);
+    const sol = lv.solution.find((q) => q.length > 3)!;
+    draw(st, sol.slice(0, 3));
+    st.begin(sol[2]);
+    st.end();
+    expect(st.undo()).toBe(true);
+    expect(st.paths.length).toBe(0);
+  });
+
+  it('undoes a reset and a hint', () => {
+    const st = new PuzzleState(lv);
+    draw(st, lv.solution[0]);
+    st.reset();
+    expect(st.undo()).toBe(true);
+    expect(st.paths.length).toBe(1);
+    st.hint();
+    expect(st.undo()).toBe(true);
+    expect(st.paths.length).toBe(1);
+  });
+
+  it('lists the empty cells', () => {
+    const st = new PuzzleState(lv);
+    const free = st.emptyCells().length;
+    draw(st, lv.solution[0]);
+    expect(st.emptyCells().length).toBeLessThan(free);
+  });
 });

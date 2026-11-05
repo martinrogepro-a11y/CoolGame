@@ -4,7 +4,7 @@ const en = {
   tagline: 'Link the canals. Reveal the mosaic.',
   play: 'Play',
   daily: 'Daily challenge',
-  dailyNew: 'Same puzzle for everyone today',
+  dailyNew: 'One picture, the same for all',
   
   collection: 'Collection',
   shop: 'Shop',
@@ -41,6 +41,7 @@ const en = {
   noAds_d: 'No more interstitials. Bonus videos stay optional.',
   patron: 'Patron pack',
   patron_d: 'No ads · ×1.5 tesserae forever · all palettes',
+  wallet: 'Your tesserae',
   tilesS: 'Handful of tesserae', tilesS_d: '+400 tesserae to trade for hints',
   tilesL: 'Crate of tesserae', tilesL_d: '+1500 tesserae to trade for hints',
   restore: 'Restore purchases',
@@ -121,7 +122,7 @@ const en = {
   pz_hint: 'Hint',
   pz_perfect: 'Perfect',
   pz_fill: 'All linked! Now cover every square.',
-  pz_tut1: 'Drag from a fountain to a workshop of the same colour. Canals cannot cross.',
+  pz_tut1: 'Drag from a fountain to the house of the same colour. Canals cannot cross.',
   pz_tut2: 'Fill every square: the finished canals reveal a hidden picture.',
   pz_mech_harbour: 'New: bridges. Two canals cross here, one over the other, going straight. Both must pass.',
   pz_mech_market: 'New: café terraces. Nothing can be built there: canals go around them.',
@@ -167,11 +168,13 @@ const en = {
   m_perfect: 'Solve {n} levels perfectly',
   pz_hard: 'Hard',
   pz_canals: 'canals',
+  undo: 'Undo',
   pz_chapter: 'Chapter',
   pz_encore: 'Encore {n}',
   pz_encoreStart: 'Start the encore',
   pz_journey: 'Journey',
   pz_pictures: 'pictures',
+  pz_picture: 'picture',
   pz_chest: 'Star chest',
   pz_chestOpen: 'Open the star chest!',
   pz_chestTitle: 'Star chest',
@@ -209,7 +212,7 @@ const fr: Dict = {
   tagline: 'Relie les canaux. Révèle la mosaïque.',
   play: 'Jouer',
   daily: 'Défi du jour',
-  dailyNew: 'Le même puzzle pour tout le monde',
+  dailyNew: 'Le même dessin pour tous',
   
   collection: 'Collection',
   shop: 'Boutique',
@@ -246,6 +249,7 @@ const fr: Dict = {
   noAds_d: 'Plus aucune pub imposée. Les vidéos bonus restent au choix.',
   patron: 'Pack Mécène',
   patron_d: 'Sans pub · ×1,5 tesselles à vie · toutes les palettes',
+  wallet: 'Tes tesselles',
   tilesS: 'Poignée de tesselles', tilesS_d: '+400 tesselles à échanger contre des indices',
   tilesL: 'Caisse de tesselles', tilesL_d: '+1500 tesselles à échanger contre des indices',
   restore: 'Restaurer les achats',
@@ -326,7 +330,7 @@ const fr: Dict = {
   pz_hint: 'Indice',
   pz_perfect: 'Parfait',
   pz_fill: 'Tout est relié ! Couvre maintenant toutes les cases.',
-  pz_tut1: "Glisse d'une fontaine vers un atelier de la même couleur. Les canaux ne se croisent pas.",
+  pz_tut1: "Glisse d'une fontaine jusqu'à la maison de la même couleur. Les canaux ne se croisent pas.",
   pz_tut2: 'Remplis toutes les cases : les canaux terminés révèlent un dessin caché.',
   pz_mech_harbour: "Nouveau : les ponts. Deux canaux s'y croisent, l'un au-dessus de l'autre, tout droit. Les deux doivent passer.",
   pz_mech_market: 'Nouveau : les terrasses de café. On ne peut rien y construire : les canaux les contournent.',
@@ -372,11 +376,13 @@ const fr: Dict = {
   m_perfect: 'Résoudre {n} niveaux parfaitement',
   pz_hard: 'Difficile',
   pz_canals: 'canaux',
+  undo: 'Annuler',
   pz_chapter: 'Chapitre',
   pz_encore: 'Rappel {n}',
   pz_encoreStart: 'Commencer le rappel',
   pz_journey: 'Le voyage',
   pz_pictures: 'dessins',
+  pz_picture: 'dessin',
   pz_chest: "Coffre d'étoiles",
   pz_chestOpen: "Ouvre le coffre d'étoiles !",
   pz_chestTitle: "Coffre d'étoiles",
@@ -414,6 +420,12 @@ export function lang(): 'en' | 'fr' {
   const s = save.settings.lang;
   if (s !== 'auto') return s;
   return navigator.language?.toLowerCase().startsWith('fr') ? 'fr' : 'en';
+}
+
+/** "1 dessin, 2 dessins" (French counts 0 as one); "1 picture, 0 pictures". */
+export function plural(n: number, one: Key, many: Key): string {
+  const single = lang() === 'fr' ? n < 2 : n === 1;
+  return `${n} ${t(single ? one : many)}`;
 }
 
 export function t(key: Key, vars: Record<string, string | number> = {}): string {
