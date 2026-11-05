@@ -35,5 +35,8 @@ export const icon = {
   journey: wrap('<path d="M6 20.5c-2-3 4-4 4-7.5S5 9.5 7 6"/><circle cx="6" cy="20.5" r="0.6" fill="currentColor"/><path d="M13 15h5M15 11.5h4" opacity="0.5"/><path d="M12.5 3.5v8"/><path d="M12.5 3.5l6 2.2-6 2.2"/>'),
 };
 
+/** One tessera: the game's single currency, a little glazed tile of four colours. */
+export const tess = `<svg class="tess" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="6.5" height="6.5" rx="1.6" fill="#C8573A"/><rect x="8.5" y="1" width="6.5" height="6.5" rx="1.6" fill="#E0A332"/><rect x="1" y="8.5" width="6.5" height="6.5" rx="1.6" fill="#3F7C93"/><rect x="8.5" y="8.5" width="6.5" height="6.5" rx="1.6" fill="#5E9A6B"/></svg>`;
+
 /** The Canalia mark: a canal running from a fountain round to a little house, on a harbour-blue tile. */
 export const logoMark = `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect x="2" y="4" width="60" height="58" rx="16" fill="#173A4A"/><rect x="2" y="2" width="60" height="57" rx="16" fill="#1F4A5E"/><path d="M43 19.5H27a10.5 10.5 0 0 0 0 21h16" fill="none" stroke="#C9B79B" stroke-width="11" stroke-linecap="round"/><path d="M43 19.5H27a10.5 10.5 0 0 0 0 21h16" fill="none" stroke="#5DB4C6" stroke-width="6.5" stroke-linecap="round"/><path d="M29 19.5h4M17.5 30v1M29 40.5h4" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" opacity="0.8"/><circle cx="46" cy="19.5" r="6.5" fill="#F2D9A6"/><circle cx="46" cy="19.5" r="3.6" fill="#5DB4C6"/><circle cx="46" cy="19.5" r="1.3" fill="#FFFFFF"/><path d="M40.5 39.5h11v8.5h-11z" fill="#F3E8D6"/><path d="M39 40.5l7.5-6.5 7.5 6.5z" fill="#C8573A"/><path d="M44.8 48v-3.3a1.7 1.7 0 0 1 3.4 0V48z" fill="#8A4A32"/></svg>`;

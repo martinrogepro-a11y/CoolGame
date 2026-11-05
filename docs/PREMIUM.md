@@ -147,6 +147,17 @@ règle. Un niveau ambigu ou à plusieurs solutions donne l'impression d'un jeu b
 - **Textes** : on parle d'une fontaine et d'une maison, plus jamais d'atelier ; les pluriels suivent la règle de
   chaque langue ; la série de jours n'est affichée qu'à partir de 1.
 
+### Passe game design (compétences level-design, game-feel, puzzle, save-systems)
+- **Courbe de difficulté en dents de scie** dans chaque chapitre : le niveau le plus doux ouvre le chapitre et
+  enseigne sa mécanique, chaque montée est suivie d'une respiration, et le plus dur ferme le chapitre. Avant, le
+  4e niveau de la Nuit (« lantern ») était le plus dur du jeu ; il en est maintenant le grand final. Un test
+  verrouille la règle.
+- **Sauvegarde versionnée** : les étoiles suivent leur dessin quand l'ordre du voyage change (`JOURNEY_ORDER`).
+- **Arrivée de l'eau** : la maison rebondit (écrasement et étirement, volume conservé) et un anneau s'étend sur
+  le canal, en moins d'une seconde. C'est plus calme si le système demande de réduire les animations.
+- **Une seule monnaie** : les tesselles s'affichent en un seul total, avec une icône de tesselle à quatre
+  couleurs. Les couleurs restent dans la sauvegarde sans changer quoi que ce soit au jeu.
+
 ## 4. Les boucles de rétention
 
 | Horizon | Mécanique | État |

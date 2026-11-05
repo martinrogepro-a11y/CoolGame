@@ -5,7 +5,7 @@ import { audio, music } from '../core/audio';
 import { haptics } from '../core/haptics';
 import { dayKey } from '../core/rng';
 import { notifications, review, shareText } from '../core/services';
-import { MATERIALS, type Palette } from '../game/content';
+import { type Palette } from '../game/content';
 import {
   applyLevel, CHEST_STARS, claimAlbum, doubleRun, openChest, persist, save, type ChestReward, type LevelResult,
 } from '../meta/save';
@@ -17,7 +17,7 @@ import { PuzzleState } from '../puzzle/puzzle';
 import type { ThemeId } from '../puzzle/scene';
 import { drawPictureThumb, PuzzleRenderer } from '../puzzle/puzzleRender';
 import { plural, t, type Key } from './i18n';
-import { icon } from './icons';
+import { icon, tess } from './icons';
 
 export { levelAt } from '../puzzle/levels';
 
@@ -34,7 +34,6 @@ export interface PuzzleHost {
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const sq = (c: number) => `<i class="sq" style="background:${MATERIALS[c].color}"></i>`;
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 const EMOJI = ['🟥', '🟦', '🟩', '🟨', '🟪', '⬜'];
 
@@ -393,7 +392,7 @@ export class PuzzleMode {
     const r = this.result!;
     const perfect = st.perfect(this.hintsUsed);
     const stars = [0, 1, 2].map((k) => `<i class="star ${k === 0 || perfect ? 'on' : ''}">★</i>`).join('');
-    const chips = r.earned.map((n, c) => (n > 0 ? `<span class="t">${sq(c)}<b data-count="${n}">0</b></span>` : '')).join('');
+    const chips = r.total > 0 ? `<span class="t">${tess}<b data-count="${r.total}">0</b></span>` : '';
     const canDouble = !this.doubled && r.total > 0 && ads.rewardedAvailable();
     const chestPct = Math.min(100, Math.round((save.puzzle.chest / CHEST_STARS) * 100));
     const chestReady = save.puzzle.chest >= CHEST_STARS;
@@ -445,7 +444,7 @@ export class PuzzleMode {
     this.host.modal(`
       <div class="chest-burst">${icon.gift}</div>
       <h2 class="display">${t('pz_chestTitle')}</h2>
-      <div class="earned"><span class="t">${icon.bulb} +${r.hints}</span><span class="t">${sq(0)}${sq(1)} +${r.tesserae}</span></div>
+      <div class="earned"><span class="t">${icon.bulb} +${r.hints}</span><span class="t">${tess} +${r.tesserae}</span></div>
       ${r.palette ? `<p>${t('pz_chestPalette', { p: t(`pal_${r.palette}` as Key) })}</p>` : ''}
       <div class="stack"><button class="btn primary" data-a="pz-chest-ok">${t('collect')}</button></div>`);
   }

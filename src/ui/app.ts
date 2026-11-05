@@ -13,14 +13,13 @@ import { iap } from '../monetization/iap';
 import { chapterOf, CHAPTERS, firstLevelOf } from '../puzzle/chapters';
 import { drawPictureThumb } from '../puzzle/puzzleRender';
 import { plural, t, type Key } from './i18n';
-import { icon, logoMark } from './icons';
+import { icon, logoMark, tess } from './icons';
 import { skylineBand } from './band';
 import { levelAt, PuzzleMode, scheduleReminders } from './puzzleMode';
 
 type Screen = 'home' | 'collection' | 'shop' | 'settings' | 'puzzle' | 'levels' | 'village';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const sq = (c: number) => `<i class="sq" style="background:${MATERIALS[c].color}"></i>`;
 
 export class App {
   private ui: HTMLElement;
@@ -303,9 +302,8 @@ export class App {
   // ---------------------------------------------------------------- home
 
   private wallet(): string {
-    return `<div class="wallet">${save.tesserae
-      .map((n, c) => (c < 4 || n > 0 ? `<span class="t">${sq(c)}${n}</span>` : ''))
-      .join('')}</div>`;
+    // The colours of the tesserae are kept in the save but players see one currency.
+    return `<div class="wallet"><span class="t">${tess}<b>${save.tesserae.reduce((a, b) => a + b, 0)}</b></span></div>`;
   }
 
   private missionText(m: Mission): string {
@@ -383,8 +381,8 @@ export class App {
         const right = m.claimed
           ? `<span class="reward">${icon.check}</span>`
           : done
-            ? `<button class="btn primary" data-a="claim" data-v="${m.id}">${t('claim')} +${m.reward} ${sq(0)}</button>`
-            : `<span class="reward">+${m.reward} ${sq(0)}</span>`;
+            ? `<button class="btn primary" data-a="claim" data-v="${m.id}">${t('claim')} +${m.reward} ${tess}</button>`
+            : `<span class="reward">+${m.reward} ${tess}</span>`;
         return `<div class="mission"><div class="txt"><span>${esc(this.missionText(m))}</span>
           <div class="bar"><i style="width:${Math.round((m.progress / m.goal) * 100)}%"></i></div><small>${Math.min(m.progress, m.goal)}/${m.goal}</small></div>${right}</div>`;
       })
@@ -548,7 +546,7 @@ export class App {
         <div class="wallet-row"><small>${t('wallet')}</small>${this.wallet()}</div>
         <div class="card shop-item"><span class="ic">${icon.bulb}</span>
           <span class="txt"><b>${t('trade', { n: HINT_PACK.hints })}</b><small>${t('trade_d')}</small></span>
-          <button class="btn primary" data-a="trade">${HINT_PACK.cost} ${sq(0)}</button></div>
+          <button class="btn primary" data-a="trade">${HINT_PACK.cost} ${tess}</button></div>
         ${item(P.tesseraeS, icon.grid, 'tilesS', 'tilesS_d', false)}
         ${item(P.tesseraeL, icon.gift, 'tilesL', 'tilesL_d', false)}
         <button class="link" data-a="restore">${t('restore')}</button>

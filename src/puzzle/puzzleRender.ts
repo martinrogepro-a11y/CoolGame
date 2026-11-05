@@ -38,11 +38,14 @@ export class PuzzleRenderer {
   reveal = 0;
   /** Water pulse running along freshly connected canals. */
   private pulses: { k: number; t: number }[] = [];
+  /** Endpoints the water has just reached, with the time since: they bounce and ripple. */
+  private arrivals = new Map<number, number>();
+  private calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   /** Water fill progress (0..1) of each linked canal, keyed by its two ends. */
   private flow = new Map<number, number>();
   /** True while something on the board is moving fast (water rushing in, a hint, the reveal). */
   get animating(): boolean {
-    return this.pulses.length > 0 || (this.reveal > 0 && this.reveal < 1) || [...this.flow.values()].some((f) => f < 1);
+    return this.pulses.length > 0 || this.arrivals.size > 0 || (this.reveal > 0 && this.reveal < 1) || [...this.flow.values()].some((f) => f < 1);
   }
   /** Width of the mosaic border, in cells. */
   private border = 0.34;
@@ -387,8 +390,13 @@ export class PuzzleRenderer {
       if (path.length < 2) return;
       const key = path[0] * 1000 + path[path.length - 1];
       live.add(key);
-      if (st.isConnected(k)) this.flow.set(key, Math.min(1, (this.flow.get(key) ?? 0) + dt * (2.6 / Math.max(1, path.length / 4))));
-      else this.flow.delete(key);
+      if (st.isConnected(k)) {
+        const was = this.flow.get(key) ?? 0;
+        const now = Math.min(1, was + dt * (2.6 / Math.max(1, path.length / 4)));
+        this.flow.set(key, now);
+        // The water reaches the far end: that moment gets its own small celebration.
+        if (was < 1 && now >= 1) this.arrivals.set(path[path.length - 1], 0);
+      } else this.flow.delete(key);
     });
     for (const key of [...this.flow.keys()]) if (!live.has(key)) this.flow.delete(key);
 
@@ -498,6 +506,10 @@ export class PuzzleRenderer {
       const ang = Math.atan2(y1 - y0, x1 - x0) + (u < 1 ? 0 : Math.PI);
       this.drawBoat(x, y, ang, colorOf(st.pathColor(k)), k);
     });
+    for (const [cell, t] of this.arrivals) {
+      if (t > 0.7) this.arrivals.delete(cell);
+      else this.arrivals.set(cell, t + dt);
+    }
     // Short highlight on canals laid by a hint.
     for (let j = this.pulses.length - 1; j >= 0; j--) {
       const pu = this.pulses[j];
@@ -932,8 +944,30 @@ export class PuzzleRenderer {
       const col = colorOf(e.hue);
       const done = connected.has(e.cell);
       const glyph = e.hue < 5 ? MATERIALS[e.hue].glyph : 'circle';
+      // Arrival of the water: a ring spreads on the canal, the piece squashes and springs back
+      // (volume kept: wider as it gets shorter), then rests. Brief, and calmer if the player
+      // asked the system for reduced motion.
+      const t = this.arrivals.get(e.cell);
+      g.save();
+      if (t !== undefined) {
+        const u = Math.min(1, t / 0.6);
+        g.strokeStyle = col;
+        g.globalAlpha = 0.55 * (1 - u);
+        g.lineWidth = 0.07;
+        g.beginPath();
+        g.arc(x, y, 0.32 + u * 0.55, 0, Math.PI * 2);
+        g.stroke();
+        g.globalAlpha = 1;
+        if (!this.calm) {
+          const a = Math.exp(-7 * t) * Math.sin(16 * t) * 0.22;
+          g.translate(x, y + 0.3);
+          g.scale(1 + a, 1 - a * 0.8);
+          g.translate(-x, -y - 0.3);
+        }
+      }
       if (e.kind === 'fountain') this.fountain(x, y, col, done, e.cell);
       else this.building(x, y, col, done);
+      g.restore();
       if (this.colorblind || e.kind === 'fountain') {
         g.fillStyle = 'rgba(255,255,255,0.95)';
         drawGlyph(g, glyph, x, y + (e.kind === 'fountain' ? 0 : 0.04), this.dense ? 0.12 : 0.09);

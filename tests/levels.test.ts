@@ -3,8 +3,21 @@ import { CHAPTERS, chapterOf, LEVEL_COUNT } from '../src/puzzle/chapters';
 import { dailyLevel, levelAt } from '../src/puzzle/levels';
 import { PuzzleState } from '../src/puzzle/puzzle';
 import { solve } from '../src/puzzle/solver';
+import BUILT from '../src/puzzle/levels.json';
 
 describe('journey levels', () => {
+  // Difficulty = solver search size. Each chapter is a lesson: gentlest first, hardest last,
+  // and the first half never harder than the last three (a rising sawtooth, not a cliff).
+  it('each chapter rises like a sawtooth', () => {
+    const nodes = (id: string) => (BUILT as Record<string, { nodes: number }>)[id].nodes;
+    for (const ch of CHAPTERS) {
+      const d = ch.pictures.map(nodes);
+      expect(Math.min(...d), ch.id).toBe(d[0]);
+      expect(Math.max(...d), ch.id).toBe(d[d.length - 1]);
+      expect(Math.max(...d.slice(0, 5)), ch.id).toBeLessThan(Math.min(...d.slice(-3)));
+    }
+  });
+
   it('has 5 chapters of 10 distinct pictures', () => {
     expect(CHAPTERS).toHaveLength(5);
     const ids = CHAPTERS.flatMap((c) => c.pictures);

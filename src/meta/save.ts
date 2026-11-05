@@ -1,5 +1,6 @@
 import { dayKey, daysBetween, hashString, Rng } from '../core/rng';
 import { storage } from '../core/storage';
+import { CHAPTERS, JOURNEY_ORDER, JOURNEY_V1 } from '../puzzle/chapters';
 import type { VillageSave } from './village';
 
 const KEY = 'tessera.save.v1';
@@ -41,6 +42,8 @@ export interface SaveData {
     chest: number;
     /** Chapters whose album reward was claimed. */
     albums: string[];
+    /** Journey order the stars are recorded in (see JOURNEY_ORDER). */
+    order: number;
   };
   /** One-time prompts already shown (store review, notification permission). */
   asked: { review: boolean; notifications: boolean };
@@ -67,7 +70,7 @@ export function freshSave(): SaveData {
     tutorialDone: false,
     firstDay: today,
     gift: 0,
-    puzzle: { next: 0, stars: [], chest: 0, albums: [] },
+    puzzle: { next: 0, stars: [], chest: 0, albums: [], order: JOURNEY_ORDER },
     asked: { review: false, notifications: false },
     hints: 3,
     village: { stars: 0, done: [] },
@@ -92,12 +95,13 @@ export function migrate(raw: unknown): SaveData {
     missions: { day: r.missions?.day ?? '', list: (r.missions?.list ?? []).filter((m) => MISSION_KINDS.includes(m.kind)) },
     purchases: { ...base.purchases, ...(r.purchases ?? {}) },
     ads: { ...base.ads, ...(r.ads ?? {}) },
-    puzzle: {
+    puzzle: reorderJourney({
       next: r.puzzle?.next ?? 0,
       stars: [...(r.puzzle?.stars ?? [])],
       chest: r.puzzle?.chest ?? 0,
       albums: [...(r.puzzle?.albums ?? [])],
-    },
+      order: r.puzzle?.order ?? 1,
+    }),
     asked: { ...base.asked, ...(r.asked ?? {}) },
     hints: r.hints ?? base.hints,
     // Saves from before the village: every star already won becomes a star to spend.
@@ -106,6 +110,26 @@ export function migrate(raw: unknown): SaveData {
       : { stars: (r.puzzle?.stars ?? []).reduce((a, b) => a + (b ?? 0), 0), done: [] },
     v: 1,
   };
+}
+
+/**
+ * Stars are stored by level index. When the journey's order changes, each star follows its
+ * picture to the new index, and the next level becomes the first one not yet solved.
+ */
+function reorderJourney(p: SaveData['puzzle']): SaveData['puzzle'] {
+  if (p.order >= JOURNEY_ORDER) return p;
+  const now = CHAPTERS.flatMap((c) => c.pictures);
+  const count = now.length;
+  const stars: number[] = [];
+  p.stars.forEach((s, i) => {
+    if (!s) return;
+    const encore = Math.floor(i / count);
+    const at = now.indexOf(JOURNEY_V1[i % count]);
+    if (at >= 0) stars[encore * count + at] = s;
+  });
+  let next = 0;
+  while (stars[next]) next++;
+  return { ...p, stars: Array.from(stars, (s) => s ?? 0), next, order: JOURNEY_ORDER };
 }
 
 export let save: SaveData = freshSave();

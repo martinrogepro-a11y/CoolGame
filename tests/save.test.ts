@@ -3,8 +3,23 @@ import { daysBetween } from '../src/core/rng';
 import {
   applyLevel, claimMission, doubleRun, freshSave, HINT_PACK, makeMissions, migrate, refreshDaily, touchStreak, tradeForHints,
 } from '../src/meta/save';
+import { CHAPTERS } from '../src/puzzle/chapters';
 
 describe('save & meta loop', () => {
+  it('keeps stars on the right pictures when the journey order changes', () => {
+    // Order 1 began heart, tree, drop, ...: heart and drop were solved, tree was not.
+    const s = migrate({ puzzle: { next: 3, stars: [3, 0, 1], chest: 0, albums: [] } });
+    const at = (id: string) => CHAPTERS.flatMap((c) => c.pictures).indexOf(id);
+    expect(s.puzzle.stars[at('heart')]).toBe(3);
+    expect(s.puzzle.stars[at('drop')]).toBe(1);
+    expect(s.puzzle.stars[at('tree')] ?? 0).toBe(0);
+    expect(s.puzzle.order).toBe(2);
+    // The next level is the first one not yet solved in the new order.
+    expect(s.puzzle.next).toBe(s.puzzle.stars.findIndex((x) => !x));
+    // A save already in the new order is left alone.
+    expect(migrate(s).puzzle.stars).toEqual(s.puzzle.stars);
+  });
+
   it('migrates partial / old saves without losing data', () => {
     const s = migrate({ lifetime: 120, tesserae: [5, 6], settings: { sound: false } });
     expect(s.lifetime).toBe(120);

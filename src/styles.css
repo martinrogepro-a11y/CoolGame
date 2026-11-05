@@ -2123,3 +2123,21 @@ button[disabled] {
 :root.dark .screen.meta .topbar small {
   color: #d8d4ca;
 }
+
+/* One currency: a tessera of four colours, sized with the text it sits in. */
+.tess {
+  width: 1.05em;
+  height: 1.05em;
+  vertical-align: -0.15em;
+  flex: none;
+}
+.earned .tess {
+  width: 22px;
+  height: 22px;
+}
+.wallet .t {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 17px;
+}
